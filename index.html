@@ -207,7 +207,8 @@ h2{margin:0 0 12px;font-size:clamp(24px,5vw,34px)}
 </div>
 <div id="toast"></div>
 
-<script src="https://pixijs.download/release/pixi.min.js"></script>
+<script src="https://pixijs.download/v7.4.2/pixi.min.js"
+  onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/pixi.js@7.4.2/dist/pixi.min.js';document.head.appendChild(s);"></script>
 <script>
 window.addEventListener('load',()=>{setTimeout(()=>{if(!window.PIXI){document.getElementById('toast').textContent='PixiJS ne charge pas. Vérifie ta connexion internet ou utilise la version projet locale.';document.getElementById('toast').style.display='block';}},900)});
 </script>
@@ -227,7 +228,7 @@ function mobile(){return matchMedia('(pointer:coarse)').matches}
 async function toggleFullscreen(){try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){toast('Plein écran bloqué par le navigateur')}}
 ['fsBtn','fsBtn2','hudFs'].forEach(id=>$(id).onclick=toggleFullscreen);
 const screens=['mainMenu','playMenu','optionsMenu','creditsMenu','pauseMenu'];
-let optionsReturn='mainMenu', portraitDismissed=false;
+let optionsReturn='mainMenu', portraitDismissed=false, pendingStart=false;
 function show(id){screens.forEach(x=>$(x).style.display=x===id?'flex':'none')}
 function openOptions(returnTo='mainMenu'){optionsReturn=returnTo;bindOptions();show('optionsMenu')}
 $('playBtn').onclick=()=>show('playMenu');
@@ -249,6 +250,7 @@ function orient(){
 addEventListener('resize',orient);
 addEventListener('orientationchange',()=>{portraitDismissed=false;orient()});
 orient();
+setInterval(()=>{if(pendingStart&&window.PIXI){pendingStart=false;startGame()}},250);
 
 let app,world,uiG,started=false,paused=false,selected=null,camera={x:0,y:0,z:.62,drag:false,lx:0,ly:0},units=[],effects=[],mines=[],obstacles=[];
 const terrain=[{t:'road',x:0,y:690,w:2600,h:130},{t:'forest',x:220,y:160,w:520,h:420},{t:'rocks',x:1580,y:260,w:420,h:330},{t:'urban',x:1180,y:980,w:520,h:340},{t:'open',x:0,y:0,w:W,h:H}];
@@ -269,11 +271,28 @@ function initUnits(){units=[]; for(let i=0;i<4;i++){units.push(makeSquad(i+1,'al
 ['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>units.push(makeVeh('E'+i,t,'enemy',2100-i*90,950+(i%2)*90)));}
 
 function startGame(){
- if(!window.PIXI){toast('PixiJS ne charge pas. Vérifie ta connexion internet.');return}
+ if(!window.PIXI){pendingStart=true;toast('Chargement du moteur PixiJS…');return}
  if(started){paused=false;$('hud').style.display='block';show('none');orient();return}
+ let createdApp=null;
+ try{
+   createdApp=new PIXI.Application({
+     view:$('game'),
+     resizeTo:window,
+     backgroundAlpha:0,
+     antialias:true,
+     autoDensity:true,
+     resolution:Math.min(window.devicePixelRatio||1,2)
+   });
+ }catch(err){
+   console.error('Erreur PIXI.Application',err);
+   $('hud').style.display='none';
+   show('mainMenu');
+   toast('Erreur de lancement PixiJS. Recharge la page ou vérifie la connexion.');
+   return;
+ }
+ app=createdApp;
  started=true; paused=false; portraitDismissed=false;
  $('hud').style.display='block'; show('none');
- app=new PIXI.Application({view:$('game'),resizeTo:window,backgroundAlpha:0,antialias:true});
  world=new PIXI.Container(); uiG=new PIXI.Graphics(); app.stage.addChild(world,uiG); initUnits(); setupInput(); app.ticker.add(tick); orient();
 }
 $('newGameBtn').onclick=startGame;
