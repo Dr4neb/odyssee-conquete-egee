@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.3 — Déploiement par points</title>
+<title>OPERATION OVERWATCH v0.4.3a — Assets Kenney intégrés</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -283,6 +283,84 @@ let dpr=1, started=false, paused=false, portraitDismissed=false, minimized=false
 let camera={x:0,y:170,z:.72}, last=0, units=[], effects=[], mines=[], obstacles=[], buildings=[];
 let pointer={down:false,id:null,x:0,y:0,lx:0,ly:0,moved:false}, touches=new Map(), pinchStart=0, pinchZoom=.72;
 let aiClock=0,fpsClock=0,fpsCount=0,fpsValue=60, shake=0;
+
+// v0.4.3a Asset Pass: real Kenney PNGs loaded from documented CC0 packs.
+// In standalone index.html the assets are loaded from a raw mirror so the game is immediately visible.
+// In the full project, the same canonical names are copied locally by scripts/download-kenney-assets.mjs.
+const RAW='https://raw.githubusercontent.com/ETdoFresh/kenney.nl/master/';
+const ASSET_URLS={
+  infantry:{
+    rifle: RAW+'topdown-shooter/PNG/Soldier%201/soldier1_gun.png',
+    rifleAlt: RAW+'topdown-shooter/PNG/Man%20Blue/manBlue_gun.png',
+    machine: RAW+'topdown-shooter/PNG/Soldier%201/soldier1_machine.png',
+    command: RAW+'topdown-shooter/PNG/Man%20Blue/manBlue_hold.png',
+    weaponGun: RAW+'topdown-shooter/PNG/weapon_gun.png',
+    weaponMachine: RAW+'topdown-shooter/PNG/weapon_machine.png'
+  },
+  vehicles:{
+    humveeAlly: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_blue.png',
+    humveeEnemy: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_red.png',
+    apcAlly: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_green.png',
+    apcEnemy: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_bigRed.png',
+    ifvAlly: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_darkLarge.png',
+    ifvEnemy: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_bigRed.png',
+    mbtAlly: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_huge.png',
+    mbtEnemy: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_bigRed.png',
+    barrel1: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBlue_barrel1.png',
+    barrel2: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBlue_barrel2.png',
+    barrel3: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBlue_barrel3.png',
+    truck: RAW+'kenney_topdowntanksredux/PNG/Default%20size/crateMetal.png',
+    ambulance: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_blue.png',
+    wreckLight: RAW+'kenney_topdowntanksredux/PNG/Default%20size/barrelRust_side.png',
+    wreckHeavy: RAW+'kenney_topdowntanksredux/PNG/Default%20size/tankBody_darkLarge.png'
+  },
+  cover:{
+    sandbag: RAW+'kenney_topdowntanksredux/PNG/Default%20size/sandbagBeige.png',
+    barricade: RAW+'kenney_topdowntanksredux/PNG/Default%20size/barricadeMetal.png',
+    wood: RAW+'kenney_topdowntanksredux/PNG/Default%20size/barricadeWood.png'
+  },
+  effects:{
+    explosion: RAW+'kenney_topdowntanksredux/PNG/Default%20size/explosion5.png',
+    explosionSmall: RAW+'kenney_topdowntanksredux/PNG/Default%20size/explosion3.png',
+    smoke: RAW+'kenney_topdowntanksredux/PNG/Default%20size/explosionSmoke3.png',
+    shot: RAW+'kenney_topdowntanksredux/PNG/Default%20size/shotLarge.png',
+    shotThin: RAW+'kenney_topdowntanksredux/PNG/Default%20size/shotThin.png',
+    impact: RAW+'kenney_topdowntanksredux/PNG/Default%20size/bulletSand2.png'
+  }
+};
+const assetImages={};let visualAssetsReady=false, visualAssetsRequested=false;
+function loadVisualAssets(){
+  if(visualAssetsRequested)return;visualAssetsRequested=true;
+  const jobs=[];
+  const walk=(obj,path=[])=>{
+    for(const [k,v] of Object.entries(obj)){
+      if(typeof v==='string')jobs.push([path.concat(k).join('.'),v]);
+      else walk(v,path.concat(k));
+    }
+  };
+  walk(ASSET_URLS);
+  let ok=0;
+  for(const [key,src] of jobs){
+    const img=new Image(); img.crossOrigin='anonymous'; img.decoding='async';
+    img.onload=()=>{setNested(assetImages,key,img);ok++;if(ok>=6)visualAssetsReady=true};
+    img.onerror=()=>{};
+    img.src=src;
+  }
+}
+function setNested(root,path,value){const parts=path.split('.');let o=root;for(let i=0;i<parts.length-1;i++)o=o[parts[i]]||(o[parts[i]]={});o[parts[parts.length-1]]=value}
+function getNested(root,path){return path.split('.').reduce((o,k)=>o&&o[k],root)}
+function imageOk(path){const img=getNested(assetImages,path);return img&&img.complete&&img.naturalWidth>0?img:null}
+function drawImageCentered(img,x,y,w,h,rot=0,tint=null,alpha=1){
+  if(!img)return false;
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.globalAlpha*=alpha;
+  ctx.drawImage(img,-w/2,-h/2,w,h);
+  if(tint){
+    ctx.globalCompositeOperation='source-atop';ctx.globalAlpha*=tint.alpha??0.28;ctx.fillStyle=tint.color;
+    ctx.fillRect(-w/2,-h/2,w,h);ctx.globalCompositeOperation='source-over';
+  }
+  ctx.restore();return true;
+}
+
 
 const terrain=[
   {t:'open',x:0,y:0,w:W,h:H},
@@ -795,7 +873,18 @@ function drawObjective(o){
   ctx.fillStyle=col;round(-50,o.r+12,100*clamp(Math.abs(o.p)/55,0,1),8,4,true);
   ctx.restore();
 }
+
+function drawKenneyObstacle(o){
+  const key=o.type==='concrete'?'cover.barricade':o.type==='barrier'?'cover.wood':'cover.sandbag';
+  const img=imageOk(key); if(!img)return false;
+  ctx.save();ctx.translate(o.x,o.y);
+  ctx.fillStyle='rgba(0,0,0,.26)';ctx.beginPath();ctx.ellipse(4,9,48,14,0,0,Math.PI*2);ctx.fill();
+  drawImageCentered(img,0,0,o.type==='concrete'?92:88,o.type==='sandbag'?35:32,0,null,1);
+  ctx.restore();return true;
+}
+
 function drawObstacle(o){
+  if(drawKenneyObstacle(o))return;
   ctx.save();ctx.translate(o.x,o.y);
   ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(4,9,45,13,0,0,Math.PI*2);ctx.fill();
   if(o.type==='concrete'){
@@ -858,7 +947,50 @@ function drawDownedSquad(u,p){
   drawSoldierAsset(10,4,.3,p,'rifle',false,true);
   ctx.restore();
 }
+
+function drawKenneySquad(u,p){
+  const base=imageOk(u.type==='anti_vehicle'?'infantry.machine':(u.cmd?'infantry.command':'infantry.rifle'))||imageOk('infantry.rifleAlt')||imageOk('infantry.rifle');
+  if(!base)return false;
+  const suppressed=u.supp>70, lowMorale=u.morale<30;
+  ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.face||0);ctx.globalAlpha=suppressed?.88:1;
+  ctx.fillStyle='rgba(0,0,0,.32)';ctx.beginPath();ctx.ellipse(0,10,44,25,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=u.selected?'rgba(235,245,240,.72)':(u.faction==='ally'?'rgba(100,195,235,.34)':'rgba(240,105,82,.34)');
+  ctx.lineWidth=u.selected?2:1.2;ctx.beginPath();ctx.ellipse(0,5,41,24,0,0,Math.PI*2);ctx.stroke();
+
+  const pts=u.cmd?[[-12,-5],[12,7]]
+    : u.type==='anti_vehicle'?[[-24,-8],[0,2],[24,10]]
+    : u.formation==='column'?[[0,-28],[0,-10],[0,10],[0,28]]
+    : u.formation==='line'?[[-36,0],[-12,0],[12,0],[36,0]]
+    : u.formation==='spread'?[[-27,-18],[27,-18],[-27,18],[27,18]]
+    : [[0,-25],[-23,5],[23,5],[0,27]];
+
+  for(const [i,pt] of pts.entries()){
+    const img=(u.type==='anti_vehicle'&&i===1&&imageOk('infantry.machine'))||base;
+    const tint=u.faction==='enemy'?{color:'#d4543f',alpha:.34}:{color:'#5eb6e7',alpha:.16};
+    drawImageCentered(img,pt[0],pt[1],30,30,(i%2?-0.10:0.12),tint,1);
+  }
+  if(u.type==='anti_vehicle'){
+    const launcher=imageOk('infantry.weaponMachine');
+    if(launcher)drawImageCentered(launcher,8,-34,30,12,0,{color:'#d7d4bd',alpha:.18},1);
+    ctx.fillStyle='rgba(221,230,210,.95)';round(-10,-42,22,14,4,true);
+    ctx.fillStyle='#101512';ctx.font='900 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('AT',1,-35);
+  }
+  if(u.cmd){
+    ctx.fillStyle='rgba(255,232,150,.95)';ctx.beginPath();ctx.arc(0,-35,8,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#141916';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('★',0,-35);
+  }
+  if(suppressed){
+    ctx.strokeStyle='rgba(255,210,93,.72)';ctx.lineWidth=2;ctx.setLineDash([5,6]);ctx.beginPath();ctx.arc(0,2,37,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  }
+  if(lowMorale){
+    ctx.fillStyle='rgba(255,210,93,.92)';ctx.beginPath();ctx.moveTo(27,-33);ctx.lineTo(36,-18);ctx.lineTo(18,-18);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#111';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText('!',27,-20);
+  }
+  ctx.restore();return true;
+}
+
 function drawSquadAsset(u,p){
+  if(drawKenneySquad(u,p))return;
   const suppressed=u.supp>70, lowMorale=u.morale<30;
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.face||0);ctx.globalAlpha=suppressed?.86:1;
 
@@ -970,7 +1102,48 @@ function drawSoldierAsset(x,y,rot,p,role,enemy,downed,faction){
   }
   ctx.restore();
 }
+
+function drawKenneyVehicle(u,p){
+  const dims={humvee:[64,42],apc:[80,52],ifv:[86,54],mbt:[102,64],truck:[82,52],ambulance:[78,50],support:[82,50]}[u.type]||[74,46];
+  const side=u.faction==='enemy'?'Enemy':'Ally';
+  let key={humvee:'vehicles.humvee'+side,apc:'vehicles.apc'+side,ifv:'vehicles.ifv'+side,mbt:'vehicles.mbt'+side}[u.type];
+  let img=key&&imageOk(key);
+  const recoil=(u.recoil||0)*8;
+  ctx.save();ctx.translate(u.x-Math.cos(u.rot)*recoil,u.y-Math.sin(u.rot)*recoil);ctx.rotate(u.rot);
+  ctx.fillStyle='rgba(0,0,0,.34)';ctx.beginPath();ctx.ellipse(2,9,dims[0]*.52,dims[1]*.48,0,0,Math.PI*2);ctx.fill();
+
+  if(u.type==='truck'||u.type==='support'){
+    const crate=imageOk('vehicles.truck');
+    if(crate){
+      drawImageCentered(crate,-10,0,dims[0]*.54,dims[1]*.54,Math.PI/2,u.faction==='enemy'?{color:'#cc553f',alpha:.20}:{color:'#6a8d65',alpha:.18},1);
+      ctx.fillStyle=u.type==='support'?'rgba(218,185,86,.95)':'rgba(92,112,84,.95)';round(2,-dims[1]*.33,dims[0]*.48,dims[1]*.66,5,true);
+      ctx.fillStyle='#111915';ctx.font='900 16px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';if(u.type==='support')ctx.fillText('✚',22,0);
+    } else {ctx.restore();return false}
+  }else if(u.type==='ambulance'){
+    img=imageOk('vehicles.ambulance')||imageOk('vehicles.humveeAlly');
+    if(!img){ctx.restore();return false}
+    drawImageCentered(img,0,0,dims[0],dims[1],Math.PI/2,{color:'#e7eeee',alpha:.42},1);
+    ctx.strokeStyle='#c9463c';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-8,0);ctx.lineTo(14,0);ctx.moveTo(3,-11);ctx.lineTo(3,11);ctx.stroke();
+  }else{
+    if(!img){ctx.restore();return false}
+    drawImageCentered(img,0,0,dims[0],dims[1],Math.PI/2,null,1);
+    const barrel=imageOk(u.type==='mbt'?'vehicles.barrel3':u.type==='ifv'?'vehicles.barrel2':'vehicles.barrel1');
+    if(barrel&&['mbt','ifv','apc','humvee'].includes(u.type)){
+      const bw=u.type==='mbt'?62:u.type==='ifv'?48:34, bh=u.type==='mbt'?15:12;
+      drawImageCentered(barrel,dims[0]*.20,0,bw,bh,Math.PI/2,u.faction==='enemy'?{color:'#c95744',alpha:.18}:null,1);
+    }
+  }
+  ctx.fillStyle=u.faction==='enemy'?'rgba(255,103,82,.96)':'rgba(105,205,245,.96)';
+  ctx.beginPath();ctx.moveTo(dims[0]/2-2,0);ctx.lineTo(dims[0]/2-16,-7);ctx.lineTo(dims[0]/2-16,7);ctx.closePath();ctx.fill();
+  ctx.restore();
+
+  if(u.crit==='disabled')circle(u.x,u.y,40,'rgba(255,223,112,.82)',2);
+  if(u.crit==='damaged'&&settings.graphics.effects==='normal'&&Math.random()<.18)spawn('wreckSmoke',u.x+rand(-14,14),u.y+rand(-12,12));
+  return true;
+}
+
 function drawVehicleAsset(u,p){
+  if(drawKenneyVehicle(u,p))return;
   const dims={humvee:[66,31],apc:[78,40],ifv:[82,42],mbt:[96,50],truck:[88,38],ambulance:[76,36],support:[82,36]}[u.type]||[70,34];
   const recoil=(u.recoil||0)*8;
   ctx.save();ctx.translate(u.x-Math.cos(u.rot)*recoil,u.y-Math.sin(u.rot)*recoil);ctx.rotate(u.rot);
@@ -1034,6 +1207,18 @@ function drawWreck(u){
 }
 function drawEffect(e){
   const a=clamp(e.life/e.max,0,1), grow=1-a;
+  if(e.type==='boom'){
+    const img=imageOk(e.heavy?'effects.explosion':'effects.explosionSmall');
+    if(img){drawImageCentered(img,e.x,e.y,(e.heavy?128:90)*grow+32,(e.heavy?128:90)*grow+32,0,null,a);return}
+  }
+  if(e.type==='smoke'||e.type==='wreckSmoke'){
+    const img=imageOk('effects.smoke');
+    if(img){drawImageCentered(img,e.x+Math.sin(grow*6)*10,e.y-18*grow,(e.type==='wreckSmoke'?90:56)*grow+24,(e.type==='wreckSmoke'?90:56)*grow+24,0,null,(e.type==='wreckSmoke'?.65:.55)*a);return}
+  }
+  if(e.type==='muzzle'){
+    const img=imageOk('effects.shot')||imageOk('effects.shotThin');
+    if(img){drawImageCentered(img,e.x,e.y,e.heavy?48:30,e.heavy?30:18,(e.rot||0),null,a);return}
+  }
   if(e.type==='dust'){
     ctx.fillStyle=`rgba(192,174,130,${.18*a})`;ctx.beginPath();ctx.ellipse(e.x,e.y,22*grow+6,11*grow+4,(e.rot||0),0,Math.PI*2);ctx.fill();
   }else if(e.type==='impact'){
@@ -1168,7 +1353,7 @@ function rand(a,b){return a+Math.random()*(b-a)}
 function normAng(a){while(a>Math.PI)a-=Math.PI*2;while(a<-Math.PI)a+=Math.PI*2;return a}
 
 document.addEventListener('pointerup',e=>{if(e.target.closest?.('button'))audio.play('ui_click',{volume:.22,cooldownKey:'ui_global',cooldown:.08})},{passive:true});
-optionEvents();bindOptions();resize();setupInput();show('mainMenu');render();
+loadVisualAssets();optionEvents();bindOptions();resize();setupInput();show('mainMenu');render();
 addEventListener('resize',()=>{resize();orient()});addEventListener('orientationchange',()=>{portraitDismissed=false;setTimeout(orient,80)});
 document.addEventListener('gesturestart',e=>e.preventDefault?.(),{passive:false});
 document.addEventListener('touchmove',e=>{if(started)e.preventDefault()},{passive:false});
