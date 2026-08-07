@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#10161c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Odyssée — Conquête de l'Égée v0.1.8</title>
+  <title>Odyssée — Conquête de l'Égée v0.2.4</title>
   <style>
     :root{
       --gold:#d7b568;
@@ -106,6 +106,20 @@
     #unitCard{
       display:flex;align-items:center;gap:8px;margin-bottom:7px
     }
+    #formationMenu{
+      position:fixed;left:50%;transform:translateX(-50%);bottom:150px;z-index:35;
+      width:min(520px,calc(100% - 18px));padding:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px
+    }
+    #formationMenu.hidden{display:none}
+    #formationMenu button{min-height:44px}
+    .formationHint{display:block;font-size:9px;color:#aeb7bf;font-weight:400;margin-top:2px}
+    #commanderPanel{
+      position:fixed;left:max(8px,env(safe-area-inset-left));top:150px;z-index:18;
+      width:250px;padding:9px 11px;font-size:10px;color:var(--muted);line-height:1.45
+    }
+    #commanderPanel b{color:#fff}
+    #commanderPanel .aura{color:#d8c17d}
+    @media(max-width:720px){#commanderPanel{display:none}}
     #unitIcon{
       width:38px;height:38px;border-radius:9px;background:linear-gradient(145deg,#2f4554,#18232d);
       display:grid;place-items:center;font-size:19px;border:1px solid rgba(255,255,255,.12)
@@ -120,22 +134,30 @@
 <div id="top">
   <div id="brand" class="panel">
     <b>ODYSSÉE — CONQUÊTE DE L'ÉGÉE</b>
-    <span>Fondation v0.1.8 — Carte grecque</span>
+    <span>Fondation v0.2.4 — Carte grecque</span>
   </div>
   <div id="res" class="panel">
     <span>🌾 <b id="food">150</b></span>
     <span>🪵 <b id="wood">110</b></span>
     <span>🪙 <b id="gold">85</b></span>
   </div>
-  <div id="objective" class="panel">Objectif : capturer le sanctuaire d'Apollon puis détruire le commandement ennemi.</div>
+  <div id="objective" class="panel">Objectif : sécuriser les deux ponts, éliminer le commandant d'Argos et capturer le sanctuaire.</div>
 </div>
 
 <div id="legend" class="panel">
   <b>Effets du terrain</b><br>
   Route : vitesse +16 %<br>
-  Forêt : camouflage, cavalerie ralentie<br>
+  Forêt / oliveraie : camouflage et couverture<br>
   Colline : portée et attaque renforcées<br>
+  Marécage : fort ralentissement<br>
   Plage : moral et vitesse réduits
+</div>
+
+<div id="commanderPanel" class="panel">
+  <b>Commandement</b><br>
+  <span class="aura">Aura du capitaine : moral + attaque</span><br>
+  Les unités hors de portée reçoivent les ordres plus lentement.<br>
+  La mort d'un commandant peut provoquer une panique locale.
 </div>
 
 <div id="battleLog" class="panel">
@@ -153,7 +175,11 @@
   Double-tapez pour recentrer rapidement.<br>
   Hoplites > cavalerie · Cavalerie > archers<br>
   Peltastes > cavalerie · Frondeurs > moral<br>
-  L'IA protège ses archers, cherche les hauteurs et replie les unités brisées.
+  L'IA protège ses archers, cherche les hauteurs et replie les unités brisées.<br>
+  Ligne : polyvalente · Phalange : frontale · Colonne : rapide<br>
+  Carré : anti-cavalerie · Coin : percée · Cercle : défense totale<br>
+  Ponts et gués : passages rapides · Marécage : ralentissement extrême<br>
+  Murs et falaises : obstacles tactiques · Commandants : aura et portée des ordres
 </div>
 
 <div id="toast"></div>
@@ -177,19 +203,30 @@
     </div>
   </div>
   <div id="actions" class="panel">
-    <button id="formation">Phalange</button>
+    <button id="formation">Formation</button>
     <button id="hold">Tenir</button>
     <button id="rally">Ralliement</button>
-    <button id="cameraBtn">Vue tactique</button><button id="helpBtn">Aide</button>
+    <button id="cameraBtn">Vue tactique</button>
+    <button id="helpBtn">Aide</button>
+    <button id="formationMenuBtn">Formations</button>
   </div>
+</div>
+
+<div id="formationMenu" class="panel hidden">
+  <button data-form="line">Ligne<span class="formationHint">mobile et large</span></button>
+  <button data-form="phalanx">Phalange<span class="formationHint">front renforcé</span></button>
+  <button data-form="column">Colonne<span class="formationHint">rapide sur route</span></button>
+  <button data-form="square">Carré<span class="formationHint">anti-cavalerie</span></button>
+  <button data-form="wedge">Coin<span class="formationHint">percée et charge</span></button>
+  <button data-form="circle">Cercle<span class="formationHint">défense totale</span></button>
 </div>
 
 <div id="start">
   <div id="card" class="panel">
     <h1>Conquête de l'Égée</h1>
-    <h2>Fondation — commandement tactique vivant</h2>
+    <h2>Batailles — terrain et commandants</h2>
     <p>
-      Cette version réunit les étapes v0.1.3, v0.1.4 et v0.1.8 : formations plus lisibles,
+      Cette version réunit les étapes v0.1.3, v0.1.4 et v0.2.4 : formations plus lisibles,
       six catégories d'unités, rôles tactiques distincts et véritables avantages ou pénalités
       selon le terrain.
     </p>
@@ -212,6 +249,7 @@ const ui = {
   morale:$("morale"), fatigue:$("fatigue"), terrain:$("terrain"),
   unitIcon:$("unitIcon"), stance:$("stance"), battleEntries:$("battleEntries"),
   formation:$("formation"), hold:$("hold"), rally:$("rally"),
+  formationMenuBtn:$("formationMenuBtn"), formationMenu:$("formationMenu"),
   cameraBtn:$("cameraBtn"), helpBtn:$("helpBtn"), help:$("help"), toast:$("toast"),
   start:$("start"), startBtn:$("startBtn"), objective:$("objective")
 };
@@ -326,6 +364,36 @@ const river=[
   {x:1900,y:320},{x:1960,y:670},{x:1880,y:970},{x:2020,y:1280},{x:2070,y:1650},{x:1980,y:2050},{x:2100,y:2420}
 ];
 
+
+const marshes=[
+  {x:1320,y:1200,r:150},{x:2800,y:1700,r:180}
+];
+
+const oliveGroves=[
+  {x:860,y:1080,r:145},{x:2920,y:930,r:160},{x:1560,y:2050,r:130}
+];
+
+const stoneWalls=[
+  {x1:1450,y1:900,x2:1750,y2:900},
+  {x1:2780,y1:1420,x2:3120,y2:1420},
+  {x1:900,y1:1900,x2:1180,y2:1900}
+];
+
+const cliffs=[
+  {x1:350,y1:620,x2:920,y2:540},
+  {x1:3020,y1:430,x2:3570,y2:520},
+  {x1:3300,y1:2180,x2:3880,y2:2320}
+];
+
+const bridges=[
+  {x:1935,y:930,w:110,h:42,name:"Pont nord"},
+  {x:1990,y:1900,w:120,h:44,name:"Pont sud"}
+];
+
+const fords=[
+  {x:2010,y:1450,r:70,name:"Gué central"}
+];
+
 const villages=[
   {x:650,y:1680,team:"player",name:"Camp d'Ithaque"},
   {x:3450,y:1120,team:"enemy",name:"Camp d'Argos"},
@@ -336,6 +404,22 @@ const points=[
   {x:2100,y:1390,r:80,owner:"neutral",progress:0,name:"Sanctuaire d'Apollon"},
   {x:1020,y:1510,r:70,owner:"player",progress:100,name:"Autel d'Athéna"},
   {x:3150,y:1260,r:70,owner:"enemy",progress:100,name:"Autel d'Arès"}
+];
+
+
+const commanders=[
+  {
+    id:"playerCommander",team:"player",name:"Leôn d'Ithaque",x:820,y:1660,
+    tx:820,ty:1660,hp:100,maxHP:100,radius:24,aura:380,orderRange:620,
+    attackBonus:1.10,moraleBonus:1.16,speed:78,alive:true,target:null,cooldown:0,
+    color:"#f0cf72",facing:0
+  },
+  {
+    id:"enemyCommander",team:"enemy",name:"Mégaclès d'Argos",x:3340,y:1260,
+    tx:3340,ty:1260,hp:100,maxHP:100,radius:24,aura:360,orderRange:600,
+    attackBonus:1.09,moraleBonus:1.14,speed:76,alive:true,target:null,cooldown:0,
+    color:"#b22d35",facing:Math.PI
+  }
 ];
 
 const archetypes={
@@ -412,7 +496,9 @@ function add(type,x,y,team){
     morale:a.morale,maxMorale:a.morale,fatigue:0,color:a.color,label:a.label,role:a.role,shape:a.shape,
     vision:a.vision,cost:a.cost,charge:a.charge,terrainBonus:a.terrainBonus,
     radius:a.shape==="horse"?44:38,attackCd:Math.random()*.5,rallyCd:0,
-    facing:team==="player"?0:Math.PI,terrain:"Plaine",movingTime:0,lastDist:0
+    facing:team==="player"?0:Math.PI,terrain:"Plaine",movingTime:0,lastDist:0,
+    pushX:0,pushY:0,engaged:false,frontWidth:90,depth:55,breakthrough:0,
+    orderDelay:0,pendingOrder:null,commanderBuff:1,commanderMoraleBuff:1
   });
 }
 add("hoplite",720,1430,"player");
@@ -428,8 +514,11 @@ add("eA",3470,940,"enemy");
 add("eS",3170,930,"enemy");
 add("eC",3150,1510,"enemy");
 add("eM",3650,1570,"enemy");
+units.forEach(applyFormation);
 
 function terrainAt(x,y){
+  for(const m of marshes) if(Math.hypot(x-m.x,y-m.y)<m.r) return "Marécage";
+  for(const o of oliveGroves) if(Math.hypot(x-o.x,y-o.y)<o.r) return "Oliveraie";
   for(const f of forests) if(Math.hypot(x-f.x,y-f.y)<f.r) return "Forêt";
   for(const h of hills) if(Math.hypot(x-h.x,y-h.y)<h.r) return "Colline";
   for(const b of beaches) if(x>b.x&&x<b.x+b.w&&y>b.y&&y<b.y+b.h) return "Plage";
@@ -469,18 +558,70 @@ function applyTerrain(u){
     speedMult=.82;
     moraleMult=.94;
   }
+  if(t==="Marécage"){
+    speedMult=u.shape==="horse"?.42:.62;
+    defenseMult=.9;
+    moraleMult=.92;
+  }
+  if(t==="Oliveraie"){
+    speedMult=u.shape==="horse"?.72:.9;
+    defenseMult=1.10;
+    stealth=.18;
+    if(u.shape==="javelin"||u.shape==="sling")attackMult=1.08;
+  }
   if(t==="Plaine"&&u.shape==="horse"){
     speedMult=1.08;
     attackMult=1.08;
   }
 
   const fatiguePenalty=Math.max(.58,1-u.fatigue*.0042);
-  u.speed=u.baseSpeed*speedMult*fatiguePenalty;
+  u.speed=u.baseSpeed*speedMult*fatiguePenalty*(u.formationSpeed||1);
   u.terrainAttack=attackMult;
   u.terrainDefense=defenseMult;
   u.terrainRange=rangeMult;
   u.terrainMorale=moraleMult;
   u.stealth=stealth;
+}
+
+
+const formationDefs={
+  line:{label:"Ligne",speed:1.00,armor:1.00,attack:1.00,morale:1.00,width:1.35,depth:.75,charge:1.00,turn:1.0},
+  phalanx:{label:"Phalange",speed:.70,armor:1.34,attack:1.08,morale:1.15,width:1.22,depth:.82,charge:.82,turn:.58},
+  column:{label:"Colonne",speed:1.18,armor:.82,attack:.86,morale:.92,width:.58,depth:1.42,charge:1.08,turn:1.15},
+  square:{label:"Carré",speed:.54,armor:1.22,attack:.92,morale:1.22,width:.86,depth:1.02,charge:.62,turn:.48},
+  wedge:{label:"Coin",speed:.94,armor:.90,attack:1.20,morale:1.05,width:.72,depth:1.24,charge:1.45,turn:.82},
+  circle:{label:"Cercle",speed:.48,armor:1.18,attack:.82,morale:1.18,width:.92,depth:.92,charge:.55,turn:.45}
+};
+function applyFormation(u){
+  const f=formationDefs[u.formation]||formationDefs.line;
+  u.formationSpeed=f.speed;
+  u.formationArmor=f.armor;
+  u.formationAttack=f.attack;
+  u.formationMorale=f.morale;
+  u.formationCharge=f.charge;
+  u.turnRate=f.turn;
+  u.frontWidth=(u.shape==="horse"?100:90)*f.width;
+  u.depth=(u.shape==="horse"?70:55)*f.depth;
+}
+function setFormation(u,name){
+  if(!u||!formationDefs[name])return;
+  u.formation=name;
+  applyFormation(u);
+  ui.formation.textContent=formationDefs[name].label;
+  logBattle(u.label+" adoptent la formation "+formationDefs[name].label.toLowerCase()+".");
+  toast("Formation : "+formationDefs[name].label);
+  updateUI();
+}
+function angleDiff(a,b){
+  let d=(a-b+Math.PI)%(Math.PI*2)-Math.PI;
+  return Math.abs(d);
+}
+function attackArcMultiplier(attacker,target){
+  const incoming=Math.atan2(attacker.y-target.y,attacker.x-target.x);
+  const diff=angleDiff(incoming,target.facing);
+  if(diff<Math.PI*.28)return {mult:.78,label:"front"};
+  if(diff>Math.PI*.72)return {mult:1.55,label:"dos"};
+  return {mult:1.28,label:"flanc"};
 }
 
 function updateUI(){
@@ -494,8 +635,8 @@ function updateUI(){
     ui.count.textContent=Math.ceil(selected.count);ui.hp.textContent=Math.ceil(selected.hp)+"%";
     ui.morale.textContent=Math.ceil(selected.morale)+"%";ui.fatigue.textContent=Math.ceil(selected.fatigue)+"%";
     ui.terrain.textContent=selected.terrain;
-    ui.formation.textContent=selected.formation==="line"?"Phalange":"Ligne";
-    ui.formation.classList.toggle("active",selected.formation==="phalanx");
+    ui.formation.textContent=(formationDefs[selected.formation]||formationDefs.line).label;
+    ui.formation.classList.toggle("active",selected.formation!=="line");
     ui.hold.classList.toggle("active",selected.hold);ui.hold.textContent=selected.hold?"Position tenue":"Tenir";
   }else{
     selected=null;ui.name.textContent="Aucune unité sélectionnée";ui.role.textContent="Touchez un groupe vert pour lui donner des ordres.";
@@ -516,11 +657,23 @@ function findUnit(x,y,team=null){
 function order(x,y){
   if(!selected)return;
   const enemy=findUnit(x,y,"enemy");
+  const commander=getCommander(selected.team);
+  const commandDistance=commander?Math.hypot(selected.x-commander.x,selected.y-commander.y):9999;
+  const delay=commander&&commandDistance<=commander.orderRange?0:.7;
+
   if(enemy){
-    selected.target=enemy;selected.hold=false;toast("Cible : "+enemy.label);
-    logBattle(selected.label+" engagent "+enemy.label+".");
+    selected.pendingOrder={type:"attack",target:enemy,delay};
+    selected.orderDelay=delay;
+    if(delay===0){selected.target=enemy;selected.hold=false}
+    toast(delay?"Ordre transmis avec retard":"Cible : "+enemy.label);
+    logBattle(selected.label+" reçoivent l'ordre d'engager "+enemy.label+".");
   }else{
-    selected.target=null;selected.tx=Math.max(40,Math.min(WORLD.w-40,x));selected.ty=Math.max(420,Math.min(WORLD.h-40,y));selected.hold=false;toast("Déplacement ordonné");
+    selected.pendingOrder={type:"move",x:Math.max(40,Math.min(WORLD.w-40,x)),y:Math.max(420,Math.min(WORLD.h-40,y)),delay};
+    selected.orderDelay=delay;
+    if(delay===0){
+      selected.target=null;selected.tx=selected.pendingOrder.x;selected.ty=selected.pendingOrder.y;selected.hold=false;
+    }
+    toast(delay?"Ordre hors portée : transmission lente":"Déplacement ordonné");
   }
 }
 
@@ -617,11 +770,19 @@ canvas.addEventListener("wheel",e=>{
 
 ui.formation.onclick=()=>{
   if(!selected)return;
-  selected.formation=selected.formation==="line"?"phalanx":"line";
-  if(selected.formation==="phalanx"){selected.armor=Math.min(.62,selected.baseArmor+.2);toast("Phalange : défense renforcée");logBattle(selected.label+" passent en phalange.")}
-  else{selected.armor=selected.baseArmor;toast("Formation en ligne");logBattle(selected.label+" reprennent une ligne mobile.")}
-  updateUI();
+  ui.formationMenu.classList.toggle("hidden");
 };
+ui.formationMenuBtn.onclick=()=>{
+  if(!selected){toast("Sélectionne d'abord une unité");return}
+  ui.formationMenu.classList.toggle("hidden");
+};
+ui.formationMenu.querySelectorAll("button[data-form]").forEach(btn=>{
+  btn.onclick=()=>{
+    if(!selected)return;
+    setFormation(selected,btn.dataset.form);
+    ui.formationMenu.classList.add("hidden");
+  };
+});
 ui.hold.onclick=()=>{if(!selected)return;selected.hold=!selected.hold;selected.target=null;selected.tx=selected.x;selected.ty=selected.y;toast(selected.hold?"Position verrouillée":"Position libérée");logBattle(selected.label+(selected.hold?" tiennent leur position.":" reprennent leur progression."));updateUI()};
 ui.rally.onclick=()=>{
   if(!selected)return;if(selected.rallyCd>0){toast("Ralliement indisponible");return}
@@ -727,11 +888,190 @@ function enemyAI(){
   }
 }
 
+
+
+function pointSegmentDistance(px,py,x1,y1,x2,y2){
+  const vx=x2-x1,vy=y2-y1,wx=px-x1,wy=py-y1;
+  const t=Math.max(0,Math.min(1,(wx*vx+wy*vy)/(vx*vx+vy*vy)));
+  return Math.hypot(px-(x1+t*vx),py-(y1+t*vy));
+}
+function isOnBridgeOrFord(x,y){
+  for(const b of bridges){
+    if(Math.abs(x-b.x)<b.w/2&&Math.abs(y-b.y)<b.h/2)return true;
+  }
+  for(const f of fords){
+    if(Math.hypot(x-f.x,y-f.y)<f.r)return true;
+  }
+  return false;
+}
+function applyObstacleCollisions(u){
+  for(const w of stoneWalls){
+    const d=pointSegmentDistance(u.x,u.y,w.x1,w.y1,w.x2,w.y2);
+    if(d<24){
+      const ang=Math.atan2(w.y2-w.y1,w.x2-w.x1)+Math.PI/2;
+      u.x+=Math.cos(ang)*(24-d);
+      u.y+=Math.sin(ang)*(24-d);
+      u.speed*=.55;
+    }
+  }
+  for(const c of cliffs){
+    const d=pointSegmentDistance(u.x,u.y,c.x1,c.y1,c.x2,c.y2);
+    if(d<30){
+      const ang=Math.atan2(c.y2-c.y1,c.x2-c.x1)+Math.PI/2;
+      u.x+=Math.cos(ang)*(30-d);
+      u.y+=Math.sin(ang)*(30-d);
+      u.speed*=.2;
+    }
+  }
+
+  const nearRiver=pointSegmentDistance(u.x,u.y,river[0].x,river[0].y,river[river.length-1].x,river[river.length-1].y)<28;
+  if(nearRiver&&!isOnBridgeOrFord(u.x,u.y)){
+    u.speed*=.34;
+    u.morale=Math.max(0,u.morale-.03);
+  }
+}
+
+function resolveCollisions(dt){
+  const alive=units.filter(u=>u.count>0);
+  for(const u of alive){u.pushX=0;u.pushY=0;u.engaged=false}
+
+  for(let i=0;i<alive.length;i++){
+    for(let j=i+1;j<alive.length;j++){
+      const a=alive[i],b=alive[j];
+      const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.001;
+      const minDist=(a.depth+b.depth)*.34;
+
+      if(d<minDist){
+        const nx=dx/d,ny=dy/d,overlap=minDist-d;
+        const enemy=a.team!==b.team;
+        const massA=Math.max(20,a.count)*(a.formationArmor||1)*(a.shape==="horse"?.9:1);
+        const massB=Math.max(20,b.count)*(b.formationArmor||1)*(b.shape==="horse"?.9:1);
+        const total=massA+massB;
+
+        if(enemy){
+          a.engaged=b.engaged=true;
+          const pressureA=(a.damage*a.count*(a.formationAttack||1))*(.65+a.morale/a.maxMorale*.35);
+          const pressureB=(b.damage*b.count*(b.formationAttack||1))*(.65+b.morale/b.maxMorale*.35);
+          const net=(pressureA-pressureB)/(Math.max(1,pressureA+pressureB));
+
+          a.pushX-=nx*(overlap*.7 + Math.max(0,-net)*22*dt);
+          a.pushY-=ny*(overlap*.7 + Math.max(0,-net)*22*dt);
+          b.pushX+=nx*(overlap*.7 + Math.max(0,net)*22*dt);
+          b.pushY+=ny*(overlap*.7 + Math.max(0,net)*22*dt);
+
+          if(Math.abs(net)>.32){
+            const loser=net>0?b:a;
+            loser.morale=Math.max(0,loser.morale-dt*4.5*Math.abs(net));
+            if(Math.random()<dt*.9)spawnParticle((a.x+b.x)/2,(a.y+b.y)/2,"dust",2);
+          }
+        }else{
+          a.pushX-=nx*overlap*(massB/total);
+          a.pushY-=ny*overlap*(massB/total);
+          b.pushX+=nx*overlap*(massA/total);
+          b.pushY+=ny*overlap*(massA/total);
+        }
+      }
+    }
+  }
+
+  for(const u of alive){
+    u.x+=u.pushX;
+    u.y+=u.pushY;
+    u.x=Math.max(30,Math.min(WORLD.w-30,u.x));
+    u.y=Math.max(420,Math.min(WORLD.h-30,u.y));
+  }
+}
+
+
+function getCommander(team){
+  return commanders.find(c=>c.team===team&&c.alive);
+}
+function updateCommander(c,dt){
+  if(!c.alive)return;
+  c.cooldown=Math.max(0,c.cooldown-dt);
+
+  const enemies=units.filter(u=>u.team!==c.team&&u.count>0);
+  if(enemies.length){
+    const nearest=enemies.reduce((a,b)=>Math.hypot(a.x-c.x,a.y-c.y)<Math.hypot(b.x-c.x,b.y-c.y)?a:b);
+    const d=Math.hypot(nearest.x-c.x,nearest.y-c.y);
+    if(d<90){
+      c.target=nearest;
+      c.facing=Math.atan2(nearest.y-c.y,nearest.x-c.x);
+      if(c.cooldown<=0){
+        const dealt=7*(.85+Math.random()*.3)*(1-nearest.armor*.6);
+        nearest.hp-=dealt*.4;
+        nearest.count-=dealt*.05;
+        nearest.morale-=dealt*.12;
+        c.cooldown=.85;
+        spawnParticle(nearest.x,nearest.y,"spark",3);
+      }
+    }else if(d<260){
+      c.tx=c.x-(nearest.x-c.x)/d*70;
+      c.ty=c.y-(nearest.y-c.y)/d*70;
+    }
+  }
+
+  const dx=c.tx-c.x,dy=c.ty-c.y,d=Math.hypot(dx,dy)||1;
+  if(d>4){c.x+=dx/d*c.speed*dt;c.y+=dy/d*c.speed*dt;c.facing=Math.atan2(dy,dx)}
+
+  for(const u of units){
+    if(u.team!==c.team||u.count<=0)continue;
+    const dist=Math.hypot(u.x-c.x,u.y-c.y);
+    if(dist<c.aura){
+      u.commanderBuff=c.attackBonus;
+      u.commanderMoraleBuff=c.moraleBonus;
+      u.morale=Math.min(u.maxMorale,u.morale+dt*.55);
+    }else{
+      u.commanderBuff=1;
+      u.commanderMoraleBuff=1;
+    }
+  }
+}
+function damageCommander(c,amount,sourceName){
+  if(!c.alive)return;
+  c.hp-=amount;
+  spawnParticle(c.x,c.y,"spark",5);
+  if(c.hp<=0){
+    c.hp=0;c.alive=false;
+    spawnParticle(c.x,c.y,"smoke",10);
+    logBattle(c.name+" tombe au combat.");
+    for(const u of units){
+      if(u.team===c.team&&u.count>0&&Math.hypot(u.x-c.x,u.y-c.y)<520){
+        u.morale=Math.max(0,u.morale-28);
+      }
+    }
+    toast("Commandant éliminé : "+c.name);
+  }
+}
+function updateCommandRange(u){
+  const commander=getCommander(u.team);
+  if(!commander){u.orderDelay=Math.max(u.orderDelay,.45);return}
+  const d=Math.hypot(u.x-commander.x,u.y-commander.y);
+  if(d>commander.orderRange)u.orderDelay=Math.max(u.orderDelay,.7);
+}
+
 function updateUnit(u,dt){
   if(u.count<=0)return;
-  applyTerrain(u);u.attackCd-=dt;u.rallyCd=Math.max(0,u.rallyCd-dt);
+  applyTerrain(u);applyObstacleCollisions(u);updateCommandRange(u);
+  u.attackCd-=dt;u.rallyCd=Math.max(0,u.rallyCd-dt);
+
+  if(u.pendingOrder&&u.orderDelay>0){
+    u.orderDelay-=dt;
+    if(u.orderDelay<=0){
+      if(u.pendingOrder.type==="attack"){
+        u.target=u.pendingOrder.target;u.hold=false;
+      }else{
+        u.target=null;u.tx=u.pendingOrder.x;u.ty=u.pendingOrder.y;u.hold=false;
+      }
+      u.pendingOrder=null;
+    }
+  }
   if(u.target&&u.target.count>0){
     const dx=u.target.x-u.x,dy=u.target.y-u.y,d=Math.hypot(dx,dy)||1;u.facing=Math.atan2(dy,dx);
+    const enemyCommander=getCommander(u.team==="player"?"enemy":"player");
+    if(enemyCommander&&Math.hypot(enemyCommander.x-u.x,enemyCommander.y-u.y)<u.range+enemyCommander.radius&&u.attackCd<=0){
+      damageCommander(enemyCommander,u.damage*.28,u.label);
+    }
     const range=u.range*(u.terrainRange||1);
     if(d<=range+u.target.radius){
       u.fatigue=Math.min(100,u.fatigue+dt*1.2);
@@ -739,20 +1079,38 @@ function updateUnit(u,dt){
         const morale=.50+.50*(u.morale/u.maxMorale);
         const fatiguePower=Math.max(.58,1-u.fatigue*.004);
         const targetDefense=(u.target.terrainDefense||1);
-        const movingCharge=u.movingTime>1.1&&u.range<80?u.charge:1;
+        const movingCharge=u.movingTime>1.1&&u.range<80?u.charge*(u.formationCharge||1):1;
+        const arc=attackArcMultiplier(u,u.target);
         let typeBonus=1;
 
         if(u.shape==="shield"&&u.target.shape==="horse")typeBonus=1.28;
+        if(u.target.formation==="square"&&u.shape==="horse")typeBonus*=.48;
+        if(u.target.formation==="phalanx"&&u.shape==="horse"&&arc.label==="front")typeBonus*=.55;
         if(u.shape==="horse"&&(u.target.shape==="bow"||u.target.shape==="sling"))typeBonus=1.34;
         if(u.shape==="javelin"&&u.target.shape==="horse")typeBonus=1.20;
         if(u.shape==="sling")u.target.morale=Math.max(0,u.target.morale-2.2);
 
-        const dealt=u.damage*(u.terrainAttack||1)*morale*fatiguePower*movingCharge*typeBonus*
-          (.85+Math.random()*.3)*(1-u.target.armor)/targetDefense;
+        const dealt=u.damage*(u.terrainAttack||1)*(u.formationAttack||1)*(u.commanderBuff||1)*morale*fatiguePower*
+          movingCharge*typeBonus*arc.mult*(.85+Math.random()*.3)*
+          (1-u.target.armor*(u.target.formationArmor||1))/targetDefense;
 
         u.target.hp-=dealt*.4;
         u.target.count-=dealt*.085;
         u.target.morale-=dealt*(u.shape==="sling"?.22:.13);
+        if(arc.label==="flanc"||arc.label==="dos"){
+          u.target.morale-=dealt*(arc.label==="dos"?.16:.09);
+          if(Math.random()<.08)logBattle(u.label+" frappent le "+arc.label+" de "+u.target.label+".");
+        }
+        if(u.formation==="wedge"&&movingCharge>1.2&&u.range<80){
+          u.target.breakthrough=(u.target.breakthrough||0)+dealt*.08;
+          if(u.target.breakthrough>10){
+            const nx=Math.cos(u.facing),ny=Math.sin(u.facing);
+            u.target.x+=nx*18;u.target.y+=ny*18;
+            u.target.morale-=8;
+            u.target.breakthrough=0;
+            logBattle(u.label+" percent la ligne ennemie.");
+          }
+        }
         spawnParticle(u.target.x,u.target.y,"spark",u.range>100?2:4);
         if(u.range<80)spawnParticle(u.target.x,u.target.y,"dust",3);
         if(Math.random()<.10)spawnParticle(u.target.x,u.target.y,"smoke",1);
@@ -787,7 +1145,7 @@ function updateUnit(u,dt){
       u.movingTime=0;
     }
   }else u.fatigue=Math.max(0,u.fatigue-dt*2.2);
-  u.morale=Math.min(u.maxMorale,(u.morale+dt*.55)*(u.terrainMorale||1));
+  u.morale=Math.min(u.maxMorale,(u.morale+dt*.55)*(u.terrainMorale||1)*(u.formationMorale||1)*(u.commanderMoraleBuff||1));
 }
 
 function capture(dt){
@@ -810,7 +1168,12 @@ function updateEconomy(dt){
 function checkWin(){
   if(victory)return;
   const aliveP=units.some(u=>u.team==="player"&&u.count>0),aliveE=units.some(u=>u.team==="enemy"&&u.count>0);
-  if(!aliveE||(points[0].owner==="player"&&!units.some(u=>u.team==="enemy"&&u.count>0&&Math.hypot(u.x-3450,u.y-1120)<500))){victory="VICTOIRE";ui.objective.textContent="Victoire : le sanctuaire et le commandement ennemi sont tombés.";toast("Victoire d'Ithaque !")}
+  const enemyCommander=commanders.find(c=>c.team==="enemy");
+  if(!aliveE||(points[0].owner==="player"&&enemyCommander&&!enemyCommander.alive)){
+    victory="VICTOIRE";
+    ui.objective.textContent="Victoire : le sanctuaire et le commandement ennemi sont tombés.";
+    toast("Victoire d'Ithaque !");
+  }
   else if(!aliveP){victory="DÉFAITE";ui.objective.textContent="Défaite : ton armée a été détruite.";toast("L'armée d'Ithaque est anéantie")}
 }
 
@@ -858,6 +1221,74 @@ function drawTerrain(){
   ctx.strokeRect(a.x,a.y,WORLD.w*camera.zoom,WORLD.h*camera.zoom);
 }
 
+
+function drawAdvancedTerrain(){
+  // Marshes
+  for(const m of marshes){
+    const s=w2s(m.x,m.y),r=m.r*camera.zoom;
+    ctx.fillStyle="rgba(74,95,71,.55)";
+    ctx.beginPath();ctx.ellipse(s.x,s.y,r,r*.62,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="rgba(45,65,52,.45)";ctx.lineWidth=1.5;
+    for(let i=0;i<12;i++){
+      const a=i*2.399,rr=r*.75*Math.sqrt((i+1)/12);
+      const x=s.x+Math.cos(a)*rr,y=s.y+Math.sin(a)*rr*.6;
+      ctx.beginPath();ctx.moveTo(x,y+5*camera.zoom);ctx.lineTo(x-2*camera.zoom,y-8*camera.zoom);ctx.stroke();
+    }
+  }
+
+  // Olive groves
+  for(const o of oliveGroves){
+    const s=w2s(o.x,o.y),r=o.r*camera.zoom;
+    ctx.fillStyle="rgba(91,111,62,.18)";
+    ctx.beginPath();ctx.arc(s.x,s.y,r,0,Math.PI*2);ctx.fill();
+    for(let i=0;i<22;i++){
+      const a=i*2.399,rr=r*.8*Math.sqrt((i+1)/22);
+      const x=s.x+Math.cos(a)*rr,y=s.y+Math.sin(a)*rr;
+      ctx.fillStyle="#6f8054";
+      ctx.beginPath();ctx.ellipse(x,y,6*camera.zoom,4*camera.zoom,.3,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle="#5d4931";ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x,y+3*camera.zoom);ctx.lineTo(x,y+9*camera.zoom);ctx.stroke();
+    }
+  }
+
+  // Stone walls
+  ctx.lineCap="round";
+  for(const w of stoneWalls){
+    const a=w2s(w.x1,w.y1),b=w2s(w.x2,w.y2);
+    ctx.strokeStyle="#8a806e";ctx.lineWidth=12*camera.zoom;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    ctx.strokeStyle="#b7aa94";ctx.lineWidth=3*camera.zoom;ctx.stroke();
+  }
+
+  // Cliffs
+  for(const c of cliffs){
+    const a=w2s(c.x1,c.y1),b=w2s(c.x2,c.y2);
+    ctx.strokeStyle="#5f5748";ctx.lineWidth=20*camera.zoom;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    ctx.strokeStyle="#9a8f73";ctx.lineWidth=5*camera.zoom;ctx.stroke();
+  }
+
+  // Bridges
+  for(const b of bridges){
+    const s=w2s(b.x,b.y);
+    ctx.fillStyle="#9b7448";ctx.fillRect(s.x-b.w*camera.zoom/2,s.y-b.h*camera.zoom/2,b.w*camera.zoom,b.h*camera.zoom);
+    ctx.strokeStyle="#5f4128";ctx.lineWidth=2;
+    for(let i=-2;i<=2;i++){
+      ctx.beginPath();
+      ctx.moveTo(s.x-b.w*camera.zoom/2,s.y+i*7*camera.zoom);
+      ctx.lineTo(s.x+b.w*camera.zoom/2,s.y+i*7*camera.zoom);
+      ctx.stroke();
+    }
+  }
+
+  // Fords
+  for(const f of fords){
+    const s=w2s(f.x,f.y);
+    ctx.fillStyle="rgba(201,187,137,.62)";
+    ctx.beginPath();ctx.ellipse(s.x,s.y,f.r*camera.zoom,f.r*.5*camera.zoom,0,0,Math.PI*2);ctx.fill();
+  }
+}
+
 function drawVillage(v){
   const s=w2s(v.x,v.y),col=v.team==="player"?"#5fa9e8":v.team==="enemy"?"#dd6767":"#c2b06d";
   for(let i=0;i<6;i++){
@@ -877,6 +1308,32 @@ function drawPoint(p){
   ctx.fillStyle="rgba(0,0,0,.76)";ctx.font=`bold ${12*Math.max(.8,camera.zoom)}px Arial`;ctx.textAlign="center";ctx.fillText(p.name,s.x,s.y-r-10);
 }
 
+
+function drawCommander(c){
+  if(!c.alive)return;
+  const s=w2s(c.x,c.y),z=camera.zoom;
+  const col=c.team==="player"?"#f0cf72":"#b22d35";
+
+  ctx.save();
+  ctx.translate(s.x,s.y);ctx.rotate(c.facing+Math.PI/2);
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.arc(0,0,8*z,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#d6d0c0";ctx.fillRect(-3*z,-10*z,6*z,14*z);
+  ctx.fillStyle=col;ctx.fillRect(-2*z,-27*z,3*z,18*z);
+  ctx.beginPath();ctx.moveTo(1*z,-27*z);ctx.lineTo(16*z,-22*z);ctx.lineTo(1*z,-17*z);ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle=c.team==="player"?"rgba(240,207,114,.28)":"rgba(178,45,53,.25)";
+  ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(s.x,s.y,c.aura*z,0,Math.PI*2);ctx.stroke();
+
+  ctx.fillStyle="rgba(0,0,0,.76)";ctx.fillRect(s.x-36*z,s.y-40*z,72*z,7*z);
+  ctx.fillStyle=col;ctx.fillRect(s.x-36*z,s.y-40*z,72*z*(c.hp/c.maxHP),7*z);
+  ctx.fillStyle="rgba(5,8,10,.84)";
+  ctx.font=`bold ${11*Math.max(.72,z)}px Arial`;ctx.textAlign="center";
+  ctx.fillText(c.name,s.x,s.y-47*z);
+}
+
 function drawUnit(u){
   if(u.count<=0)return;
   const s=w2s(u.x,u.y),z=camera.zoom;
@@ -884,6 +1341,14 @@ function drawUnit(u){
   if(selected===u){
     ctx.strokeStyle="#ffe28a";ctx.lineWidth=3;
     ctx.beginPath();ctx.arc(s.x,s.y,(u.radius+12)*z,0,Math.PI*2);ctx.stroke();
+    ctx.save();ctx.translate(s.x,s.y);ctx.rotate(u.facing);
+    ctx.strokeStyle="rgba(255,226,138,.75)";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(15*z,-u.frontWidth*.24*z);ctx.lineTo(15*z,u.frontWidth*.24*z);ctx.stroke();
+    ctx.restore();
+  }
+  if(u.engaged){
+    ctx.strokeStyle="rgba(255,135,75,.45)";ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(s.x,s.y,(u.radius+7)*z,0,Math.PI*2);ctx.stroke();
   }
 
   if(u.target){
@@ -895,13 +1360,34 @@ function drawUnit(u){
   let cols=9,rows=Math.max(3,Math.min(7,Math.ceil(u.count/15)));
   let sx=7.2*z,sy=7*z;
   if(u.formation==="phalanx"){cols=12;rows=Math.max(3,Math.min(6,Math.ceil(u.count/18)));sx=5.2*z;sy=5.2*z}
-  if(u.shape==="horse"){cols=6;rows=Math.max(2,Math.min(5,Math.ceil(u.count/8)));sx=11*z;sy=10*z}
+  if(u.formation==="column"){cols=4;rows=Math.max(5,Math.min(12,Math.ceil(u.count/8)));sx=7*z;sy=6.5*z}
+  if(u.formation==="square"){cols=8;rows=8;sx=6*z;sy=6*z}
+  if(u.formation==="wedge"){cols=9;rows=Math.max(4,Math.min(8,Math.ceil(u.count/12)));sx=7*z;sy=7*z}
+  if(u.formation==="circle"){cols=10;rows=6;sx=7*z;sy=7*z}
+  if(u.shape==="horse"){cols=u.formation==="column"?3:6;rows=Math.max(2,Math.min(7,Math.ceil(u.count/(cols+1))));sx=11*z;sy=10*z}
 
   ctx.save();ctx.translate(s.x,s.y);ctx.rotate(u.facing+Math.PI/2);
 
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     if(r*cols+c>=Math.ceil(u.count/1.35))break;
-    const x=(c-(cols-1)/2)*sx,y=(r-(rows-1)/2)*sy;
+    let x=(c-(cols-1)/2)*sx,y=(r-(rows-1)/2)*sy;
+    if(u.formation==="wedge"){
+      const center=(cols-1)/2;
+      const width=Math.max(1,r+1);
+      if(Math.abs(c-center)>width*.6)continue;
+      x=(c-center)*sx;
+      y=(r-(rows-1)/2)*sy;
+    }
+    if(u.formation==="circle"){
+      const idx=r*cols+c,total=rows*cols;
+      const ang=idx/total*Math.PI*2;
+      const rr=(24+((idx%2)*8))*z;
+      x=Math.cos(ang)*rr;y=Math.sin(ang)*rr;
+    }
+    if(u.formation==="square"){
+      const edge=r===0||c===0||r===rows-1||c===cols-1;
+      if(!edge&&r*cols+c>Math.ceil(u.count/1.7))continue;
+    }
     ctx.fillStyle=u.color;
 
     if(u.shape==="horse"){
@@ -1012,8 +1498,17 @@ function drawAtmosphere(){
 function frame(now){
   const dt=Math.min(.033,(now-last)/1000);last=now;
   updateCamera(dt);updateAtmosphere(dt);
-  if(running&&!victory){enemyAI();units.forEach(u=>updateUnit(u,dt));capture(dt);updateEconomy(dt);checkWin();updateUI()}
-  drawTerrain();drawAtmosphere();villages.forEach(drawVillage);points.forEach(drawPoint);units.slice().sort((a,b)=>a.y-b.y).forEach(drawUnit);drawMini();
+  if(running&&!victory){
+    enemyAI();
+    commanders.forEach(c=>updateCommander(c,dt));
+    units.forEach(u=>updateUnit(u,dt));
+    resolveCollisions(dt);
+    capture(dt);updateEconomy(dt);checkWin();updateUI();
+  }
+  drawTerrain();drawAdvancedTerrain();drawAtmosphere();
+  villages.forEach(drawVillage);points.forEach(drawPoint);
+  commanders.forEach(drawCommander);
+  units.slice().sort((a,b)=>a.y-b.y).forEach(drawUnit);drawMini();
   if(victory){
     ctx.fillStyle="rgba(0,0,0,.5)";ctx.fillRect(0,0,innerWidth,innerHeight);
     ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font=`bold ${Math.min(64,innerWidth*.11)}px Arial`;ctx.fillText(victory,innerWidth/2,innerHeight/2);
