@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>OPERATION OVERWATCH — v0.5.9 Performance Hotfix</title>
+  <title>OPERATION OVERWATCH — v0.5.10 Spawn/Fog/Navigation Hotfix</title>
   <style>
     :root {
       --bg:#071017;
@@ -92,17 +92,27 @@
     .screen-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .screen-title h2{margin:0;font-size:24px;letter-spacing:.08em;text-transform:uppercase}
     #deploy-list,.unit-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:42dvh;overflow:auto;padding-right:4px}
-    .unit-card{border:1px solid rgba(155,194,210,.18);border-radius:14px;background:rgba(7,15,23,.72);padding:10px;display:grid;gap:7px}
+    .unit-card{border:1px solid rgba(155,194,210,.18);border-radius:14px;background:rgba(7,15,23,.72);padding:10px;display:grid;grid-template-columns:58px minmax(0,1fr);gap:10px;align-items:center}
+    .unit-card .unit-card-body{display:grid;gap:7px;min-width:0}
     .unit-card .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
     .cost{color:#ffe0a0;font-weight:800}
     .unit-card b{font-size:14px}
     .unit-card small{color:var(--muted);line-height:1.25}
+    .unit-preview{width:52px;height:52px;border:1px solid rgba(151,190,208,.22);border-radius:12px;background:linear-gradient(145deg,rgba(18,31,41,.92),rgba(5,11,17,.86));display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 18px rgba(91,157,179,.08)}
+    .unit-preview::before{content:"";position:absolute;inset:6px;border:1px solid rgba(255,255,255,.06);border-radius:9px}
+    .unit-preview .icon{font-size:23px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+    .unit-preview .tag{position:absolute;right:4px;bottom:3px;font-size:9px;font-weight:900;color:#101820;background:#e3c276;border-radius:5px;padding:1px 3px;letter-spacing:.04em}
+    .unit-preview.vehicle .icon{font-size:25px}
+    .unit-preview.infantry .icon{font-size:21px}
+    .unit-preview.support .tag{background:#9ee6bc}
+    .unit-preview.heavy .tag{background:#f0a257}
     .hud{position:fixed;inset:0;z-index:10;pointer-events:none}
     .hud>*{pointer-events:auto}
     .top-left,.top-center,.top-right,.bottom-panel,.deploy-fab{position:absolute}
     .top-left{top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));display:flex;gap:8px;align-items:center}
     .top-center{top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);text-align:center}
-    .top-right{top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;gap:8px;align-items:center}
+    .top-right{top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;gap:8px;align-items:flex-start}
+    #btn-reinforce{margin-top:22px;box-shadow:0 8px 20px rgba(0,0,0,.18)}
     .pill{border:1px solid rgba(162,198,212,.22);border-radius:999px;padding:8px 11px;background:var(--panel);color:#dfeef4;backdrop-filter:blur(8px);font-size:13px}
     .mini-hud-btn{width:38px;height:38px;min-height:38px;padding:0;border-radius:12px;border:1px solid rgba(162,198,212,.22);background:rgba(8,18,28,.78);color:#e7f7ff;font-weight:900;font-size:20px;line-height:1;backdrop-filter:blur(8px)}
     .timer{font-weight:900;font-size:18px;letter-spacing:.08em;background:rgba(4,10,16,.74);border:1px solid rgba(227,178,91,.35);color:#ffe0a4;border-radius:999px;padding:8px 16px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
@@ -174,12 +184,12 @@
     }
     @media (orientation:portrait) and (max-width:900px){
       .top-center{top:calc(58px + env(safe-area-inset-top))}
-      #btn-reinforce{max-width:158px}
+      #btn-reinforce{max-width:158px;margin-top:30px}
       .countdown{top:32%}
     }
 
 
-    /* v0.5.9 — accueil mobile + performance : même design, layout tactile beaucoup plus propre */
+    /* v0.5.10 — accueil mobile + performance : même design, layout tactile beaucoup plus propre */
     @media (hover:none), (pointer:coarse), (max-width:760px){
       .main-menu-screen{
         align-items:stretch;
@@ -301,6 +311,17 @@
       .menu-actions .btn.primary{grid-column:1 / -1;min-height:58px}
     }
 
+
+    @media (max-width:760px){
+      .unit-card{grid-template-columns:50px minmax(0,1fr);gap:8px;padding:8px}
+      .unit-preview{width:46px;height:46px;border-radius:11px}
+      .unit-preview .icon{font-size:20px}
+      .unit-card b{font-size:13px}
+      .unit-card small{font-size:11px}
+      .top-right{top:calc(22px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:62vw}
+      #btn-reinforce{order:8;margin-top:6px}
+    }
+
   </style>
   <script type="importmap">
   {
@@ -343,7 +364,7 @@
           </ul>
         </div>
         <div class="menu-footer">
-          <span class="menu-version">v0.5.9 Performance Hotfix</span>
+          <span class="menu-version">v0.5.10 Performance Hotfix</span>
           <span>Assets libres documentés</span>
         </div>
       </div>
@@ -1260,6 +1281,9 @@ let deployCart = {};
 let reinforceCart = {};
 let initialBudget = 1800;
 let reinforcePoints = 250;
+let enemyReinforcePoints = 0;
+let enemyReinforceTimer = 0;
+let enemySpawnIndex = 0;
 let matchTime = 300;
 let countdownTime = 5;
 let aiPatterns = [];
@@ -1306,6 +1330,9 @@ const MAP_SPAWNS = {
 
 function getMapSpawn(kind){
   const cfg = MAP_SPAWNS[mapKey] || MAP_SPAWNS.route7;
+  // Les renforts utilisent toujours le spawn de départ de leur faction.
+  if(kind === 'reinforce') return cfg.ally;
+  if(kind === 'enemyReinforce') return cfg.enemy;
   return cfg[kind] || cfg.ally;
 }
 
@@ -1369,6 +1396,8 @@ const UPDATE_RATES = {
   combat: .18,
   objectives: .22,
   support: .50,
+  enemyReinforce: 1.0,
+  fog: .28,
   hud: .12,
   lod: .35,
   debug: .35
@@ -1387,7 +1416,7 @@ const SPATIAL_HASH_CONFIG = {
 let entityGrid = new Map();
 let staticGrid = new Map();
 let staticGridDirty = true;
-let systemTimers = { ai:0, combat:0, objectives:0, support:0, hud:0, lod:0, debug:0 };
+let systemTimers = { ai:0, combat:0, objectives:0, support:0, enemyReinforce:0, fog:0, hud:0, lod:0, debug:0 };
 let effectPools = new Map();
 let hudForceRefresh = true;
 
@@ -2029,7 +2058,7 @@ function spawnEntity(type, faction, x, z, opts={}){
     hp:cfg.hp, maxHp:cfg.hp, ammo:cfg.ammo, rockets:cfg.rockets||0, fuel:cfg.fuel ?? 0,
     reload:rand(0,.3), state:'idle', dest:null, speedNow:0, selected:false, radius:cfg.radius, mass:cfg.mass,
     attackTarget:null, aiDelay:opts.aiDelay||0, aiSeed:Math.random(), aiGoal:opts.aiGoal||null,
-    threatTimer:0, threatFrom:null, atHits:0, dead:false,
+    threatTimer:0, threatFrom:null, atHits:0, dead:false, visibleToPlayer:faction==='ally',
     finalDest:null, path:[], repathTimer:0, stuckTimer:0, stuckBoost:0,
     lastX:x, lastZ:z, lastMoveSample:0, selectionRadius:getBaseSelectionRadius(type)
   };
@@ -2288,6 +2317,8 @@ function pathPaddingFor(ent){
 function getFirstBlockingCollider(from,to,ent,ignoreIfInside=true){
   const margin = pathPaddingFor(ent);
   for(const c of queryCollidersForSegment(from,to,margin)){
+    // Les petits props ne doivent plus piéger l'infanterie dans le pathfinding.
+    if(ent?.cfg?.kind === 'infantry' && isSoftPropCollider(c)) continue;
     if(ignoreIfInside && pointInsideCollider(from.x,from.z,c,margin*.25)) continue;
     if(segmentIntersectsCollider(from,to,c,margin)) return c;
   }
@@ -2313,7 +2344,7 @@ function findBestCornerAroundBuilding(ent, blocker, destination){
   ];
   const origin = {x:ent.x,z:ent.z};
   const candidates = locals.map(([lx,lz])=>colliderLocalToWorld(lx,lz,blocker))
-    .filter(p=>!collidesWithStatic(p.x,p.z,ent.radius*.72));
+    .filter(p=>!collidesWithStatic(p.x,p.z,ent.radius*.72,ent));
   let best = null, bestScore = Infinity;
   for(const p of candidates){
     let score = Math.hypot(p.x-origin.x,p.z-origin.z) + Math.hypot(destination.x-p.x,destination.z-p.z);
@@ -2372,25 +2403,29 @@ function getObstacleAvoidance(ent){
   let ax = 0, az = 0;
   const detection = OBSTACLE_CONFIG.detectionDistance + ent.radius*.45;
   for(const c of queryCollidersNear(ent.x, ent.z, detection + ent.radius + 90)){
-    const margin = ent.radius*.72 + (ent.cfg.kind==='vehicle'?20:10);
+    const soft = isSoftPropCollider(c);
+    const margin = soft
+      ? (ent.cfg.kind === 'infantry' ? Math.min(18, ent.radius*.45) : Math.min(25, ent.radius*.58))
+      : ent.radius*.72 + (ent.cfg.kind==='vehicle'?20:10);
     const closest = closestPointOnCollider(ent.x, ent.z, c, margin);
     let dx = ent.x - closest.x, dz = ent.z - closest.z;
     let d = Math.hypot(dx,dz);
     if(pointInsideCollider(ent.x,ent.z,c,margin*.75)){
       const local = worldToColliderLocal(ent.x,ent.z,c);
       const sx = Math.sign(local.x || .01), sz = Math.sign(local.z || .01);
-      const exitX = colliderLocalToWorld(sx*(c.w/2+(c.padding||0)+margin+6), local.z, c);
-      const exitZ = colliderLocalToWorld(local.x, sz*(c.l/2+(c.padding||0)+margin+6), c);
+      const exitX = colliderLocalToWorld(sx*(c.w/2+(c.padding||0)+margin+8), local.z, c);
+      const exitZ = colliderLocalToWorld(local.x, sz*(c.l/2+(c.padding||0)+margin+8), c);
       const distX = Math.hypot(exitX.x-ent.x, exitX.z-ent.z);
       const distZ = Math.hypot(exitZ.x-ent.x, exitZ.z-ent.z);
       const exit = distX < distZ ? exitX : exitZ;
       dx = ent.x - exit.x; dz = ent.z - exit.z; d = Math.max(.001, Math.hypot(dx,dz));
-      ax -= dx/d * 1.8;
-      az -= dz/d * 1.8;
+      ax -= dx/d * (soft ? .65 : 1.65);
+      az -= dz/d * (soft ? .65 : 1.65);
       continue;
     }
-    if(d < detection){
-      const strength = (1 - d/detection) * OBSTACLE_CONFIG.pushStrength;
+    const localDetection = soft ? detection*.62 : detection;
+    if(d < localDetection){
+      const strength = (1 - d/localDetection) * OBSTACLE_CONFIG.pushStrength * (soft ? .38 : 1);
       if(d < .001){
         dx = ent.aiSeed>.5 ? 1 : -1;
         dz = ent.aiSeed>.5 ? -1 : 1;
@@ -2401,7 +2436,7 @@ function getObstacleAvoidance(ent){
     }
   }
   const len = Math.hypot(ax,az);
-  if(len > 1.1){ ax/=len; az/=len; }
+  if(len > 1.05){ ax/=len; az/=len; }
   return {x:ax,z:az};
 }
 
@@ -2455,7 +2490,7 @@ function findSelectableAt(worldX, worldZ, isTouch=false){
 function findAttackableEnemyAt(worldX, worldZ, isTouch=false){
   const mult = isTouch ? SELECTION_CONFIG.touchMultiplier : 1;
   let best = null, bestD = Infinity;
-  const nearby = queryEntitiesNear(worldX, worldZ, 120 * mult, ent=>!ent.dead && ent.faction === 'enemy');
+  const nearby = queryEntitiesNear(worldX, worldZ, 120 * mult, ent=>!ent.dead && ent.faction === 'enemy' && ent.visibleToPlayer !== false);
   for(const ent of nearby){
     const r = Math.max(ent.selectionRadius || getBaseSelectionRadius(ent.type), ent.radius + 14) * mult;
     const d = Math.hypot(ent.x-worldX, ent.z-worldZ);
@@ -3147,6 +3182,7 @@ function findNearestEnemy(ent, maxRange){
   let best=null, bd=maxRange;
   const nearby = queryEntitiesNear(ent.x, ent.z, maxRange, other=>!other.dead && other.faction!==ent.faction);
   for(const other of nearby){
+    if(ent.faction === 'ally' && other.faction === 'enemy' && other.visibleToPlayer === false) continue;
     const d=dist2(ent,other);
     if(d<bd){best=other; bd=d;}
   }
@@ -3163,6 +3199,7 @@ function acquireTarget(ent){
   let best=null, bestScore=Infinity;
   const nearby = queryEntitiesNear(ent.x, ent.z, awareness, other=>!other.dead && other.faction!==ent.faction);
   for(const other of nearby){
+    if(ent.faction === 'ally' && other.faction === 'enemy' && other.visibleToPlayer === false) continue;
     const d=dist2(ent,other);
     if(d>awareness) continue;
     const profile = getWeaponProfile(ent, other);
@@ -3376,12 +3413,12 @@ function updateMovement(ent,dt){
   const nx = ent.x + Math.sin(ent.yaw)*step;
   const nz = ent.z + Math.cos(ent.yaw)*step;
 
-  if(!collidesWithStatic(nx,nz,ent.radius)){
+  if(!collidesWithStatic(nx,nz,ent.radius,ent)){
     ent.x=nx; ent.z=nz;
   } else {
     // Glissement réaliste : on teste les axes séparés, puis une légère dérive latérale.
-    const canX = !collidesWithStatic(nx,ent.z,ent.radius);
-    const canZ = !collidesWithStatic(ent.x,nz,ent.radius);
+    const canX = !collidesWithStatic(nx,ent.z,ent.radius,ent);
+    const canZ = !collidesWithStatic(ent.x,nz,ent.radius,ent);
     if(canX && !canZ){ ent.x=nx; }
     else if(canZ && !canX){ ent.z=nz; }
     else if(canX && canZ){ ent.x=nx; ent.z=nz; }
@@ -3389,7 +3426,7 @@ function updateMovement(ent,dt){
       const side = ent.aiSeed>.5?1:-1;
       const sx = Math.cos(ent.yaw)*side*step*.65;
       const sz = -Math.sin(ent.yaw)*side*step*.65;
-      if(!collidesWithStatic(ent.x+sx, ent.z+sz, ent.radius)){
+      if(!collidesWithStatic(ent.x+sx, ent.z+sz, ent.radius,ent)){
         ent.x += sx; ent.z += sz;
       } else if(ent.repathTimer<=0 && ent.finalDest){
         ent.stuckBoost = clamp((ent.stuckBoost || 0) + 12, 0, 80);
@@ -3406,9 +3443,24 @@ function updateMovement(ent,dt){
 }
 
 
-function collidesWithStatic(x,z,r){
+function isSoftPropCollider(c){
+  const t = c?.type || '';
+  const size = Math.max(c?.w || 0, c?.l || 0);
+  return ['tree','rock','crate','prop'].includes(t) && size <= 72;
+}
+
+function colliderMarginFor(c, ent, r){
+  if(isSoftPropCollider(c)){
+    if(ent?.cfg?.kind === 'infantry') return Math.min(12, r*.30);
+    return Math.min(18, r*.45);
+  }
+  if(c?.type === 'fence' && ent?.cfg?.kind === 'infantry') return Math.min(10, r*.28);
+  return r*.68;
+}
+
+function collidesWithStatic(x,z,r,ent=null){
   for(const c of queryCollidersNear(x,z,r+120)){
-    if(pointInsideCollider(x,z,c,r*.68)) return true;
+    if(pointInsideCollider(x,z,c,colliderMarginFor(c, ent, r))) return true;
   }
   return false;
 }
@@ -3422,6 +3474,8 @@ function solveCollisions(){
       const key = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
       if(processed.has(key)) continue;
       processed.add(key);
+      // Les unités d'une même faction se traversent pour éviter les bouchons irréalistes.
+      if(a.faction === b.faction) continue;
       const dx=b.x-a.x, dz=b.z-a.z;
       const d=Math.hypot(dx,dz) || .001;
       const min=a.radius+b.radius;
@@ -3432,8 +3486,8 @@ function solveCollisions(){
         const pa=overlap*(b.mass/total), pb=overlap*(a.mass/total);
         const ax=a.x-nx*pa, az=a.z-nz*pa;
         const bx=b.x+nx*pb, bz=b.z+nz*pb;
-        if(!collidesWithStatic(ax,az,a.radius)){ a.x=ax; a.z=az; }
-        if(!collidesWithStatic(bx,bz,b.radius)){ b.x=bx; b.z=bz; }
+        if(!collidesWithStatic(ax,az,a.radius,a)){ a.x=ax; a.z=az; }
+        if(!collidesWithStatic(bx,bz,b.radius,b)){ b.x=bx; b.z=bz; }
         a.group.position.set(a.x,0,a.z); b.group.position.set(b.x,0,b.z);
         // Séparation physique douce : on garde l'élan, on ne ralentit plus les colonnes entières.
         if(a.cfg.kind==='vehicle') a.speedNow=Math.max(a.speedNow, a.cfg.speed*.35);
@@ -3574,6 +3628,71 @@ function updateEntityLod(){
   }
 }
 
+function isEnemyVisibleToPlayer(enemy){
+  if(!enemy || enemy.dead || enemy.faction !== 'enemy') return true;
+  const revealBonus = enemy.state === 'engaging' ? 60 : 0;
+  const nearbyAllies = queryEntitiesNear(enemy.x, enemy.z, 640, a=>!a.dead && a.faction === 'ally');
+  for(const ally of nearbyAllies){
+    const range = (ally.cfg.vision || 340) + revealBonus;
+    if(Math.hypot(ally.x-enemy.x, ally.z-enemy.z) <= range) return true;
+  }
+  return false;
+}
+
+function updateFogOfWar(){
+  if(gamePhase === 'menu') return;
+  for(const ent of entities){
+    if(ent.faction !== 'enemy') continue;
+    if(ent.dead) { ent.visibleToPlayer = false; continue; }
+    const visible = isEnemyVisibleToPlayer(ent);
+    ent.visibleToPlayer = visible;
+    if(ent.group) ent.group.visible = visible;
+  }
+}
+
+const AI_REINFORCE_TYPES = ['rifle','rifle','at','light','apc','ifv','truck','ambulance','mbt'];
+
+function chooseEnemyReinforcement(){
+  const allyVehicles = entities.filter(e=>!e.dead && e.faction==='ally' && e.cfg.kind==='vehicle').length;
+  const enemyVehicles = entities.filter(e=>!e.dead && e.faction==='enemy' && e.cfg.kind==='vehicle').length;
+  const enemyInfantry = entities.filter(e=>!e.dead && e.faction==='enemy' && e.cfg.kind==='infantry').length;
+  const affordable = AI_REINFORCE_TYPES.filter(t=>UNIT_TYPES[t].cost <= enemyReinforcePoints);
+  if(!affordable.length) return null;
+  if(allyVehicles > enemyVehicles && affordable.includes('at') && Math.random()<.50) return 'at';
+  if(enemyInfantry < 4 && affordable.includes('rifle')) return 'rifle';
+  if(enemyVehicles < 3 && affordable.includes('light') && Math.random()<.35) return 'light';
+  if(affordable.includes('apc') && Math.random()<.25) return 'apc';
+  if(affordable.includes('ifv') && Math.random()<.18) return 'ifv';
+  const cheaper = affordable.sort((a,b)=>UNIT_TYPES[b].cost-UNIT_TYPES[a].cost);
+  return cheaper[Math.floor(Math.random()*Math.min(3,cheaper.length))];
+}
+
+function updateEnemyReinforcements(dt){
+  if(gamePhase !== 'running') return;
+  enemyReinforcePoints = Math.min(1400, enemyReinforcePoints + dt*2.65);
+  enemyReinforceTimer -= dt;
+  if(enemyReinforceTimer > 0) return;
+  const liveEnemies = entities.filter(e=>!e.dead && e.faction==='enemy').length;
+  if(liveEnemies >= 22){ enemyReinforceTimer = 7 + Math.random()*5; return; }
+  const type = chooseEnemyReinforcement();
+  if(!type){ enemyReinforceTimer = 3.5; return; }
+  const cfg = UNIT_TYPES[type];
+  enemyReinforcePoints -= cfg.cost;
+  const base = getMapSpawn('enemyReinforce');
+  const pos = findClearSpawnPoint(base, enemySpawnIndex++, cfg.radius || 34);
+  const obj = objectives[Math.floor(Math.random()*Math.max(1,objectives.length))];
+  const ent = spawnEntity(type,'enemy',pos.x,pos.z,{
+    yaw:base.yaw ?? -Math.PI/2,
+    aiDelay:2.5 + Math.random()*4.5,
+    aiGoal:obj || null
+  });
+  ent.aiPattern = aiPatterns[Math.floor(Math.random()*aiPatterns.length)];
+  if(obj){
+    const spread = 260;
+    setUnitDestination(ent,{x:obj.x+rand(-spread,spread),z:obj.z+rand(-spread,spread)},{minChange:80,repathCooldown:1.4});
+  }
+}
+
 function updateHud(dt){
   if(gamePhase==='running'){
     matchTime = Math.max(0, matchTime-dt);
@@ -3652,6 +3771,19 @@ function animate(){
         updateSupport(step);
       }
 
+      systemTimers.enemyReinforce += dt;
+      if(systemTimers.enemyReinforce >= UPDATE_RATES.enemyReinforce){
+        const step = systemTimers.enemyReinforce;
+        systemTimers.enemyReinforce = 0;
+        updateEnemyReinforcements(step);
+      }
+
+      systemTimers.fog += dt;
+      if(systemTimers.fog >= UPDATE_RATES.fog){
+        systemTimers.fog = 0;
+        updateFogOfWar();
+      }
+
       updateEffects(dt);
 
       systemTimers.lod += dt;
@@ -3721,11 +3853,35 @@ function startBattle(){
   audio.stopMenuMusic(450);
   audio.stopAmbience();
   resetScene();
+  enemyReinforcePoints = 220;
+  enemyReinforceTimer = 18;
+  enemySpawnIndex = 0;
+  systemTimers.enemyReinforce = 0;
+  systemTimers.fog = 0;
   spawnInitialPlayer(deployCart);
   spawnEnemyForces();
   rebuildEntityGrid();
   updateEntityLod();
-  matchTime=300; countdownTime=5; gamePhase='countdown'; $('countdown').classList.remove('hidden'); $('countdown').textContent='5';
+  matchTime=300; countdownTime=5; gamePhase='countdown';
+  updateFogOfWar();
+  $('countdown').classList.remove('hidden'); $('countdown').textContent='5';
+}
+
+function unitPreviewMarkup(type){
+  const cfg = UNIT_TYPES[type];
+  const iconMap = {
+    rifle:'♟', at:'♜', command:'★',
+    light:'▰', apc:'▱', ifv:'▰', mbt:'▣',
+    truck:'▭', ambulance:'✚', support:'⚙'
+  };
+  const tagMap = {
+    rifle:'RIF', at:'AT', command:'CMD',
+    light:'LTV', apc:'APC', ifv:'IFV', mbt:'MBT',
+    truck:'LOG', ambulance:'MED', support:'REP'
+  };
+  const heavy = type === 'mbt' || type === 'ifv';
+  const support = ['ambulance','support','truck'].includes(type);
+  return `<div class="unit-preview ${cfg.kind} ${heavy?'heavy':''} ${support?'support':''}" aria-hidden="true"><span class="icon">${iconMap[type] || '◆'}</span><span class="tag">${tagMap[type] || cfg.kind}</span></div>`;
 }
 
 function renderDeployList(containerId, cart, budgetGetter, mode){
@@ -3734,9 +3890,9 @@ function renderDeployList(containerId, cart, budgetGetter, mode){
     const cfg=UNIT_TYPES[type];
     const card=document.createElement('div'); card.className='unit-card';
     const owned=cart[type]||0;
-    card.innerHTML = `<div class="top"><b>${cfg.label}</b><span class="cost">${cfg.cost}</span></div>
+    card.innerHTML = `${unitPreviewMarkup(type)}<div class="unit-card-body"><div class="top"><b>${cfg.label}</b><span class="cost">${cfg.cost}</span></div>
       <small>${cfg.kind} · ${cfg.weapon} · HP ${cfg.hp} · portée ${cfg.range}</small>
-      <div class="menu-row"><button class="btn" data-add="${type}">+ Acheter</button><button class="btn" data-rem="${type}">−</button><span class="pill">x${owned}</span></div>`;
+      <div class="menu-row"><button class="btn" data-add="${type}">+ Acheter</button><button class="btn" data-rem="${type}">−</button><span class="pill">x${owned}</span></div></div>`;
     card.querySelector('[data-add]').onclick=()=>{
       const cost = totalCost(cart)+cfg.cost;
       if(cost>budgetGetter()){ showNotice('Points insuffisants'); return; }
@@ -3771,10 +3927,11 @@ function spawnReinforcements(){
   const entries=Object.entries(reinforceCart).flatMap(([type,count])=>Array(count).fill(type));
   if(!entries.length){ showNotice('Choisis des renforts.'); return; }
   reinforcePoints-=cost;
-  const base = getMapSpawn('reinforce');
+  const base = getMapSpawn('ally');
+  const startIndex = entities.filter(e=>!e.dead && e.faction==='ally').length;
   entries.forEach((type,i)=>{
     const r = UNIT_TYPES[type].radius || 32;
-    const pos = findClearSpawnPoint(base, i, r);
+    const pos = findClearSpawnPoint(base, startIndex + i, r);
     spawnEntity(type,'ally',pos.x,pos.z,{yaw:base.yaw ?? Math.PI/2});
   });
   reinforceCart={};
