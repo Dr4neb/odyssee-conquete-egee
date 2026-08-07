@@ -141,8 +141,8 @@ h2{margin:0 0 12px;font-size:clamp(24px,5vw,34px)}
       <p class="sub">v0.4 — UI mobile, blindés, infanterie et logistique simple.</p>
     </div>
     <div class="menu">
-      <button id="newGameBtnMain" class="primary">Nouvelle partie</button>
-      <button id="playBtn">Menu jouer</button>
+      <button id="newGameBtnMain" class="primary">▶ JOUER</button>
+      <button id="playBtn">Nouvelle partie</button>
       <button id="optionsBtn">Options</button>
       <button id="creditsBtn">Crédits</button>
       <button id="fsBtn">Plein écran</button>
@@ -217,7 +217,15 @@ window.addEventListener('load',()=>{setTimeout(()=>{if(!window.PIXI){document.ge
 const W=2600,H=1600, ARRIVAL_RADIUS=22, SLOWDOWN_RADIUS=95, ANGLE_EPSILON=.08;
 const LS='operationOverwatchSettings';
 const defaults={audio:{masterVolume:1,musicVolume:.7,sfxVolume:.8,muted:false},graphics:{quality:'medium',effects:'normal',showFPS:false,uiScale:1},gameplay:{cameraSpeed:1,zoomSensitivity:1,showVisionRanges:false,showAttackRanges:false},controls:{inputMode:'auto',invertZoom:false,confirmImportantOrders:false,touchButtonScale:1}};
-let settings=Object.assign({},defaults,JSON.parse(localStorage.getItem(LS)||'{}'));
+let savedSettings={};
+try{
+  savedSettings=JSON.parse(localStorage.getItem(LS)||'{}')||{};
+}catch(err){
+  console.warn('Options sauvegardées invalides, réinitialisation.',err);
+  localStorage.removeItem(LS);
+  savedSettings={};
+}
+let settings=Object.assign({},defaults,savedSettings);
 settings.audio=Object.assign({},defaults.audio,settings.audio);settings.graphics=Object.assign({},defaults.graphics,settings.graphics);settings.gameplay=Object.assign({},defaults.gameplay,settings.gameplay);settings.controls=Object.assign({},defaults.controls,settings.controls);
 const $=id=>document.getElementById(id), toast=t=>{const e=$('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',1600)};
 function save(){localStorage.setItem(LS,JSON.stringify(settings))}
@@ -226,12 +234,28 @@ function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function mobile(){return matchMedia('(pointer:coarse)').matches}
 async function toggleFullscreen(){try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){toast('Plein écran bloqué par le navigateur')}}
-['fsBtn','fsBtn2','hudFs'].forEach(id=>$(id).onclick=toggleFullscreen);
+['fsBtn','fsBtn2','hudFs'].forEach(id=>{const el=$(id); if(el) el.onclick=toggleFullscreen});
 const screens=['mainMenu','playMenu','optionsMenu','creditsMenu','pauseMenu'];
 let optionsReturn='mainMenu', portraitDismissed=false, pendingStart=false;
 function show(id){screens.forEach(x=>$(x).style.display=x===id?'flex':'none')}
 function openOptions(returnTo='mainMenu'){optionsReturn=returnTo;bindOptions();show('optionsMenu')}
-$('playBtn').onclick=()=>show('playMenu');
+function pressOnce(fn){
+  let last=0;
+  return e=>{
+    if(e){e.preventDefault();e.stopPropagation();}
+    const now=performance.now();
+    if(now-last<260)return;
+    last=now;
+    fn();
+  };
+}
+function bindPress(id,fn){
+  const el=$(id);
+  if(!el)return;
+  const handler=pressOnce(fn);
+  ['click','pointerup','touchend'].forEach(type=>el.addEventListener(type,handler,{passive:false}));
+}
+bindPress('playBtn',()=>startGame());
 $('optionsBtn').onclick=()=>openOptions('mainMenu');
 $('creditsBtn').onclick=()=>show('creditsMenu');
 $('quitBtn').onclick=()=>toast('Merci d’avoir joué à OPERATION OVERWATCH.');
@@ -271,6 +295,7 @@ function initUnits(){units=[]; for(let i=0;i<4;i++){units.push(makeSquad(i+1,'al
 ['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>units.push(makeVeh('E'+i,t,'enemy',2100-i*90,950+(i%2)*90)));}
 
 function startGame(){
+ console.log('OPERATION OVERWATCH: startGame demandé');
  if(!window.PIXI){pendingStart=true;toast('Chargement du moteur PixiJS…');return}
  if(started){paused=false;$('hud').style.display='block';show('none');orient();return}
  let createdApp=null;
@@ -291,12 +316,14 @@ function startGame(){
    return;
  }
  app=createdApp;
+ console.log('OPERATION OVERWATCH: partie lancée');
  started=true; paused=false; portraitDismissed=false;
  $('hud').style.display='block'; show('none');
  world=new PIXI.Container(); uiG=new PIXI.Graphics(); app.stage.addChild(world,uiG); initUnits(); setupInput(); app.ticker.add(tick); orient();
 }
-$('newGameBtn').onclick=startGame;
-$('newGameBtnMain').onclick=startGame;
+window.startOperationOverwatch=startGame;
+bindPress('newGameBtn',()=>startGame());
+bindPress('newGameBtnMain',()=>startGame());
 $('pauseBtn').onclick=()=>pause(true);
 $('resumeBtn').onclick=()=>pause(false);
 $('mainBackBtn').onclick=()=>{pause(false);location.reload()};
