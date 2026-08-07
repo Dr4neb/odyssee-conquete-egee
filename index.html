@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.7 — AT, audio et IA réactionnelle</title>
+<title>OPERATION OVERWATCH v0.4.8 — Map Asset Pass</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -388,8 +388,8 @@ h2{font-size:26px;margin:0 0 10px}
 <div id="creditsMenu" class="screen" style="display:none">
   <div class="card">
     <h2>Crédits</h2>
-    <p class="sub">OPERATION OVERWATCH — prototype autonome. Correction DA : l’infanterie suit maintenant la direction <b>Kenney Top-down Shooter</b> au lieu de Kenney Mini Characters. Le pack choisi est 2D top-down, cohérent avec PixiJS et documenté dans ASSET_LICENSES.md.</p>
-    <p class="sub">Pour ce fichier unique, les sprites restent embarqués et optimisés dans <code>index.html</code>. Dans la version projet Vite, ils doivent être remplacés par les PNG/WebP extraits localement de Kenney Top-down Shooter. Véhicules, bâtiments, routes, nature, UI et effets gardent la direction Kenney-style validée.</p>
+    <p class="sub">OPERATION OVERWATCH — prototype autonome. v0.4.8 ajoute un pass visuel de carte : bâtiments, routes, végétation, props urbains et couverture suivent la direction Kenney-style validée.</p>
+    <p class="sub">Pour ce fichier unique, les sprites et props restent embarqués dans <code>index.html</code> avec fallback léger. La version projet Vite doit extraire localement les PNG/WebP Kenney : Top-down Shooter, Top-down Tanks Remastered, Modular Buildings, City Kit Roads, Nature Kit, UI Pack et Smoke Particles.</p>
     <div class="menu"><button class="ghost" onclick="OW.show('mainMenu')">Retour</button></div>
   </div>
 </div>
@@ -480,7 +480,7 @@ const defaults={audio:{masterVolume:1,musicVolume:.7,sfxVolume:.8,muted:false},g
 let stored={};try{stored=JSON.parse(localStorage.getItem(LS)||'{}')||{}}catch(e){stored={};try{localStorage.removeItem(LS)}catch(_){}} 
 let settings=merge(defaults,stored), optionsReturn='mainMenu';
 let dpr=1, started=false, paused=false, portraitDismissed=false, minimized=false, detailOpen=false, selected=null, lastPlayTap=-9999;
-let camera={x:0,y:170,z:.72}, last=0, units=[], effects=[], mines=[], obstacles=[], buildings=[];
+let camera={x:0,y:170,z:.72}, last=0, units=[], effects=[], mines=[], obstacles=[], buildings=[], props=[];
 let terrain=[], objectives=[];
 let pointer={down:false,id:null,x:0,y:0,lx:0,ly:0,moved:false}, touches=new Map(), pinchStart=0, pinchZoom=.72;
 let aiClock=0,fpsClock=0,fpsCount=0,fpsValue=60, shake=0;
@@ -942,13 +942,73 @@ function play(ev){
 }
 
 function cloneList(list){return (list||[]).map(o=>Object.assign({},o))}
+
+function applyMapAssetPass(mapKey){
+  // v0.4.8 : pass visuel carte. Les bâtiments/props sont des rendus 2D légers
+  // inspirés des packs Kenney CC0 validés : Modular Buildings, City Kit Roads, Nature Kit.
+  const addB=(type,x,y,w,h,rot=0,state='normal',tag='')=>buildings.push({type,x,y,w,h,rot,state,tag});
+  const addP=(type,x,y,s=1,rot=0,variant=0)=>props.push({type,x,y,s,rot,variant});
+  const addO=(type,x,y,hp=90)=>obstacles.push({type,x,y,hp});
+
+  if(mapKey==='duskline'){
+    // Bloc urbain autour de Bravo : rues, maisons, ruines, petits garages.
+    [
+      ['house',1510,910,126,86,-.03],['house',1665,910,120,82,.04],['shop',1818,910,132,86,-.02],
+      ['barracks',1990,930,166,92,.02],['garage',2160,970,142,84,.03],
+      ['house',1485,1230,130,88,.01],['warehouse',1655,1260,190,114,-.02],['ruin',1875,1325,136,95,.04,'damaged'],
+      ['house',2105,1305,124,84,-.03],['tower',2300,1190,74,74,.02],
+      ['hangar',2470,850,210,124,-.04],['garage',2625,1020,138,82,.03],
+      ['ruin',810,720,126,90,-.06,'damaged'],['house',930,612,128,84,.02],['outpost',1120,760,120,82,-.02]
+    ].forEach(b=>addB(...b));
+    for(let i=0;i<20;i++){addP('rubble',1430+(i*89)%940,1010+(i*47)%520,.8+(i%4)*.09,(i%7)*.31,i)}
+    for(let i=0;i<18;i++){addP('streetlamp',2140+(i%3)*84,210+i*112,.9,0,i);addP('roadmark',2058,245+i*112,1,Math.PI/2,i)}
+    for(let i=0;i<16;i++){addP('crate',1500+(i*121)%880,860+(i*97)%650,.78+(i%3)*.1,(i%5)*.2,i)}
+    for(let i=0;i<16;i++){addP('bush',330+(i*73)%650,325+(i*101)%420,.85+(i%4)*.08,0,i)}
+    addO('concrete',1585,1110);addO('concrete',1995,1035);addO('sandbags',2245,1225);
+    addP('checkpoint',2050,1604,1,0,0);addP('fuel',2360,930,1,0,0);addP('antenna',2300,1120,1,0,0);
+  }else{
+    // Route 7 : hameau central, dépôt militaire, avant-postes et décors naturels.
+    [
+      ['house',1340,1380,126,84,-.04],['house',1488,1388,118,80,.03],['shop',1644,1390,132,86,-.02],
+      ['warehouse',1790,1518,192,116,.02],['garage',1992,1570,144,86,-.03],['ruin',2150,1475,134,92,.05,'damaged'],
+      ['outpost',1012,842,118,82,.01],['tower',1148,770,74,74,-.02],['barracks',1285,850,160,90,.03],
+      ['hangar',2455,555,208,124,-.03],['garage',2645,682,142,84,.03],['outpost',2805,590,124,86,-.02],
+      ['house',620,1258,128,86,.02],['ruin',780,1320,122,88,-.05,'damaged']
+    ].forEach(b=>addB(...b));
+    for(let i=0;i<22;i++){addP('streetlamp',220+i*138,1014,.9,0,i); if(i%2===0)addP('streetlamp',260+i*138,1204,.9,Math.PI,i)}
+    for(let i=0;i<18;i++){addP('roadmark',300+i*172,1103,1,0,i)}
+    for(let i=0;i<24;i++){addP('crate',1420+(i*107)%720,1360+(i*71)%360,.78+(i%4)*.08,(i%6)*.3,i)}
+    for(let i=0;i<18;i++){addP('bush',278+(i*83)%650,250+(i*53)%490,.9+(i%5)*.07,0,i);addP('pine',2650+(i*67)%420,380+(i*71)%340,.8+(i%3)*.1,0,i)}
+    for(let i=0;i<14;i++)addP('rubble',1880+(i*77)%540,220+(i*61)%360,.85+(i%4)*.08,(i%4)*.22,i);
+    addO('concrete',1390,1042);addO('sandbags',1190,888);addO('barrier',2640,720);
+    addP('checkpoint',1090,1030,1,0,0);addP('fuel',2538,602,1,0,0);addP('antenna',1148,704,1,0,0);
+  }
+
+  // Décoration générique sur les zones de terrain, légère et déterministe.
+  for(const t of terrain){
+    if(t.t==='road'){
+      for(let i=0;i<Math.max(4,Math.floor(t.w/420));i++){
+        addP('tiremark',t.x+90+i*360,t.y+t.h*.35,.9,0,i);
+        addP('tiremark',t.x+250+i*360,t.y+t.h*.65,.9,0,i+9);
+      }
+    }
+    if(t.t==='urban'){
+      for(let i=0;i<10;i++)addP('fence',t.x+40+(i*93%(t.w-80)),t.y+25+(i*67%(t.h-50)),.9,(i%2)*Math.PI/2,i);
+    }
+    if(t.t==='open'){
+      for(let i=0;i<12;i++)addP('grassclump',(i*317+mapKey.length*91)%W,(i*229+311)%H,.75+(i%4)*.08,0,i);
+    }
+  }
+}
 function setupMap(){
   const map=MAPS[setup.map]||MAPS.route7;
   terrain=cloneList(map.terrain);
   objectives=cloneList(map.objectives);
   obstacles=cloneList(map.obstacles);
   buildings=cloneList(map.buildings);
+  props=cloneList(map.props||[]);
   mines=cloneList(map.mines);
+  applyMapAssetPass(setup.map);
   return map;
 }
 function spawnAround(base,i,kind='squad',side='ally'){
@@ -1513,6 +1573,7 @@ function render(){
   ctx.fillStyle='#314b35';ctx.fillRect(0,0,innerWidth,innerHeight);
   const sx=shake?rand(-4,4)*shake:0, sy=shake?rand(-4,4)*shake:0;ctx.save();ctx.translate(sx,sy);ctx.scale(camera.z,camera.z);ctx.translate(-camera.x,-camera.y);
   drawMap();
+  for(const p of props)drawMapProp(p);
   for(const b of buildings)drawBuilding(b);
   for(const o of objectives)drawObjective(o);
   for(const ob of obstacles)if(ob.hp>0)drawObstacle(ob);
@@ -1575,46 +1636,133 @@ function drawRockAsset(x,y,s=1){
   ctx.fillStyle='rgba(255,255,255,.14)';ctx.beginPath();ctx.moveTo(-8,-7);ctx.lineTo(4,-12);ctx.lineTo(12,-4);ctx.lineTo(0,-1);ctx.closePath();ctx.fill();
   ctx.restore();
 }
+
+function drawMapProp(p){
+  const type=p.type, s=p.s||1, v=p.variant||0;
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot||0);ctx.scale(s,s);
+  if(type==='streetlamp'){
+    ctx.fillStyle='rgba(0,0,0,.22)';ctx.beginPath();ctx.ellipse(5,12,18,7,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#293136';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(0,14);ctx.lineTo(0,-24);ctx.stroke();
+    ctx.strokeStyle='#4b565b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-22);ctx.lineTo(18,-28);ctx.stroke();
+    ctx.fillStyle='rgba(255,222,146,.45)';ctx.beginPath();ctx.arc(20,-28,6,0,Math.PI*2);ctx.fill();
+  }else if(type==='roadmark'){
+    ctx.fillStyle='rgba(240,226,188,.28)';round(-34,-3,68,6,3,true);
+  }else if(type==='tiremark'){
+    ctx.strokeStyle='rgba(22,20,17,.20)';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-40,-8);ctx.quadraticCurveTo(-8,-2,34,-9);ctx.moveTo(-42,10);ctx.quadraticCurveTo(-6,3,38,9);ctx.stroke();
+  }else if(type==='crate'){
+    ctx.fillStyle='rgba(0,0,0,.23)';ctx.beginPath();ctx.ellipse(5,10,30,12,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=v%3===0?'#795d37':v%3===1?'#586262':'#6f6b55';round(-22,-14,44,28,4,true);
+    ctx.strokeStyle='rgba(0,0,0,.24)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-20,-5);ctx.lineTo(20,-5);ctx.moveTo(0,-14);ctx.lineTo(0,14);ctx.stroke();
+  }else if(type==='rubble'){
+    ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(2,7,28,12,0,0,Math.PI*2);ctx.fill();
+    for(let i=0;i<6;i++){ctx.fillStyle=['#77766d','#5f5e58','#4c4a43'][i%3];ctx.beginPath();ctx.ellipse(-20+i*8,-4+(i%3)*5,7+(i%2)*4,4+(i%3),i*.6,0,Math.PI*2);ctx.fill()}
+  }else if(type==='bush'||type==='grassclump'){
+    ctx.fillStyle='rgba(0,0,0,.14)';ctx.beginPath();ctx.ellipse(4,8,18,7,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=type==='bush'?'#2b5732':'#49683b';
+    for(let i=0;i<5;i++){ctx.beginPath();ctx.arc(-12+i*6,-1+(i%2)*4,8+(i%3),0,Math.PI*2);ctx.fill()}
+  }else if(type==='pine'){
+    ctx.fillStyle='rgba(0,0,0,.20)';ctx.beginPath();ctx.ellipse(3,14,18,9,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#2a2519';round(-4,2,8,22,2,true);
+    ctx.fillStyle='#24482c';ctx.beginPath();ctx.moveTo(0,-36);ctx.lineTo(-22,6);ctx.lineTo(22,6);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#315f36';ctx.beginPath();ctx.moveTo(0,-24);ctx.lineTo(-26,20);ctx.lineTo(26,20);ctx.closePath();ctx.fill();
+  }else if(type==='fence'){
+    ctx.strokeStyle='#735b37';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-36,0);ctx.lineTo(36,0);ctx.moveTo(-28,-10);ctx.lineTo(-28,10);ctx.moveTo(0,-10);ctx.lineTo(0,10);ctx.moveTo(28,-10);ctx.lineTo(28,10);ctx.stroke();
+  }else if(type==='fuel'){
+    ctx.fillStyle='rgba(0,0,0,.24)';ctx.beginPath();ctx.ellipse(6,15,42,13,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#625e54';round(-36,-20,72,40,8,true);
+    ctx.fillStyle='#85684d';round(-25,-31,50,14,5,true);
+    ctx.fillStyle='rgba(210,190,120,.8)';ctx.font='700 13px system-ui';ctx.textAlign='center';ctx.fillText('FUEL',0,5);
+  }else if(type==='antenna'){
+    ctx.strokeStyle='#1f292c';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(0,28);ctx.lineTo(0,-55);ctx.moveTo(0,-35);ctx.lineTo(-24,-12);ctx.moveTo(0,-35);ctx.lineTo(24,-12);ctx.stroke();
+    ctx.fillStyle='rgba(111,199,234,.55)';ctx.beginPath();ctx.arc(0,-59,5,0,Math.PI*2);ctx.fill();
+  }else if(type==='checkpoint'){
+    ctx.fillStyle='rgba(0,0,0,.23)';ctx.beginPath();ctx.ellipse(0,14,70,16,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#b69a62';for(let x=-58;x<=58;x+=26)round(x,-8,22,16,5,true);
+    ctx.fillStyle='#3e4649';round(-42,10,84,16,5,true);
+    ctx.fillStyle='rgba(220,182,92,.86)';ctx.font='700 12px system-ui';ctx.textAlign='center';ctx.fillText('CHECK',0,22);
+  }
+  ctx.restore();
+}
+
 function drawBuilding(b){
   ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.rot||0);
   const damaged=b.state==='damaged'||b.type==='ruin';
-  const hangar=b.type==='hangar', outpost=b.type==='outpost';
-  // Ombre et footprint plus lisibles, style miniature RTS.
-  ctx.fillStyle='rgba(0,0,0,.32)';ctx.beginPath();ctx.ellipse(10,13,b.w*.58,b.h*.50,0,0,Math.PI*2);ctx.fill();
+  const cfg={
+    house:{wall:'#666961',roof:'#4b5049',accent:'#7a806f',door:true,vents:1},
+    shop:{wall:'#6a6257',roof:'#535148',accent:'#b39a62',door:true,awning:true,vents:1},
+    garage:{wall:'#5d6665',roof:'#454d4d',accent:'#82908b',door:true,shutter:true,vents:2},
+    warehouse:{wall:'#697076',roof:'#454f55',accent:'#839095',door:true,vents:3},
+    hangar:{wall:'#5b6970',roof:'#435258',accent:'#8b999d',door:true,vents:4},
+    barracks:{wall:'#59665a',roof:'#39483f',accent:'#70836d',door:true,vents:2},
+    outpost:{wall:'#4b5b51',roof:'#36453d',accent:'#dcb65c',door:true,flag:true,vents:1},
+    tower:{wall:'#565f5a',roof:'#303b38',accent:'#dcb65c',door:false,tower:true,vents:1},
+    ruin:{wall:'#514a42',roof:'#35302a',accent:'#8a6b4a',door:false,ruin:true,vents:0}
+  }[b.type]||{wall:'#60665f',roof:'#424941',accent:'#8b8d7e',door:true,vents:1};
 
-  const wall=damaged?'#514a42':hangar?'#5b6970':outpost?'#4b5b51':'#666961';
-  const roof=damaged?'#35302a':hangar?'#435258':outpost?'#36453d':'#4b5049';
-  ctx.fillStyle=wall;round(-b.w/2,-b.h/2,b.w,b.h,9,true);
-  ctx.fillStyle=roof;round(-b.w/2+8,-b.h/2+8,b.w-16,b.h-18,7,true);
+  // Ombre large façon sprite pré-rendu.
+  ctx.fillStyle='rgba(0,0,0,.34)';ctx.beginPath();ctx.ellipse(12,15,b.w*.62,b.h*.54,0,0,Math.PI*2);ctx.fill();
 
-  // Arêtes et panneaux façon asset low-poly.
-  ctx.strokeStyle='rgba(238,244,235,.18)';ctx.lineWidth=2;round(-b.w/2,-b.h/2,b.w,b.h,9,false);
-  ctx.strokeStyle='rgba(0,0,0,.20)';ctx.lineWidth=3;
-  ctx.beginPath();ctx.moveTo(-b.w/2+12,-b.h/2+12);ctx.lineTo(b.w/2-14,b.h/2-18);ctx.moveTo(-b.w/2+18,b.h/2-18);ctx.lineTo(b.w/2-14,-b.h/2+12);ctx.stroke();
+  // Base / dalle de bâtiment.
+  ctx.fillStyle='rgba(26,31,30,.62)';round(-b.w/2-8,-b.h/2-7,b.w+16,b.h+14,11,true);
 
-  // Fenêtres / portes plus sobres.
-  ctx.fillStyle='rgba(15,23,25,.82)';
-  const winW=hangar?14:18, winH=hangar?b.h-28:14;
-  if(hangar){
-    for(let x=-b.w*.34;x<=b.w*.34;x+=28)round(x-7,-b.h/2+14,winW,winH,2,true);
-    ctx.fillStyle='rgba(200,214,210,.12)';round(-b.w*.43,b.h*.18,b.w*.86,14,4,true);
+  // Volume principal.
+  ctx.fillStyle=damaged?'#544c43':cfg.wall;round(-b.w/2,-b.h/2,b.w,b.h,9,true);
+
+  // Toit en deux niveaux pour casser l'aspect rectangle.
+  ctx.fillStyle=damaged?'#372f29':cfg.roof;round(-b.w/2+8,-b.h/2+8,b.w-16,b.h-18,7,true);
+  ctx.fillStyle='rgba(255,255,255,.055)';
+  ctx.beginPath();ctx.moveTo(-b.w/2+13,-b.h/2+12);ctx.lineTo(0,-b.h/2+4);ctx.lineTo(b.w/2-13,-b.h/2+12);ctx.lineTo(b.w/2-20,0);ctx.lineTo(0,-8);ctx.lineTo(-b.w/2+20,0);ctx.closePath();ctx.fill();
+
+  // Arêtes low-poly.
+  ctx.strokeStyle='rgba(238,244,235,.17)';ctx.lineWidth=2;round(-b.w/2,-b.h/2,b.w,b.h,9,false);
+  ctx.strokeStyle='rgba(0,0,0,.22)';ctx.lineWidth=3;ctx.beginPath();
+  ctx.moveTo(-b.w/2+12,-b.h/2+12);ctx.lineTo(b.w/2-14,b.h/2-18);
+  ctx.moveTo(-b.w/2+18,b.h/2-18);ctx.lineTo(b.w/2-14,-b.h/2+12);
+  ctx.stroke();
+
+  // Fenêtres / portes / détails.
+  ctx.fillStyle='rgba(13,20,22,.86)';
+  if(cfg.shutter){
+    ctx.fillStyle='#2f383b';round(-b.w*.37,b.h*.05,b.w*.74,24,4,true);
+    ctx.strokeStyle='rgba(210,225,230,.12)';ctx.lineWidth=2;for(let x=-b.w*.32;x<b.w*.35;x+=18){ctx.beginPath();ctx.moveTo(x,b.h*.05);ctx.lineTo(x,b.h*.05+24);ctx.stroke()}
+  }else if(cfg.tower){
+    round(-16,-18,32,18,3,true);round(-18,8,36,16,3,true);
+    ctx.fillStyle=cfg.accent;ctx.beginPath();ctx.arc(0,-b.h/2-18,7,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#202a2c';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-b.h/2-10);ctx.lineTo(0,-b.h/2-44);ctx.stroke();
   }else{
-    round(-b.w*.35,-b.h*.25,18,14,3,true);
-    round(b.w*.18,-b.h*.25,18,14,3,true);
-    round(-b.w*.35,b.h*.05,18,14,3,true);
-    round(b.w*.18,b.h*.05,18,14,3,true);
-    ctx.fillStyle='rgba(12,18,20,.92)';round(-18,b.h/2-17,36,17,3,true);
+    const rows=b.h>100?2:1;
+    for(let r=0;r<rows;r++){
+      const yy=-b.h*.22+r*26;
+      round(-b.w*.34,yy,18,14,3,true);round(b.w*.18,yy,18,14,3,true);
+      if(b.w>150)round(-8,yy,18,14,3,true);
+    }
   }
-
-  if(outpost){
-    ctx.fillStyle='rgba(220,182,92,.86)';round(-7,-b.h/2-22,14,32,3,true);
+  if(cfg.door){
+    ctx.fillStyle='rgba(12,18,20,.92)';round(-18,b.h/2-18,36,18,3,true);
+  }
+  if(cfg.awning){
+    ctx.fillStyle=cfg.accent;round(-b.w*.36,b.h/2-28,b.w*.72,9,4,true);
+  }
+  if(cfg.flag){
+    ctx.fillStyle='rgba(220,182,92,.88)';round(-7,-b.h/2-22,14,32,3,true);
     ctx.fillStyle='rgba(235,245,240,.90)';ctx.beginPath();ctx.moveTo(7,-b.h/2-22);ctx.lineTo(35,-b.h/2-12);ctx.lineTo(7,-b.h/2-3);ctx.closePath();ctx.fill();
   }
-  if(damaged){
-    ctx.fillStyle='rgba(31,24,19,.72)';
+  for(let i=0;i<(cfg.vents||0);i++){
+    ctx.fillStyle='rgba(18,24,25,.58)';round(-b.w*.34+i*34,-b.h*.37,24,8,3,true);
+  }
+
+  // Ruines / dégâts.
+  if(damaged||cfg.ruin){
+    ctx.fillStyle='rgba(30,24,19,.74)';
     ctx.beginPath();ctx.moveTo(-b.w/2+2,-b.h/2+14);ctx.lineTo(-b.w/2+38,-b.h/2+2);ctx.lineTo(-b.w/2+72,-b.h/2+31);ctx.lineTo(-b.w/2+20,-b.h/2+38);ctx.closePath();ctx.fill();
-    ctx.strokeStyle='rgba(0,0,0,.36)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-b.w*.25,0);ctx.lineTo(-b.w*.05,20);ctx.moveTo(b.w*.18,-b.h*.2);ctx.lineTo(b.w*.32,-b.h*.03);ctx.stroke();
-    ctx.fillStyle='rgba(255,120,62,.14)';ctx.beginPath();ctx.ellipse(7,9,b.w*.18,b.h*.10,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(12,5,b.w*.18,b.h*.12,.2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.38)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-b.w*.25,0);ctx.lineTo(-b.w*.05,20);ctx.moveTo(b.w*.18,-b.h*.2);ctx.lineTo(b.w*.32,-b.h*.03);ctx.stroke();
+    ctx.fillStyle='rgba(255,120,62,.13)';ctx.beginPath();ctx.ellipse(7,9,b.w*.18,b.h*.10,0,0,Math.PI*2);ctx.fill();
+  }
+
+  // Petite zone d'entrée/garnison préparatoire.
+  if(!damaged&&b.type!=='tower'){
+    ctx.fillStyle='rgba(220,230,220,.10)';round(-25,b.h/2+5,50,11,5,true);
   }
   ctx.restore();
 }
