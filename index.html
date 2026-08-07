@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#10161c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Odyssée — Conquête de l'Égée v0.1.5</title>
+  <title>Odyssée — Conquête de l'Égée v0.1.8</title>
   <style>
     :root{
       --gold:#d7b568;
@@ -96,7 +96,22 @@
       padding:9px 11px;font-size:10px;color:var(--muted);line-height:1.5
     }
     #legend b{color:#fff}
-    @media(max-width:720px){#legend{display:none}}
+    #battleLog{
+      position:fixed;right:max(8px,env(safe-area-inset-right));top:126px;z-index:18;
+      width:260px;max-height:150px;overflow:hidden;padding:9px 11px;font-size:10px;
+      color:var(--muted);line-height:1.45
+    }
+    #battleLog b{color:#fff}
+    #battleEntries div{padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+    #unitCard{
+      display:flex;align-items:center;gap:8px;margin-bottom:7px
+    }
+    #unitIcon{
+      width:38px;height:38px;border-radius:9px;background:linear-gradient(145deg,#2f4554,#18232d);
+      display:grid;place-items:center;font-size:19px;border:1px solid rgba(255,255,255,.12)
+    }
+    #stance{font-size:10px;color:#d8c17d}
+    @media(max-width:720px){#legend,#battleLog{display:none}}
   </style>
 </head>
 <body>
@@ -105,7 +120,7 @@
 <div id="top">
   <div id="brand" class="panel">
     <b>ODYSSÉE — CONQUÊTE DE L'ÉGÉE</b>
-    <span>Fondation v0.1.5 — Carte grecque</span>
+    <span>Fondation v0.1.8 — Carte grecque</span>
   </div>
   <div id="res" class="panel">
     <span>🌾 <b id="food">150</b></span>
@@ -123,6 +138,11 @@
   Plage : moral et vitesse réduits
 </div>
 
+<div id="battleLog" class="panel">
+  <b>Journal de bataille</b>
+  <div id="battleEntries"><div>Les armées prennent position.</div></div>
+</div>
+
 <div id="help" class="panel">
   <b>Commandes</b><br>
   Touchez une unité verte pour la sélectionner.<br>
@@ -132,15 +152,22 @@
   Pincez pour zoomer progressivement.<br>
   Double-tapez pour recentrer rapidement.<br>
   Hoplites > cavalerie · Cavalerie > archers<br>
-  Peltastes > cavalerie · Frondeurs > moral
+  Peltastes > cavalerie · Frondeurs > moral<br>
+  L'IA protège ses archers, cherche les hauteurs et replie les unités brisées.
 </div>
 
 <div id="toast"></div>
 
 <div id="bottom">
   <div id="unit" class="panel">
-    <h3 id="name">Aucune unité sélectionnée</h3>
-    <p id="role">Touchez un groupe vert pour lui donner des ordres.</p>
+    <div id="unitCard">
+      <div id="unitIcon">⚔️</div>
+      <div>
+        <h3 id="name">Aucune unité sélectionnée</h3>
+        <p id="role">Touchez un groupe vert pour lui donner des ordres.</p>
+        <div id="stance">Ordres : aucun</div>
+      </div>
+    </div>
     <div id="stats">
       <div class="stat"><b id="count">—</b>Effectif</div>
       <div class="stat"><b id="hp">—</b>Santé</div>
@@ -160,9 +187,9 @@
 <div id="start">
   <div id="card" class="panel">
     <h1>Conquête de l'Égée</h1>
-    <h2>Fondation — armées, formations et terrain</h2>
+    <h2>Fondation — commandement tactique vivant</h2>
     <p>
-      Cette version réunit les étapes v0.1.3, v0.1.4 et v0.1.5 : formations plus lisibles,
+      Cette version réunit les étapes v0.1.3, v0.1.4 et v0.1.8 : formations plus lisibles,
       six catégories d'unités, rôles tactiques distincts et véritables avantages ou pénalités
       selon le terrain.
     </p>
@@ -183,6 +210,7 @@ const ui = {
   food:$("food"), wood:$("wood"), gold:$("gold"),
   name:$("name"), role:$("role"), count:$("count"), hp:$("hp"),
   morale:$("morale"), fatigue:$("fatigue"), terrain:$("terrain"),
+  unitIcon:$("unitIcon"), stance:$("stance"), battleEntries:$("battleEntries"),
   formation:$("formation"), hold:$("hold"), rally:$("rally"),
   cameraBtn:$("cameraBtn"), helpBtn:$("helpBtn"), help:$("help"), toast:$("toast"),
   start:$("start"), startBtn:$("startBtn"), objective:$("objective")
@@ -195,6 +223,11 @@ const camera={
 };
 const resources={food:150,wood:110,gold:85};
 let running=false,last=performance.now(),selected=null,drag=null,pinch=null,toastTimer=0,victory=null,lastTapTime=0;
+let audioCtx=null,masterGain=null,windGain=null;
+const particles=[];
+const birds=[];
+const battleMessages=[];
+for(let i=0;i<9;i++)birds.push({x:500+Math.random()*3200,y:480+Math.random()*1500,v:18+Math.random()*24,phase:Math.random()*6.28});
 
 function resize(){
   const dpr=Math.min(2,devicePixelRatio||1);
@@ -231,6 +264,35 @@ function clampCam(){
 function toast(msg){
   ui.toast.textContent=msg;ui.toast.classList.add("show");
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>ui.toast.classList.remove("show"),1500);
+}
+function logBattle(msg){
+  battleMessages.unshift(msg);
+  if(battleMessages.length>6)battleMessages.length=6;
+  ui.battleEntries.innerHTML=battleMessages.map(m=>"<div>"+m+"</div>").join("");
+}
+function spawnParticle(x,y,type,count=1){
+  for(let i=0;i<count;i++){
+    particles.push({
+      x,y,type,life:type==="smoke"?1.8:type==="dust"?1.1:.45,
+      maxLife:type==="smoke"?1.8:type==="dust"?1.1:.45,
+      vx:(Math.random()-.5)*(type==="spark"?90:35),
+      vy:(Math.random()-.5)*(type==="spark"?90:25)-(type==="smoke"?18:0),
+      size:type==="smoke"?8+Math.random()*10:type==="dust"?4+Math.random()*7:2+Math.random()*3
+    });
+  }
+}
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  masterGain=audioCtx.createGain();masterGain.gain.value=.18;masterGain.connect(audioCtx.destination);
+  const wind=audioCtx.createBufferSource();
+  const len=audioCtx.sampleRate*2,buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate),data=buf.getChannelData(0);
+  let lastNoise=0;
+  for(let i=0;i<len;i++){lastNoise=lastNoise*.985+(Math.random()*2-1)*.015;data[i]=lastNoise}
+  wind.buffer=buf;wind.loop=true;
+  const filter=audioCtx.createBiquadFilter();filter.type="lowpass";filter.frequency.value=900;
+  windGain=audioCtx.createGain();windGain.gain.value=.12;
+  wind.connect(filter);filter.connect(windGain);windGain.connect(masterGain);wind.start();
 }
 
 const roads=[
@@ -424,7 +486,11 @@ function applyTerrain(u){
 function updateUI(){
   ui.food.textContent=Math.floor(resources.food);ui.wood.textContent=Math.floor(resources.wood);ui.gold.textContent=Math.floor(resources.gold);
   if(selected&&selected.count>0){
-    ui.name.textContent=selected.label;ui.role.textContent=selected.role+" · Vision "+selected.vision+" · Coût "+selected.cost;
+    ui.name.textContent=selected.label;
+    ui.role.textContent=selected.role+" · Vision "+selected.vision+" · Coût "+selected.cost;
+    const icons={shield:"🛡️",javelin:"🗡️",bow:"🏹",sling:"🪨",horse:"🐎",spear:"🔱"};
+    ui.unitIcon.textContent=icons[selected.shape]||"⚔️";
+    ui.stance.textContent="Ordres : "+(selected.target?"attaque":selected.hold?"position tenue":"déplacement libre")+" · "+selected.formation;
     ui.count.textContent=Math.ceil(selected.count);ui.hp.textContent=Math.ceil(selected.hp)+"%";
     ui.morale.textContent=Math.ceil(selected.morale)+"%";ui.fatigue.textContent=Math.ceil(selected.fatigue)+"%";
     ui.terrain.textContent=selected.terrain;
@@ -434,6 +500,7 @@ function updateUI(){
   }else{
     selected=null;ui.name.textContent="Aucune unité sélectionnée";ui.role.textContent="Touchez un groupe vert pour lui donner des ordres.";
     ui.count.textContent=ui.hp.textContent=ui.morale.textContent=ui.fatigue.textContent=ui.terrain.textContent="—";
+    ui.unitIcon.textContent="⚔️";ui.stance.textContent="Ordres : aucun";
   }
 }
 
@@ -449,8 +516,12 @@ function findUnit(x,y,team=null){
 function order(x,y){
   if(!selected)return;
   const enemy=findUnit(x,y,"enemy");
-  if(enemy){selected.target=enemy;selected.hold=false;toast("Cible : "+enemy.label)}
-  else{selected.target=null;selected.tx=Math.max(40,Math.min(WORLD.w-40,x));selected.ty=Math.max(420,Math.min(WORLD.h-40,y));selected.hold=false;toast("Déplacement ordonné")}
+  if(enemy){
+    selected.target=enemy;selected.hold=false;toast("Cible : "+enemy.label);
+    logBattle(selected.label+" engagent "+enemy.label+".");
+  }else{
+    selected.target=null;selected.tx=Math.max(40,Math.min(WORLD.w-40,x));selected.ty=Math.max(420,Math.min(WORLD.h-40,y));selected.hold=false;toast("Déplacement ordonné");
+  }
 }
 
 function pointerDown(e){
@@ -547,14 +618,14 @@ canvas.addEventListener("wheel",e=>{
 ui.formation.onclick=()=>{
   if(!selected)return;
   selected.formation=selected.formation==="line"?"phalanx":"line";
-  if(selected.formation==="phalanx"){selected.armor=Math.min(.62,selected.baseArmor+.2);toast("Phalange : défense renforcée")}
-  else{selected.armor=selected.baseArmor;toast("Formation en ligne")}
+  if(selected.formation==="phalanx"){selected.armor=Math.min(.62,selected.baseArmor+.2);toast("Phalange : défense renforcée");logBattle(selected.label+" passent en phalange.")}
+  else{selected.armor=selected.baseArmor;toast("Formation en ligne");logBattle(selected.label+" reprennent une ligne mobile.")}
   updateUI();
 };
-ui.hold.onclick=()=>{if(!selected)return;selected.hold=!selected.hold;selected.target=null;selected.tx=selected.x;selected.ty=selected.y;toast(selected.hold?"Position verrouillée":"Position libérée");updateUI()};
+ui.hold.onclick=()=>{if(!selected)return;selected.hold=!selected.hold;selected.target=null;selected.tx=selected.x;selected.ty=selected.y;toast(selected.hold?"Position verrouillée":"Position libérée");logBattle(selected.label+(selected.hold?" tiennent leur position.":" reprennent leur progression."));updateUI()};
 ui.rally.onclick=()=>{
   if(!selected)return;if(selected.rallyCd>0){toast("Ralliement indisponible");return}
-  selected.morale=Math.min(selected.maxMorale,selected.morale+25);selected.rallyCd=12;toast("Le chef rallie ses hommes");updateUI()
+  selected.morale=Math.min(selected.maxMorale,selected.morale+25);selected.rallyCd=12;toast("Le chef rallie ses hommes");logBattle(selected.label+" retrouvent leur courage.");updateUI()
 };
 ui.cameraBtn.onclick=()=>{
   if(selected&&selected.count>0){
@@ -568,7 +639,10 @@ ui.cameraBtn.onclick=()=>{
   }
 };
 ui.helpBtn.onclick=()=>ui.help.classList.toggle("hidden");
-ui.startBtn.onclick=()=>{ui.start.style.display="none";running=true;last=performance.now();toast("La Fondation commence")};
+ui.startBtn.onclick=()=>{
+  ui.start.style.display="none";running=true;last=performance.now();
+  initAudio();toast("La Fondation commence");logBattle("Le vent se lève sur le champ de bataille.");
+};
 
 
 function updateCamera(dt){
@@ -595,28 +669,59 @@ function updateCamera(dt){
 
 function enemyAI(){
   const ps=units.filter(u=>u.team==="player"&&u.count>0);
-  for(const e of units.filter(u=>u.team==="enemy"&&u.count>0)){
+  const es=units.filter(u=>u.team==="enemy"&&u.count>0);
+
+  for(const e of es){
     if(e.target&&e.target.count<=0)e.target=null;
+
+    // Retreat broken or exhausted units toward their camp.
+    if((e.morale<28||e.fatigue>88)&&!e.hold){
+      e.target=null;e.tx=3450;e.ty=1120;
+      continue;
+    }
+
+    // Ranged units try to stay behind nearby heavy infantry.
+    if((e.shape==="bow"||e.shape==="sling")&&ps.length){
+      const nearestPlayer=ps.reduce((a,p)=>Math.hypot(p.x-e.x,p.y-e.y)<Math.hypot(a.x-e.x,a.y-e.y)?p:a,ps[0]);
+      const d=Math.hypot(nearestPlayer.x-e.x,nearestPlayer.y-e.y);
+      if(d<150){
+        const dx=e.x-nearestPlayer.x,dy=e.y-nearestPlayer.y,len=Math.hypot(dx,dy)||1;
+        e.target=null;e.tx=e.x+dx/len*210;e.ty=e.y+dy/len*210;
+        continue;
+      }
+      const hill=hills.reduce((a,h)=>Math.hypot(h.x-e.x,h.y-e.y)<Math.hypot(a.x-e.x,a.y-e.y)?h:a,hills[0]);
+      if(!e.target&&Math.hypot(hill.x-e.x,hill.y-e.y)<520){e.tx=hill.x;e.ty=hill.y}
+    }
+
+    // Cavalry seeks flanks and vulnerable ranged troops.
+    if(e.shape==="horse"){
+      const vulnerable=ps.filter(p=>p.shape==="bow"||p.shape==="sling"||p.morale<45);
+      if(vulnerable.length){
+        vulnerable.sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y));
+        const t=vulnerable[0],ang=Math.atan2(t.y-e.y,t.x-e.x)+Math.PI/2;
+        if(Math.hypot(t.x-e.x,t.y-e.y)>220){e.tx=t.x+Math.cos(ang)*150;e.ty=t.y+Math.sin(ang)*150}
+        else e.target=t;
+      }
+    }
 
     if(!e.target){
       let best=null,bestScore=1e9;
       for(const p of ps){
         const d=Math.hypot(p.x-e.x,p.y-e.y);
         if(d>e.vision*(1-p.stealth))continue;
-
         let score=d;
-        if(e.shape==="horse"&&(p.shape==="bow"||p.shape==="sling"))score*=.55;
-        if((e.shape==="bow"||e.shape==="sling")&&p.shape==="shield")score*=1.25;
-        if(e.shape==="shield"&&p.shape==="horse")score*=.72;
-        if(p.morale<45)score*=.74;
-        if(p.count<45)score*=.82;
-
+        if(e.shape==="horse"&&(p.shape==="bow"||p.shape==="sling"))score*=.48;
+        if((e.shape==="bow"||e.shape==="sling")&&p.shape==="shield")score*=1.3;
+        if(e.shape==="shield"&&p.shape==="horse")score*=.66;
+        if(p.morale<45)score*=.7;
+        if(p.count<45)score*=.8;
         if(score<bestScore){bestScore=score;best=p}
       }
       if(best)e.target=best;
       else{
-        e.tx=2100+(Math.random()-.5)*220;
-        e.ty=1390+(Math.random()-.5)*220;
+        const guard=es.find(u=>u.shape==="shield"&&u.count>0);
+        if((e.shape==="bow"||e.shape==="sling")&&guard){e.tx=guard.x-90;e.ty=guard.y+40}
+        else{e.tx=2100+(Math.random()-.5)*220;e.ty=1390+(Math.random()-.5)*220}
       }
     }
   }
@@ -648,12 +753,18 @@ function updateUnit(u,dt){
         u.target.hp-=dealt*.4;
         u.target.count-=dealt*.085;
         u.target.morale-=dealt*(u.shape==="sling"?.22:.13);
+        spawnParticle(u.target.x,u.target.y,"spark",u.range>100?2:4);
+        if(u.range<80)spawnParticle(u.target.x,u.target.y,"dust",3);
+        if(Math.random()<.10)spawnParticle(u.target.x,u.target.y,"smoke",1);
         u.attackCd=u.range>100?1.22:.72;
         u.movingTime=0;
 
         if(u.target.hp<=0||u.target.count<=1||u.target.morale<=0){
-          u.target.count=0;u.target.hp=0;u.target.morale=0;
-          if(selected===u.target)selected=null;
+          const defeated=u.target;
+          defeated.count=0;defeated.hp=0;defeated.morale=0;
+          spawnParticle(defeated.x,defeated.y,"smoke",7);
+          logBattle(defeated.label+" sont mis en déroute.");
+          if(selected===defeated)selected=null;
           u.target=null;
         }
       }
@@ -853,11 +964,56 @@ function drawMini(){
   const vw=innerWidth/camera.zoom/WORLD.w*w,vh=innerHeight/camera.zoom/WORLD.h*h;ctx.strokeStyle="#fff";ctx.lineWidth=1.4;ctx.strokeRect(x+camera.x/WORLD.w*w-vw/2,y+camera.y/WORLD.h*h-vh/2,vw,vh);
 }
 
+
+function updateAtmosphere(dt){
+  for(const b of birds){
+    b.x+=b.v*dt;
+    b.y+=Math.sin(performance.now()*.001+b.phase)*4*dt;
+    if(b.x>WORLD.w+100){b.x=-100;b.y=450+Math.random()*1500}
+  }
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    p.vx*=Math.pow(.25,dt);p.vy*=Math.pow(.35,dt);
+    if(p.life<=0)particles.splice(i,1);
+  }
+}
+function drawAtmosphere(){
+  // Sea glints
+  ctx.save();
+  ctx.globalAlpha=.16;
+  ctx.strokeStyle="#e7fbff";ctx.lineWidth=1.2;
+  const t=performance.now()*.001;
+  for(let i=0;i<20;i++){
+    const wx=(i*233+t*25)%WORLD.w,wy=120+(i%4)*55;
+    const s=w2s(wx,wy);
+    ctx.beginPath();ctx.moveTo(s.x-14*camera.zoom,s.y);ctx.lineTo(s.x+14*camera.zoom,s.y+Math.sin(t+i)*2);ctx.stroke();
+  }
+  ctx.restore();
+
+  // Birds
+  ctx.strokeStyle="rgba(25,35,40,.55)";ctx.lineWidth=1.2;
+  for(const b of birds){
+    const s=w2s(b.x,b.y),wing=5*camera.zoom;
+    ctx.beginPath();ctx.arc(s.x-wing,s.y,wing,3.45,5.85);ctx.arc(s.x+wing,s.y,wing,3.58,6.0);ctx.stroke();
+  }
+
+  // Dust, smoke and sparks
+  for(const p of particles){
+    const s=w2s(p.x,p.y),a=Math.max(0,p.life/p.maxLife);
+    ctx.globalAlpha=a*.75;
+    if(p.type==="smoke")ctx.fillStyle="rgba(80,86,82,.75)";
+    else if(p.type==="dust")ctx.fillStyle="rgba(166,137,86,.8)";
+    else ctx.fillStyle="rgba(255,207,88,.95)";
+    ctx.beginPath();ctx.arc(s.x,s.y,p.size*camera.zoom*(1+(1-a)*.7),0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
 function frame(now){
   const dt=Math.min(.033,(now-last)/1000);last=now;
-  updateCamera(dt);
+  updateCamera(dt);updateAtmosphere(dt);
   if(running&&!victory){enemyAI();units.forEach(u=>updateUnit(u,dt));capture(dt);updateEconomy(dt);checkWin();updateUI()}
-  drawTerrain();villages.forEach(drawVillage);points.forEach(drawPoint);units.slice().sort((a,b)=>a.y-b.y).forEach(drawUnit);drawMini();
+  drawTerrain();drawAtmosphere();villages.forEach(drawVillage);points.forEach(drawPoint);units.slice().sort((a,b)=>a.y-b.y).forEach(drawUnit);drawMini();
   if(victory){
     ctx.fillStyle="rgba(0,0,0,.5)";ctx.fillRect(0,0,innerWidth,innerHeight);
     ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font=`bold ${Math.min(64,innerWidth*.11)}px Arial`;ctx.fillText(victory,innerWidth/2,innerHeight/2);
