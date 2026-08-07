@@ -2,79 +2,202 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>OPERATION OVERWATCH v0.3 — Blindés + Asset Pass v0.1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<title>OPERATION OVERWATCH v0.4 — Logistique + UI</title>
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#e8e8e8;font-family:system-ui,Arial;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
-#game{width:100vw;height:100vh;display:block}
-#hud{position:fixed;left:10px;right:10px;bottom:10px;display:flex;gap:10px;align-items:end;pointer-events:none}
-.panel{background:rgba(14,18,20,.86);border:1px solid #5f6b66;border-radius:12px;padding:10px;min-width:230px;box-shadow:0 6px 18px #0008}
-.title{font-weight:800;color:#fff;margin-bottom:4px}.small{font-size:12px;color:#bfc8c2;line-height:1.35}
-.bar{height:7px;background:#333;border-radius:9px;overflow:hidden;margin:3px 0}.fill{height:100%;background:#62d17b}.mor{background:#7db8ff}.sup{background:#ffb14e}.fat{background:#e6dd76}
-.buttons{display:flex;flex-wrap:wrap;gap:6px;pointer-events:auto}.buttons button{background:#26312f;color:#eaf2ee;border:1px solid #74847e;border-radius:8px;padding:8px 9px;font-weight:700}
-.buttons button:active{transform:scale(.96);background:#3b4b47}
-#top{position:fixed;left:10px;top:10px;background:rgba(0,0,0,.55);border:1px solid #777;border-radius:10px;padding:8px 10px;font-size:12px;max-width:420px}
+:root{--ui:rgba(11,16,20,.82);--line:rgba(255,255,255,.16);--txt:#eaf2ef;--mut:#9fb1aa;--accent:#7fd0ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#09100d;color:var(--txt);font-family:system-ui,Arial,sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
+button,input,select{font:inherit}
+#game{position:fixed;inset:0;width:100vw;height:100vh;display:block;background:#223629}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 40% 30%,#263b32,#07100d 70%);z-index:10}
+.card{width:min(520px,92vw);padding:22px;border:1px solid var(--line);border-radius:18px;background:rgba(9,14,18,.88);box-shadow:0 20px 80px #0008}
+h1{margin:0 0 4px;font-size:clamp(27px,5vw,46px);letter-spacing:.08em}
+h2{margin:0 0 14px;font-size:22px}
+.sub{color:var(--mut);margin:0 0 22px}
+.menu{display:grid;gap:10px}
+button{border:1px solid var(--line);border-radius:12px;background:#1d2c34;color:var(--txt);padding:12px 14px;cursor:pointer}
+button:hover{background:#29414c}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:8px 0;color:var(--mut)}
+.row input[type=range]{width:180px}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:3}
+#topbar{position:absolute;top:env(safe-area-inset-top,0);left:0;right:0;height:44px;padding:6px 8px;display:flex;gap:8px;align-items:center;justify-content:space-between;background:linear-gradient(#07100dcc,#07100d22);pointer-events:none}
+#topbar .group{display:flex;gap:8px;align-items:center;pointer-events:auto}
+.chip{padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:var(--ui);font-size:12px;color:#d8ebe4;white-space:nowrap}
+.iconbtn{min-width:42px;padding:9px 10px}
+#panel{position:absolute;left:10px;bottom:10px;width:min(390px,calc(100vw - 20px));border:1px solid var(--line);border-radius:14px;background:var(--ui);backdrop-filter:blur(8px);pointer-events:auto;overflow:hidden}
+#panel.min{width:auto}
+#panelHead{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-bottom:1px solid var(--line);gap:8px}
+#panelTitle{font-weight:800;font-size:13px}
+#panelBody{padding:9px 10px;display:grid;gap:6px;font-size:12px}
+#panel.min #panelBody{display:none}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stat{background:#ffffff10;border-radius:8px;padding:6px}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.actions button{font-size:12px;padding:8px 9px}
+#portrait{position:fixed;inset:0;display:none;z-index:20;background:#07100df2;align-items:center;justify-content:center;text-align:center;padding:32px}
+#portrait .card{max-width:420px}
+#fps{font-variant-numeric:tabular-nums}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111d;padding:10px 14px;border:1px solid var(--line);border-radius:12px;z-index:30;display:none}
+@media (max-height:520px) and (orientation:landscape){
+  #panel{left:auto;right:8px;bottom:8px;width:min(360px,42vw)}
+  #panelBody{font-size:11px;padding:7px}.stat{padding:5px}.actions button{padding:7px 8px}
+  .chip{padding:6px 8px}
+}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="top">OPERATION OVERWATCH v0.3 — Blindés + Asset Pass v0.1<br/>Desktop: glisser caméra, molette zoom, clic unité puis clic sol. Touch: tap unité puis tap sol. 1-4 formations.</div>
-<div id="hud"><div class="panel" id="info"><div class="title">Aucune sélection</div><div class="small">Sélectionne une escouade ou un véhicule allié.</div></div><div class="panel"><div class="buttons" id="buttons"></div></div></div>
-<script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
+
+<div id="mainMenu" class="screen">
+  <div class="card"><h1>OPERATION OVERWATCH</h1><p class="sub">v0.4 — Logistique + UI/Menus</p>
+    <div class="menu">
+      <button id="playBtn">Jouer</button><button id="optionsBtn">Options</button><button id="creditsBtn">Crédits</button><button id="fsBtn">Plein écran</button><button id="quitBtn">Quitter / Retour</button>
+    </div>
+  </div>
+</div>
+<div id="playMenu" class="screen" style="display:none"><div class="card"><h2>Jouer</h2><div class="menu"><button id="newGameBtn">Nouvelle partie</button><button disabled>Continuer</button><button data-back>Retour</button></div></div></div>
+<div id="optionsMenu" class="screen" style="display:none"><div class="card"><h2>Options</h2>
+  <div class="row">Volume général <input id="masterVol" type="range" min="0" max="1" step=".05"></div>
+  <div class="row">Effets visuels <select id="effects"><option value="normal">Activés</option><option value="reduced">Réduits</option></select></div>
+  <div class="row">Afficher FPS <input id="showFPS" type="checkbox"></div>
+  <div class="row">Taille UI <select id="uiScale"><option value=".9">Petite</option><option value="1">Normale</option><option value="1.15">Grande</option></select></div>
+  <div class="row">Vitesse caméra <input id="camSpeed" type="range" min=".5" max="2" step=".1"></div>
+  <div class="row">Rayons vision <input id="showVision" type="checkbox"></div>
+  <div class="row">Portées attaque <input id="showRange" type="checkbox"></div>
+  <div class="menu"><button id="fsBtn2">Plein écran</button><button data-back>Retour</button></div>
+</div></div>
+<div id="creditsMenu" class="screen" style="display:none"><div class="card"><h2>Crédits</h2><p class="sub">OPERATION OVERWATCH — Développement prototype. Rendu procédural autonome dans ce fichier. Pour les versions projet, voir ASSET_LICENSES.md pour les licences complètes.</p><div class="menu"><button data-back>Retour</button></div></div></div>
+<div id="pauseMenu" class="screen" style="display:none"><div class="card"><h2>Pause</h2><div class="menu"><button id="resumeBtn">Reprendre</button><button id="pauseOptionsBtn">Options</button><button id="mainBackBtn">Retour menu principal</button></div></div></div>
+
+<div id="portrait"><div class="card"><h2>Mode paysage recommandé</h2><p>Tournez votre appareil en mode paysage pour jouer confortablement.</p></div></div>
+<div id="hud" style="display:none">
+  <div id="topbar"><div class="group"><span class="chip">OW v0.4</span><span id="fps" class="chip"></span></div><div class="group"><button id="hudFs" class="iconbtn">⛶</button><button id="pauseBtn" class="iconbtn">Ⅱ</button></div></div>
+  <div id="panel" style="display:none"><div id="panelHead"><span id="panelTitle">Unité</span><button id="minPanel">—</button></div><div id="panelBody"></div></div>
+</div>
+<div id="toast"></div>
+
+<script src="https://pixijs.download/release/pixi.min.js"></script>
 <script>
-/* Asset pass v0.1 intégré dans ce HTML autonome : rendu procédural inspiré d’un pipeline Kenney CC0-ready. Pour un projet multi-fichiers, remplacer ces formes par les PNG Kenney sélectionnés et documentés dans ASSET_LICENSES.md. */
-'use strict';
-const W=2400,H=1600, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y), ang=(a,b)=>Math.atan2(b.y-a.y,b.x-a.x);
-const terrain=[{t:'road',x:0,y:720,w:2400,h:110},{t:'road',x:1080,y:0,w:130,h:1600},{t:'forest',x:180,y:150,w:430,h:310},{t:'forest',x:1700,y:160,w:470,h:330},{t:'rocks',x:370,y:1060,w:430,h:280},{t:'urban',x:1420,y:960,w:500,h:340}];
-const T={open:{s:1,v:1,d:1,sup:1.2,c:'none'},road:{s:1.25,v:1,d:1,sup:1.15,c:'none'},forest:{s:.75,v:.8,d:.82,sup:.75,c:'light'},urban:{s:.65,v:.75,d:.65,sup:.65,c:'medium'},rocks:{s:.55,v:.9,d:.55,sup:.55,c:'heavy'}};
-const F={line:{speed:.9,acc:1.08,sup:.95,vuln:1.05,w:52},column:{speed:1.15,acc:.95,sup:1.25,vuln:1.2,w:28},wedge:{speed:1,acc:1,sup:1,vuln:1,w:42},spread:{speed:.82,acc:.95,sup:.72,vuln:.82,w:72}};
-const VCFG={
-humvee:{name:'Humvee',hp:120,af:8,as:5,ar:3,speed:150,rev:70,acc:220,turn:3.2,vision:360,range:260,dmg:10,accuracy:.55,reload:.6,ammo:300,fuel:100,cap:1,role:'recon'},
-apc:{name:'APC',hp:220,af:18,as:12,ar:8,speed:110,rev:50,acc:140,turn:2.4,vision:320,range:260,dmg:14,accuracy:.5,reload:.8,ammo:400,fuel:100,cap:2,role:'transport'},
-ifv:{name:'IFV',hp:260,af:26,as:16,ar:10,speed:100,rev:45,acc:120,turn:2.1,vision:340,range:320,dmg:26,accuracy:.58,reload:1.4,ammo:120,fuel:100,cap:1,role:'support'},
-mbt:{name:'MBT',hp:420,af:60,as:35,ar:20,speed:75,rev:35,acc:80,turn:1.4,vision:330,range:420,dmg:90,accuracy:.62,reload:3.5,ammo:40,fuel:100,cap:0,role:'tank'},
-truck:{name:'Camion',hp:100,af:2,as:1,ar:1,speed:120,rev:45,acc:120,turn:2,vision:260,range:0,dmg:0,accuracy:0,reload:0,ammo:0,fuel:100,cap:3,role:'logistics'},
-ambulance:{name:'Ambulance',hp:110,af:3,as:2,ar:1,speed:115,rev:45,acc:120,turn:2,vision:280,range:0,dmg:0,accuracy:0,reload:0,ammo:0,fuel:100,cap:1,heal:180,role:'medical'}
+(()=> {
+const W=2600,H=1600, ARRIVAL_RADIUS=22, SLOWDOWN_RADIUS=95, ANGLE_EPSILON=.08;
+const LS='operationOverwatchSettings';
+const defaults={audio:{masterVolume:1,musicVolume:.7,sfxVolume:.8,muted:false},graphics:{quality:'medium',effects:'normal',showFPS:false,uiScale:1},gameplay:{cameraSpeed:1,zoomSensitivity:1,showVisionRanges:false,showAttackRanges:false},controls:{inputMode:'auto',invertZoom:false,confirmImportantOrders:false,touchButtonScale:1}};
+let settings=Object.assign({},defaults,JSON.parse(localStorage.getItem(LS)||'{}'));
+settings.audio=Object.assign({},defaults.audio,settings.audio);settings.graphics=Object.assign({},defaults.graphics,settings.graphics);settings.gameplay=Object.assign({},defaults.gameplay,settings.gameplay);settings.controls=Object.assign({},defaults.controls,settings.controls);
+const $=id=>document.getElementById(id), toast=t=>{const e=$('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',1600)};
+function save(){localStorage.setItem(LS,JSON.stringify(settings))}
+function normalizeAngle(a){while(a>Math.PI)a-=Math.PI*2;while(a<-Math.PI)a+=Math.PI*2;return a}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function mobile(){return matchMedia('(pointer:coarse)').matches}
+async function toggleFullscreen(){try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){toast('Plein écran bloqué par le navigateur')}}
+['fsBtn','fsBtn2','hudFs'].forEach(id=>$(id).onclick=toggleFullscreen);
+function show(id){['mainMenu','playMenu','optionsMenu','creditsMenu','pauseMenu'].forEach(x=>$(x).style.display=x===id?'flex':'none')}
+$('playBtn').onclick=()=>show('playMenu');$('optionsBtn').onclick=()=>show('optionsMenu');$('creditsBtn').onclick=()=>show('creditsMenu');$('quitBtn').onclick=()=>toast('Merci d’avoir joué à OPERATION OVERWATCH.');
+document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>show('mainMenu'));
+$('pauseOptionsBtn').onclick=()=>show('optionsMenu');
+function bindOptions(){ $('masterVol').value=settings.audio.masterVolume; $('effects').value=settings.graphics.effects; $('showFPS').checked=settings.graphics.showFPS; $('uiScale').value=settings.graphics.uiScale; $('camSpeed').value=settings.gameplay.cameraSpeed; $('showVision').checked=settings.gameplay.showVisionRanges; $('showRange').checked=settings.gameplay.showAttackRanges;}
+bindOptions();
+$('masterVol').oninput=e=>{settings.audio.masterVolume=+e.target.value;save()};$('effects').onchange=e=>{settings.graphics.effects=e.target.value;save()};$('showFPS').onchange=e=>{settings.graphics.showFPS=e.target.checked;save()};$('uiScale').onchange=e=>{settings.graphics.uiScale=+e.target.value;document.body.style.fontSize=(16*settings.graphics.uiScale)+'px';save()};$('camSpeed').oninput=e=>{settings.gameplay.cameraSpeed=+e.target.value;save()};$('showVision').onchange=e=>{settings.gameplay.showVisionRanges=e.target.checked;save()};$('showRange').onchange=e=>{settings.gameplay.showAttackRanges=e.target.checked;save()};
+document.body.style.fontSize=(16*settings.graphics.uiScale)+'px';
+function orient(){ $('portrait').style.display=(mobile()&&innerHeight>innerWidth)?'flex':'none'} addEventListener('resize',orient); addEventListener('orientationchange',orient); orient();
+
+let app,world,uiG,started=false,paused=false,selected=null,camera={x:0,y:0,z:.62,drag:false,lx:0,ly:0},units=[],effects=[],mines=[],obstacles=[];
+const terrain=[{t:'road',x:0,y:690,w:2600,h:130},{t:'forest',x:220,y:160,w:520,h:420},{t:'rocks',x:1580,y:260,w:420,h:330},{t:'urban',x:1180,y:980,w:520,h:340},{t:'open',x:0,y:0,w:W,h:H}];
+const objectives=[{x:1180,y:720,r:95,owner:'neutral',p:0},{x:1980,y:1050,r:95,owner:'neutral',p:0}];
+const V={
+humvee:{hp:120,af:8,as:5,ar:3,spd:150,rev:70,acc:220,turn:3.2,vis:360,range:260,dmg:10,accu:.55,rel:.6,ammo:300,fuel:100,cap:1},
+apc:{hp:220,af:18,as:12,ar:8,spd:110,rev:50,acc:140,turn:2.4,vis:320,range:260,dmg:14,accu:.5,rel:.8,ammo:400,fuel:100,cap:2},
+ifv:{hp:260,af:26,as:16,ar:10,spd:100,rev:45,acc:120,turn:2.1,vis:340,range:320,dmg:26,accu:.58,rel:1.4,ammo:120,fuel:100,cap:1},
+mbt:{hp:420,af:60,as:35,ar:20,spd:75,rev:35,acc:80,turn:1.4,vis:330,range:420,dmg:90,accu:.62,rel:3.5,ammo:40,fuel:100,cap:0},
+truck:{hp:100,af:2,as:1,ar:1,spd:120,rev:45,acc:120,turn:2,vis:260,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:3},
+ambulance:{hp:110,af:3,as:2,ar:1,spd:115,rev:45,acc:120,turn:2,vis:280,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:1,heal:180},
+support:{hp:130,af:4,as:2,ar:1,spd:95,rev:40,acc:100,turn:1.8,vis:260,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:1,repair:170}
 };
-(async()=>{
-const app=new PIXI.Application(); await app.init({canvas:document.getElementById('game'),resizeTo:window,background:'#141916',antialias:true});
-const world=new PIXI.Container(); app.stage.addChild(world); let cam={x:0,y:0,z:.75}; const squads=[],vehicles=[],effects=[],objectives=[]; let selected=null,drag=false,last=null,dragMoved=false;
-function terrainAt(x,y){for(let i=terrain.length-1;i>=0;i--){let r=terrain[i];if(x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h)return r.t}return'open'}
-function drawMap(){let g=new PIXI.Graphics();world.addChild(g);g.rect(0,0,W,H).fill(0x52744c);for(let x=0;x<W;x+=80){for(let y=0;y<H;y+=80){g.rect(x,y,78,78).fill((x+y)%160===0?0x567b50:0x4f7049)}}terrain.forEach(r=>{let col={road:0x7b7365,forest:0x254b2a,rocks:0x686862,urban:0x596069}[r.t];g.rect(r.x,r.y,r.w,r.h).fill(col).stroke({color:0x1b1b1b,width:2,alpha:.28});if(r.t==='road'){for(let x=r.x;x<r.x+r.w;x+=64)g.rect(x,r.y+r.h/2-2,32,4).fill(0xd1c8a9)}}); for(let i=0;i<130;i++){let x=Math.random()*W,y=Math.random()*H,t=terrainAt(x,y); if(t==='forest'){g.circle(x,y,12).fill(0x183d20);g.circle(x-5,y+3,8).fill(0x2f6b35);g.rect(x-2,y+8,4,8).fill(0x5b3c24)} if(t==='rocks'){g.poly([x,y-10,x+14,y+1,x+6,y+14,x-12,y+7]).fill(0x9c9b92).stroke({color:0x444,width:1})}}}
-function makeSquad(id,f,x,y,cmd=false){let s={kind:'squad',id,faction:f,x,y,destinationX:x,destinationY:y,selected:false,health:cmd?130:100,maxHealth:cmd?130:100,morale:100,suppression:0,fatigue:0,visionRange:cmd?360:320,attackRange:cmd?285:260,damage:cmd?7:8,accuracy:cmd?.62:.55,ammo:999,speed:cmd?72:82,state:'idle',formation:'wedge',cover:'none',terrain:'open',command:cmd,hidden:false,passengerOf:null,fireCD:0,g:new PIXI.Container()}; let g=s.g; world.addChild(g); let body=new PIXI.Graphics();body.label='body';g.addChild(body); let sel=new PIXI.Graphics();sel.label='sel';g.addChildAt(sel,0); let bars=new PIXI.Graphics();bars.label='bars';g.addChild(bars); s.draw=()=>{body.clear();sel.clear();bars.clear();let c=f==='ally'?0x39a5ff:0xe0523c;if(cmd)c=f==='ally'?0x8df57d:0xff9b40; let fw=F[s.formation].w; if(s.selected)sel.ellipse(0,0,fw,28).stroke({color:0xffff66,width:3}); [-fw/4,0,fw/4].forEach((px,i)=>{let py=i===1?-7:0;body.circle(px,py,10).fill(c).stroke({color:0x101820,width:2});body.rect(px-3,py-15,6,10).fill(0x222);body.rect(px+6,py-2,14,3).fill(0x171717)}); body.rect(-fw/2,-24,fw,4).fill(f==='ally'?0x8ee7ff:0xffb08c); if(cmd)body.star(0,-30,5,12,5).fill(0xfff06a).stroke({color:0x111,width:1}); if(s.cover!=='none')body.roundRect(-14,15,28,10,3).fill(0xb8a06a).stroke({color:0x4b3d22,width:1}); bars.rect(-34,-42,68,5).fill(0x222222);bars.rect(-34,-42,68*s.health/s.maxHealth,5).fill(0x58dd70);bars.rect(-34,-35,68,4).fill(0x222222);bars.rect(-34,-35,68*s.morale/100,4).fill(0x68aaf5);bars.rect(-34,-29,68,4).fill(0x222222);bars.rect(-34,-29,68*s.suppression/100,4).fill(0xffaa42);}; s.draw(); squads.push(s); return s}
-function makeVehicle(id,type,f,x,y){let c=VCFG[type], v={kind:'vehicle',id,type,name:c.name,faction:f,x,y,rotation:f==='ally'?0:Math.PI,destinationX:x,destinationY:y,selected:false,health:c.hp,maxHealth:c.hp,armorFront:c.af,armorSide:c.as,armorRear:c.ar,speed:c.speed,reverseSpeed:c.rev,acceleration:c.acc,turnRate:c.turnRate||c.turn,visionRange:c.vision,attackRange:c.range,damage:c.dmg,accuracy:c.accuracy,reloadTime:c.reload,ammo:c.ammo,fuel:c.fuel,transportCapacity:c.cap,passengers:[],state:'idle',vel:0,fireCD:0,hidden:false,g:new PIXI.Container()}; let g=v.g; world.addChild(g); let body=new PIXI.Graphics();g.addChild(body); let sel=new PIXI.Graphics();g.addChildAt(sel,0); let bars=new PIXI.Graphics();g.addChild(bars); v.draw=()=>{body.clear();sel.clear();bars.clear();let base=f==='ally'?0x2f9be6:0xd14938, dark=f==='ally'?0x1b577c:0x751e18;if(v.selected)sel.ellipse(0,0,50,32).stroke({color:0xffff66,width:3}); let len= type==='mbt'?70:type==='truck'||type==='ambulance'?66:56, wid= type==='mbt'?34:30; body.roundRect(-len/2,-wid/2,len,wid,5).fill(base).stroke({color:0x111111,width:2}); body.rect(-len/2+5,-wid/2+4,len-10,6).fill(dark); if(type==='mbt'||type==='ifv')body.rect(0,-4,len/2,8).fill(0x232323),body.circle(0,0,13).fill(dark); if(type==='ambulance'){body.rect(-8,-12,16,24).fill(0xffffff);body.rect(-3,-15,6,30).fill(0xff2222);body.rect(-15,-3,30,6).fill(0xff2222)} if(type==='truck')body.rect(-25,-12,28,24).fill(0x3b3b30); if(v.health<=0)body.alpha=.45;else body.alpha=1; bars.rect(-36,-32,72,6).fill(0x222);bars.rect(-36,-32,72*Math.max(0,v.health)/v.maxHealth,6).fill(0x58dd70);}; v.draw(); vehicles.push(v); return v}
-drawMap(); [['A1',220,360],['A2',260,460],['A3',210,560],['A4',330,520]].forEach(a=>makeSquad(a[0],'ally',a[1],a[2])); makeSquad('CMD-A','ally',150,450,true);
-[['E1',2020,1030],['E2',2100,1130],['E3',1900,1160],['E4',2030,1260]].forEach(a=>makeSquad(a[0],'enemy',a[1],a[2])); makeSquad('CMD-E','enemy',2180,1160,true);
-['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>makeVehicle('V-'+t,t,'ally',260,760+i*62));
-['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>makeVehicle('EV-'+t,t,'enemy',2000,640+i*70));
-function objective(id,x,y){let o={id,x,y,r:85,owner:'neutral',progress:0,g:new PIXI.Graphics()};world.addChild(o.g);objectives.push(o);o.flag=new PIXI.Graphics();world.addChild(o.flag);o.flag.x=x;o.flag.y=y-60;o.flag.rect(-3,0,6,50).fill(0x222);o.flag.poly([3,0,42,10,3,22]).fill(0xf3f0d0).stroke({color:0x222,width:2});return o}objective('OBJ ALPHA',1150,420);objective('OBJ BRAVO',1240,1180);
-function fx(x,y,type){if(effects.length>100)return;let g=new PIXI.Graphics();world.addChild(g);effects.push({x,y,t:0,life:type==='boom'?1:.45,type,g})}
-function updateFx(dt){for(let i=effects.length-1;i>=0;i--){let e=effects[i];e.t+=dt;e.g.clear();let a=1-e.t/e.life;if(e.type==='impact')e.g.circle(e.x,e.y,3+e.t*16).fill({color:0xffd27a,alpha:a});else if(e.type==='smoke')e.g.circle(e.x,e.y,8+e.t*22).fill({color:0x9b9b9b,alpha:a*.35});else e.g.circle(e.x,e.y,18+e.t*45).fill({color:0xff7b2e,alpha:a}); if(e.t>e.life){world.removeChild(e.g);effects.splice(i,1)}}}
-function all(){return squads.concat(vehicles)} function alive(u){return u.health>0 && u.state!=='destroyed' && !u.passengerOf}
-function selectableAt(p){let arr=all().filter(u=>u.faction==='ally'&&alive(u)); for(let i=arr.length-1;i>=0;i--) if(Math.hypot(arr[i].x-p.x,arr[i].y-p.y)<(arr[i].kind==='vehicle'?45:38))return arr[i]; return null}
-function screenToWorld(e){let r=app.canvas.getBoundingClientRect();return{x:(e.clientX-r.left)/cam.z+cam.x,y:(e.clientY-r.top)/cam.z+cam.y}}
-function setSelected(u){all().forEach(x=>x.selected=false); selected=u; if(u)u.selected=true; updateHud()}
-function order(p){if(!selected)return; selected.destinationX=clamp(p.x,20,W-20);selected.destinationY=clamp(p.y,20,H-20);selected.state= selected.kind==='vehicle'?'moving':'moving';fx(p.x,p.y,'impact'); if(selected.kind==='squad')selected.fatigue=clamp(selected.fatigue+5,0,100)}
-app.canvas.addEventListener('contextmenu',e=>e.preventDefault());
-app.canvas.addEventListener('pointerdown',e=>{e.preventDefault();drag=true;dragMoved=false;last={x:e.clientX,y:e.clientY};});
-app.canvas.addEventListener('pointermove',e=>{if(!drag)return;let dx=e.clientX-last.x,dy=e.clientY-last.y;if(Math.hypot(dx,dy)>3)dragMoved=true;cam.x=clamp(cam.x-dx/cam.z,0,W-app.screen.width/cam.z);cam.y=clamp(cam.y-dy/cam.z,0,H-app.screen.height/cam.z);last={x:e.clientX,y:e.clientY}});
-app.canvas.addEventListener('pointerup',e=>{e.preventDefault();let p=screenToWorld(e);if(!dragMoved){let u=selectableAt(p); if(u)setSelected(u); else order(p)} drag=false});
-app.canvas.addEventListener('wheel',e=>{e.preventDefault();let old=cam.z;cam.z=clamp(cam.z*(e.deltaY<0?1.12:.88),.45,1.6);let p=screenToWorld(e);cam.x=clamp(p.x-(e.clientX/app.screen.width)*(app.screen.width/cam.z),0,W-app.screen.width/cam.z);cam.y=clamp(p.y-(e.clientY/app.screen.height)*(app.screen.height/cam.z),0,H-app.screen.height/cam.z)},{passive:false});
-window.addEventListener('keydown',e=>{if(selected?.kind==='squad'&&['1','2','3','4'].includes(e.key)){selected.formation=['line','column','wedge','spread'][+e.key-1];updateHud()} if(e.key==='s'&&selected){selected.destinationX=selected.x;selected.destinationY=selected.y;selected.state='idle'} if(e.key==='r'&&selected)retreat(selected)});
-function moveSquad(s,dt){if(!alive(s))return;s.terrain=terrainAt(s.x,s.y);s.cover=T[s.terrain].c;let d=Math.hypot(s.destinationX-s.x,s.destinationY-s.y);let supMult=s.suppression>80?0:s.suppression>55?.45:s.suppression>25?.75:1;let cmd=commandBonus(s);let sp=s.speed*F[s.formation].speed*T[s.terrain].s*supMult*(1-s.fatigue*.004)*(cmd?1.06:1);if(d>3&&s.state!=='pinned'){s.x+=(s.destinationX-s.x)/d*sp*dt;s.y+=(s.destinationY-s.y)/d*sp*dt;s.fatigue=clamp(s.fatigue+2*dt,0,100);s.state=s.suppression>80?'pinned':'moving'}else{s.fatigue=clamp(s.fatigue-(s.cover!=='none'?7:4)*dt,0,100); if(s.state!=='engaging'&&s.state!=='capturing')s.state='idle'}s.suppression=clamp(s.suppression-(cmd?10:6)*dt,0,100);s.morale=clamp(s.morale+(cmd?4:1)*dt-(s.suppression>55?3*dt:0),0,100);if(s.morale<18)retreat(s)}
-function moveVeh(v,dt){if(!alive(v))return;let d=Math.hypot(v.destinationX-v.x,v.destinationY-v.y), desired=d>8?ang(v,{x:v.destinationX,y:v.destinationY}):v.rotation;let da=Math.atan2(Math.sin(desired-v.rotation),Math.cos(desired-v.rotation));v.rotation+=clamp(da,-v.turnRate*dt,v.turnRate*dt);let tt=terrainAt(v.x,v.y), big=v.type==='mbt'||v.type==='ifv'||v.type==='apc';let tm={road:1.25,open:1,forest:big?.25:.45,rocks:big?.35:.55,urban:.65}[tt];let target=d>10?v.speed*tm:0;if(v.state==='disabled'||v.state==='destroyed')target=0;if(v.health<v.maxHealth*.45)target*=.65;v.vel += clamp(target-v.vel,-v.acceleration*dt,v.acceleration*dt);v.x+=Math.cos(v.rotation)*v.vel*dt;v.y+=Math.sin(v.rotation)*v.vel*dt;if(d<12)v.state='idle';else v.state='moving'; if(v.vel>30&&Math.random()<dt*2)fx(v.x-Math.cos(v.rotation)*28,v.y-Math.sin(v.rotation)*28,'smoke'); if(v.type==='ambulance')squads.filter(s=>s.faction===v.faction&&alive(s)&&dist(s,v)<VCFG.ambulance.heal).forEach(s=>{s.health=clamp(s.health+3*dt,0,s.maxHealth);s.morale=clamp(s.morale+5*dt,0,100)})}
-function commandBonus(u){return squads.some(c=>c.command&&c.faction===u.faction&&alive(c)&&c!==u&&dist(c,u)<220)}
-function armorDamage(v,from,dmg){let hit=Math.atan2(Math.sin(ang(v,from)-v.rotation),Math.cos(ang(v,from)-v.rotation));let a=Math.abs(hit)<Math.PI/4?v.armorFront:Math.abs(hit)>Math.PI*3/4?v.armorRear:v.armorSide;return Math.max(1,dmg-a)}
-function visibleEnemies(u){return all().filter(e=>e.faction!==u.faction&&alive(e)&&dist(u,e)<u.visionRange)}
-function combat(u,dt){if(!alive(u)||u.state==='retreating'||u.damage<=0)return;u.fireCD=Math.max(0,u.fireCD-dt);let es=visibleEnemies(u).sort((a,b)=>dist(u,a)-dist(u,b));let t=es.find(e=>dist(u,e)<u.attackRange);if(!t)return;u.state='engaging'; if(u.fireCD>0)return;u.fireCD=u.kind==='vehicle'?u.reloadTime:.8; let acc=u.accuracy*(u.kind==='squad'?F[u.formation].acc*(1-u.suppression*.006)*(1-u.fatigue*.003):1); if(commandBonus(u))acc*=1.08; if(Math.random()<acc){let dmg=u.damage;if(t.kind==='squad'){let terr=T[terrainAt(t.x,t.y)];dmg*=terr.d*F[t.formation]?.vuln||1;t.suppression=clamp(t.suppression+12*terr.sup,0,100);t.morale=clamp(t.morale-5,0,100)}else dmg=armorDamage(t,u,dmg);t.health-=dmg;fx(t.x+(Math.random()-.5)*25,t.y+(Math.random()-.5)*25,'impact'); if(t.health<=0){t.health=0;t.state=t.kind==='vehicle'?'destroyed':'dead';fx(t.x,t.y,'boom'); if(t.kind==='vehicle')t.passengers.forEach(p=>{p.passengerOf=null;p.x=t.x+Math.random()*50-25;p.y=t.y+Math.random()*50-25;p.health*=.65;p.g.visible=true});}}else{if(t.kind==='squad')t.suppression=clamp(t.suppression+5,0,100);fx(t.x+Math.random()*40-20,t.y+Math.random()*40-20,'smoke')} if(u.ammo>0)u.ammo--}
-function retreat(u){u.state='retreating';let dir=u.faction==='ally'? -1:1;u.destinationX=clamp(u.x+dir*220,20,W-20);u.destinationY=clamp(u.y+(Math.random()-.5)*160,20,H-20)}
-function ai(dt){all().filter(u=>u.faction==='enemy'&&alive(u)).forEach(u=>{let es=visibleEnemies(u); if(u.kind==='squad'){if(u.morale<20||u.suppression>80){retreat(u);return} if(es[0]){let t=es[0]; if(dist(u,t)>u.attackRange*.85){u.destinationX=t.x-120;u.destinationY=t.y+80} } else if(Math.random()<dt*.08){let o=objectives[Math.floor(Math.random()*objectives.length)];u.destinationX=o.x+Math.random()*100-50;u.destinationY=o.y+Math.random()*100-50}} else {if(u.health<u.maxHealth*.25){retreat(u);return} if(u.type==='ambulance'){let friend=all().filter(f=>f.faction==='enemy'&&alive(f)&&f.health<f.maxHealth).sort((a,b)=>a.health/a.maxHealth-b.health/b.maxHealth)[0]; if(friend){u.destinationX=friend.x-120;u.destinationY=friend.y}} else if(es[0]){let t=es[0],side=u.type==='humvee'||u.type==='ifv'?120:0;if(dist(u,t)>u.attackRange*.8){u.destinationX=t.x-side;u.destinationY=t.y+side}} else if(Math.random()<dt*.05){u.destinationX=1600+Math.random()*500;u.destinationY=500+Math.random()*600}}})}
-function objectivesUpdate(dt){objectives.forEach(o=>{let near=squads.filter(s=>alive(s)&&dist(s,o)<o.r&&!s.passengerOf);let a=near.filter(s=>s.faction==='ally').length,e=near.filter(s=>s.faction==='enemy').length;if(a!==e&&near.length){let side=a>e?'ally':'enemy';o.progress+=dt*(side==='ally'?1:-1)*(near.some(s=>s.command)?1.45:1); if(o.progress>4){o.owner='ally';o.progress=4} if(o.progress<-4){o.owner='enemy';o.progress=-4}}else o.progress*=.985;o.g.clear();let col=o.owner==='ally'?0x3399ff:o.owner==='enemy'?0xdd4433:0xd4d4d4;o.g.circle(o.x,o.y,o.r).fill({color:col,alpha:.12}).stroke({color:col,width:4});o.g.rect(o.x-50,o.y-6,100,12).fill(0x111);o.g.rect(o.x-50,o.y-6,50+o.progress/4*50,12).fill(col)})}
-function embark(){if(!selected)return;if(selected.kind==='squad'){let v=vehicles.find(v=>v.faction==='ally'&&alive(v)&&v.transportCapacity>v.passengers.length&&dist(v,selected)<80); if(v){v.passengers.push(selected);selected.passengerOf=v;selected.g.visible=false;setSelected(v)}}}
-function disembark(){if(selected?.kind!=='vehicle'||!selected.passengers.length)return;let p=selected.passengers.pop();p.passengerOf=null;p.x=selected.x+Math.random()*70-35;p.y=selected.y+Math.random()*70-35;p.destinationX=p.x;p.destinationY=p.y;p.g.visible=true;setSelected(p)}
-function updateHud(){let info=document.getElementById('info'), btn=document.getElementById('buttons');btn.innerHTML=''; if(!selected){info.innerHTML='<div class="title">Aucune sélection</div><div class="small">Sélectionne une escouade ou un véhicule allié.</div>';return} let u=selected; let bars=(n,val,cls='fill')=>`${n}<div class="bar"><div class="${cls}" style="width:${clamp(val,0,100)}%"></div></div>`; if(u.kind==='squad'){info.innerHTML=`<div class="title">${u.command?'Commandant ':'Escouade '}${u.id}</div><div class="small">${bars('Santé',u.health/u.maxHealth*100)}${bars('Moral',u.morale,'mor')}${bars('Suppression',u.suppression,'sup')}${bars('Fatigue',u.fatigue,'fat')}Formation: ${u.formation}<br/>État: ${u.state}<br/>Terrain: ${terrainAt(u.x,u.y)} / Couverture: ${u.cover}<br/>Munitions: ${u.ammo}</div>`; ['line','column','wedge','spread'].forEach(f=>{let b=document.createElement('button');b.textContent=f;b.onclick=()=>{u.formation=f;updateHud()};btn.appendChild(b)}); let e=document.createElement('button');e.textContent='Embark';e.onclick=embark;btn.appendChild(e)} else {info.innerHTML=`<div class="title">${u.name}</div><div class="small">${bars('Santé',u.health/u.maxHealth*100)}Blindage F/S/R: ${u.armorFront}/${u.armorSide}/${u.armorRear}<br/>État: ${u.state}<br/>Munitions: ${u.ammo} | Fuel: ${Math.round(u.fuel)}<br/>Passagers: ${u.passengers.length}/${u.transportCapacity}<br/>Arme: ${u.damage?u.damage+' dmg':'aucune'} | Vitesse: ${Math.round(u.vel)}</div>`; ['Stop','Reverse','Embark','Disembark'].forEach(name=>{let b=document.createElement('button');b.textContent=name;b.onclick=()=>{if(name==='Stop'){u.destinationX=u.x;u.destinationY=u.y} if(name==='Reverse'){u.destinationX=u.x-Math.cos(u.rotation)*120;u.destinationY=u.y-Math.sin(u.rotation)*120} if(name==='Embark')embark(); if(name==='Disembark')disembark();};btn.appendChild(b)})} let r=document.createElement('button');r.textContent='Repli';r.onclick=()=>retreat(u);btn.appendChild(r)}
-app.ticker.add(t=>{let dt=Math.min(.05,t.deltaMS/1000);all().forEach(u=>{if(u.passengerOf){u.x=u.passengerOf.x;u.y=u.passengerOf.y} });squads.forEach(s=>moveSquad(s,dt));vehicles.forEach(v=>moveVeh(v,dt));all().forEach(u=>combat(u,dt));ai(dt);objectivesUpdate(dt);updateFx(dt);world.x=-cam.x*cam.z;world.y=-cam.y*cam.z;world.scale.set(cam.z);all().forEach(u=>{u.g.position.set(u.x,u.y);u.g.rotation=u.kind==='vehicle'?u.rotation:0;u.hidden=u.faction==='enemy'&&!squads.concat(vehicles).some(a=>a.faction==='ally'&&alive(a)&&dist(a,u)<a.visionRange);u.g.alpha=u.hidden?.22:1;u.draw&&u.draw()}); if(selected)updateHud()});
-setSelected(null);
+function makeSquad(id,f,x,y,cmd=false){return {kind:'squad',id,name:(cmd?'Commandant ':'Escouade ')+id,faction:f,x,y,dx:x,dy:y,selected:false,hp:cmd?140:100,max:cmd?140:100,morale:100,supp:0,fatigue:0,vision:cmd?360:320,range:cmd?280:260,dmg:cmd?10:8,acc:.55,ammo:180,state:'idle',formation:'wedge',cover:'none',terrain:'open',cmd,hidden:false,underFire:0,hold:false}}
+function makeVeh(id,type,f,x,y){const c=V[type];return {kind:'vehicle',id,name:type.toUpperCase(),type,faction:f,x,y,dx:x,dy:y,rot:f==='ally'?0:Math.PI,vel:0,selected:false,hp:c.hp,max:c.hp,af:c.af,as:c.as,ar:c.ar,speed:c.spd,rev:c.rev,accel:c.acc,turn:c.turn,vision:c.vis,range:c.range,dmg:c.dmg,acc:c.accu,reload:c.rel,cd:0,ammo:c.ammo,fuel:c.fuel,cap:c.cap,pass:[],state:'idle',crit:'normal',stuckTimer:0,lastX:x,lastY:y,hold:false,heal:c.heal||0,repair:c.repair||0}}
+function initUnits(){units=[]; for(let i=0;i<4;i++){units.push(makeSquad(i+1,'ally',260,360+i*105,i===0));units.push(makeSquad(i+1,'enemy',1960,360+i*105,i===0))}
+['humvee','apc','ifv','mbt','truck','ambulance','support'].forEach((t,i)=>units.push(makeVeh('A'+i,t,'ally',300+i*90,950+(i%2)*90)));
+['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>units.push(makeVeh('E'+i,t,'enemy',2100-i*90,950+(i%2)*90)));}
+
+function startGame(){if(started)return; started=true; $('hud').style.display='block'; show('none'); $('mainMenu').style.display='none';
+ app=new PIXI.Application({view:$('game'),resizeTo:window,backgroundAlpha:0,antialias:true});
+ world=new PIXI.Container(); uiG=new PIXI.Graphics(); app.stage.addChild(world,uiG); initUnits(); setupInput(); app.ticker.add(tick);
+}
+$('newGameBtn').onclick=startGame; $('pauseBtn').onclick=()=>pause(true); $('resumeBtn').onclick=()=>pause(false); $('mainBackBtn').onclick=()=>{pause(false);location.reload()};
+function pause(v){paused=v;$('pauseMenu').style.display=v?'flex':'none'}
+
+function setupInput(){const c=app.view;c.addEventListener('contextmenu',e=>e.preventDefault());
+ c.addEventListener('pointerdown',e=>{e.preventDefault();camera.drag=true;camera.lx=e.clientX;camera.ly=e.clientY;});
+ c.addEventListener('pointermove',e=>{if(!camera.drag)return; const dx=e.clientX-camera.lx,dy=e.clientY-camera.ly; if(e.buttons===4||e.buttons===2||(!selected&&mobile())){camera.x-=dx/camera.z*settings.gameplay.cameraSpeed;camera.y-=dy/camera.z*settings.gameplay.cameraSpeed;} camera.lx=e.clientX;camera.ly=e.clientY;});
+ c.addEventListener('pointerup',e=>{camera.drag=false; const p=screenToWorld(e.clientX,e.clientY); const hit=pick(p); if(hit&&hit.faction==='ally')select(hit); else if(selected)order(p.x,p.y);});
+ c.addEventListener('wheel',e=>{e.preventDefault(); const s=(e.deltaY>0?-0.08:0.08)*settings.gameplay.zoomSensitivity; camera.z=clamp(camera.z+s,.35,1.35)},{passive:false});
+ addEventListener('keydown',e=>{if(e.key==='Escape')pause(!paused); if(!selected)return; if(['1','2','3','4'].includes(e.key)&&selected.kind==='squad')selected.formation=['line','column','wedge','spread'][+e.key-1];});
+}
+function screenToWorld(x,y){return {x:x/camera.z+camera.x,y:y/camera.z+camera.y}}
+function pick(p){let best=null,bd=1e9;for(const u of units){if(u.hp<=0||u.hidden||u.embarked)continue;let r=u.kind==='vehicle'?38:30;let d=Math.hypot(u.x-p.x,u.y-p.y);if(d<r&&d<bd){best=u;bd=d}}return best}
+function select(u){units.forEach(x=>x.selected=false);selected=u;u.selected=true;updatePanel()}
+function order(x,y){if(!selected)return; selected.dx=clamp(x,20,W-20);selected.dy=clamp(y,20,H-20); selected.state=selected.kind==='vehicle'?'moving':'moving'; if(selected.kind==='vehicle')selected.stuckTimer=0; spawn('order',selected.dx,selected.dy); updatePanel()}
+function terrainAt(u){for(const t of terrain)if(u.x>=t.x&&u.x<=t.x+t.w&&u.y>=t.y&&u.y<=t.y+t.h)return t.t;return 'open'}
+function coverAt(u){const t=terrainAt(u);return t==='urban'?'heavy':t==='rocks'?'medium':t==='forest'?'light':'none'}
+
+function tick(t){const dt=Math.min(t.deltaMS/1000,.033); if(!started)return; if(!paused){update(dt)} render(); updatePanel(false)}
+function update(dt){for(const u of units){if(u.hp<=0)continue; u.terrain=terrainAt(u);u.cover=coverAt(u);u.cd=Math.max(0,(u.cd||0)-dt);u.underFire=Math.max(0,(u.underFire||0)-dt); if(u.kind==='squad')moveSquad(u,dt); else moveVeh(u,dt)}
+ vision(); combat(dt); ai(dt); objectivesUpdate(dt); logistics(dt); updateEffects(dt);}
+function moveSquad(u,dt){if(u.state==='dead'||u.embarked)return; const d=Math.hypot(u.dx-u.x,u.dy-u.y); if(d<8){u.state='idle';u.fatigue=Math.max(0,u.fatigue-6*dt);return} let sp=85*(u.formation==='column'?1.15:u.formation==='spread'?.86:u.formation==='line'?.9:1); if(u.terrain==='road')sp*=1.15;if(u.terrain==='forest')sp*=.82;if(u.terrain==='rocks')sp*=.75;if(u.supp>60)sp*=.55;if(u.fatigue>70)sp*=.75; u.x+=(u.dx-u.x)/d*sp*dt;u.y+=(u.dy-u.y)/d*sp*dt;u.fatigue=clamp(u.fatigue+2*dt,0,100); if(settings.graphics.effects==='normal'&&Math.random()<.02)spawn('dust',u.x,u.y);}
+function moveVeh(v,dt){if(v.state==='destroyed'||v.crit==='disabled')return; const d=Math.hypot(v.dx-v.x,v.dy-v.y); if(d<=ARRIVAL_RADIUS){v.x=v.dx;v.y=v.dy;v.vel=0;v.state='idle';v.stuckTimer=0;return}
+ const target=Math.atan2(v.dy-v.y,v.dx-v.x), diff=normalizeAngle(target-v.rot), ad=Math.abs(diff); v.rot+=Math.sign(diff)*Math.min(ad,v.turn*dt);
+ let terrainMul={road:1.28,open:1,forest:v.type==='mbt'||v.type==='truck'?.25:.45,rocks:.35,urban:.65}[v.terrain]||1;
+ if(v.fuel<=0)terrainMul*=.12; if(v.crit==='damaged')terrainMul*=.55;
+ let desired=v.speed*terrainMul; if(d<SLOWDOWN_RADIUS)desired*=clamp(d/SLOWDOWN_RADIUS,.18,1); if(ad>ANGLE_EPSILON)desired*=clamp(1-ad/Math.PI,.18,1);
+ v.vel += Math.sign(desired-v.vel)*Math.min(Math.abs(desired-v.vel),v.accel*dt); v.x+=Math.cos(v.rot)*v.vel*dt;v.y+=Math.sin(v.rot)*v.vel*dt;v.fuel=clamp(v.fuel-v.vel*dt*.002,0,100);v.state='moving';
+ const moved=Math.hypot(v.x-v.lastX,v.y-v.lastY); v.stuckTimer = (v.vel>20&&moved<1) ? v.stuckTimer+dt : 0; v.lastX=v.x;v.lastY=v.y; if(v.stuckTimer>2.5){v.vel=0;v.state='idle';v.stuckTimer=0}
+ if(settings.graphics.effects==='normal'&&Math.random()<.05)spawn('dust',v.x-Math.cos(v.rot)*28,v.y-Math.sin(v.rot)*28);}
+function vision(){for(const e of units.filter(u=>u.faction==='enemy')){e.hidden=!units.some(a=>a.faction==='ally'&&a.hp>0&&!a.embarked&&dist(a,e)<a.vision)}}
+function visibleEnemies(u){return units.filter(e=>e.faction!==u.faction&&e.hp>0&&!e.hidden&&!e.embarked&&dist(u,e)<u.vision)}
+function combat(dt){for(const u of units){if(u.hp<=0||u.hold||u.ammo<=0||u.state==='retreating'||u.embarked)continue; const es=visibleEnemies(u).sort((a,b)=>dist(u,a)-dist(u,b)); const tgt=es.find(e=>dist(u,e)<=u.range); if(!tgt)continue; if((u.cd||0)>0)continue; let acc=(u.acc||.55)*(u.supp>70?.35:u.supp>40?.65:1)*(u.fatigue>70?.75:1); if(Math.random()<acc){let dmg=u.dmg; if(tgt.kind==='vehicle')dmg=armorDamage(tgt,u,dmg); else dmg*=({none:1,light:.82,medium:.65,heavy:.48}[tgt.cover]||1); tgt.hp-=Math.max(1,dmg); tgt.underFire=2; tgt.supp=clamp((tgt.supp||0)+14,0,100); tgt.morale=clamp((tgt.morale||100)-5,0,100); spawn(tgt.kind==='vehicle'?'armor':'impact',tgt.x,tgt.y); if(tgt.hp<=0)destroy(tgt)} else {tgt.supp=clamp((tgt.supp||0)+5,0,100);spawn('impact',tgt.x+(Math.random()-.5)*50,tgt.y+(Math.random()-.5)*50)}
+ u.ammo--; u.cd=u.kind==='vehicle'?u.reload:.8; if(u.kind==='vehicle'&&u.dmg>25)spawn('smoke',u.x,u.y); u.state='engaging';}}
+function armorDamage(v,att,dmg){const hitAng=Math.atan2(att.y-v.y,att.x-v.x); const rel=Math.abs(normalizeAngle(hitAng-v.rot)); const armor=rel<Math.PI/4?v.af:rel>Math.PI*3/4?v.ar:v.as; return Math.max(1,dmg-armor)}
+function destroy(u){u.hp=0;u.state=u.kind==='vehicle'?'destroyed':'dead'; if(u.kind==='vehicle'){spawn('boom',u.x,u.y); for(const p of u.pass){p.embarked=false;p.x=u.x+Math.random()*50-25;p.y=u.y+Math.random()*50-25;p.hp*=.65} u.pass=[]}}
+let ait=0;function ai(dt){ait+=dt;if(ait<.45)return;ait=0; for(const u of units.filter(x=>x.faction==='enemy'&&x.hp>0&&!x.embarked)){const foes=visibleEnemies(u); if(u.hp/u.max<.25||u.morale<20){u.dx=u.x+220;u.dy=u.y;u.state='retreating';continue} if(foes[0]){const f=foes[0],d=dist(u,f); if(d>u.range*.85){u.dx=f.x+(Math.random()-.5)*140;u.dy=f.y+(Math.random()-.5)*140} continue} let o=objectives.find(o=>o.owner!=='enemy')||objectives[0]; if(o){u.dx=o.x+(Math.random()-.5)*80;u.dy=o.y+(Math.random()-.5)*80}}}
+function objectivesUpdate(dt){for(const o of objectives){const near=units.filter(u=>u.hp>0&&!u.embarked&&dist(u,o)<o.r); const a=near.some(u=>u.faction==='ally'), e=near.some(u=>u.faction==='enemy'); if(a&&!e)o.p+=dt*22; else if(e&&!a)o.p-=dt*22; else o.p*=.96; if(o.p>100){o.owner='ally';o.p=100} if(o.p<-100){o.owner='enemy';o.p=-100}}}
+function logistics(dt){for(const amb of units.filter(u=>u.kind==='vehicle'&&u.type==='ambulance'&&u.hp>0)){for(const s of units.filter(u=>u.kind==='squad'&&u.faction===amb.faction&&u.hp>0&&u.underFire<=0&&dist(u,amb)<amb.heal)){s.hp=clamp(s.hp+4*dt,0,s.max);s.morale=clamp(s.morale+2*dt,0,100)}} for(const sup of units.filter(u=>u.kind==='vehicle'&&u.type==='support'&&u.hp>0)){for(const v of units.filter(u=>u.kind==='vehicle'&&u.faction===sup.faction&&u.hp>0&&u.hp<u.max&&dist(u,sup)<sup.repair)){v.hp=clamp(v.hp+5*dt,0,v.max);if(v.hp/v.max>.35&&v.crit==='disabled')v.crit='damaged'}} for(const m of mines){if(m.used)continue; const u=units.find(u=>u.faction!==m.faction&&u.hp>0&&dist(u,m)<34); if(u){u.hp-=55; if(u.kind==='vehicle'&&u.hp/u.max<.35)u.crit='disabled'; m.used=true;spawn('boom',m.x,m.y); if(u.hp<=0)destroy(u)}}}
+function spawn(type,x,y){effects.push({type,x,y,life:type==='boom'?1:type==='smoke'?1.2:.55,max:type==='boom'?1:type==='smoke'?1.2:.55}); if(effects.length>120)effects.shift()}
+function updateEffects(dt){effects.forEach(e=>e.life-=dt);effects=effects.filter(e=>e.life>0)}
+function embark(){if(!selected||selected.kind!=='vehicle'||selected.cap<=selected.pass.length)return; const s=units.find(u=>u.kind==='squad'&&u.faction===selected.faction&&u.hp>0&&!u.embarked&&dist(u,selected)<70); if(s){s.embarked=true;selected.pass.push(s);toast('Escouade embarquée')}}
+function disembark(){if(!selected||selected.kind!=='vehicle'||!selected.pass.length)return; const s=selected.pass.pop();s.embarked=false;s.x=selected.x+Math.cos(selected.rot+1.57)*55;s.y=selected.y+Math.sin(selected.rot+1.57)*55;s.dx=s.x;s.dy=s.y;toast('Débarquement')}
+function stop(){if(selected){selected.dx=selected.x;selected.dy=selected.y;selected.vel=0;selected.state='idle'}}
+function retreat(){if(selected){selected.dx=selected.x-180;selected.dy=selected.y;selected.state='retreating'}}
+function mine(){if(selected){mines.push({x:selected.x+45,y:selected.y,faction:selected.faction,used:false});toast('Mine posée')}}
+function obstacle(){if(selected){obstacles.push({x:selected.x+55,y:selected.y,hp:80});toast('Obstacle posé')}}
+function updatePanel(force=true){const p=$('panel'),b=$('panelBody'); if(!selected||selected.hp<=0){p.style.display='none';return} p.style.display='block';$('panelTitle').textContent=`${selected.name} · ${selected.kind==='vehicle'?selected.type:'infanterie'} · ${selected.state}`; const compact=$('panel').classList.contains('min'); if(compact)return;
+ const ammo=selected.ammo<=0?'empty':selected.ammo<30?'low':selected.ammo<90?'medium':'full'; let html=`<div class="stats"><div class="stat">PV<br>${Math.ceil(selected.hp)}/${selected.max}</div><div class="stat">Ammo<br>${selected.ammo} ${ammo}</div><div class="stat">État<br>${selected.state}</div>`;
+ if(selected.kind==='squad')html+=`<div class="stat">Moral<br>${Math.ceil(selected.morale)}</div><div class="stat">Supp.<br>${Math.ceil(selected.supp)}</div><div class="stat">Fatigue<br>${Math.ceil(selected.fatigue)}</div><div class="stat">Formation<br>${selected.formation}</div><div class="stat">Terrain<br>${selected.terrain}</div><div class="stat">Cover<br>${selected.cover}</div>`;
+ else html+=`<div class="stat">Blindage<br>${selected.af}/${selected.as}/${selected.ar}</div><div class="stat">Fuel<br>${Math.ceil(selected.fuel)}</div><div class="stat">Pass.<br>${selected.pass.length}/${selected.cap}</div><div class="stat">Vitesse<br>${Math.ceil(selected.vel||0)}</div><div class="stat">Arme<br>${selected.dmg?selected.dmg+' dmg':'none'}</div><div class="stat">Crit<br>${selected.crit}</div>`;
+ html+=`</div><div class="actions"><button onclick="OW.stop()">Stop</button>`;
+ if(selected.kind==='squad')html+=`<button onclick="OW.retreat()">Repli</button><button onclick="OW.form()">Formation</button><button onclick="OW.mine()">Mine</button><button onclick="OW.obstacle()">Obstacle</button>`;
+ else html+=`<button onclick="OW.reverse()">Marche arrière</button><button onclick="OW.embark()">Embark</button><button onclick="OW.disembark()">Disembark</button><button onclick="OW.hold()">Tenir feu</button>`;
+ html+=`</div>`; b.innerHTML=html;}
+window.OW={stop,retreat,embark,disembark,mine,obstacle,form(){if(selected&&selected.kind==='squad'){selected.formation={line:'column',column:'wedge',wedge:'spread',spread:'line'}[selected.formation];updatePanel()}},reverse(){if(selected&&selected.kind==='vehicle'){selected.dx=selected.x-Math.cos(selected.rot)*120;selected.dy=selected.y-Math.sin(selected.rot)*120;selected.state='reversing'}},hold(){if(selected){selected.hold=!selected.hold;toast(selected.hold?'Feu retenu':'Feu libre')}}};
+$('minPanel').onclick=()=>{$('panel').classList.toggle('min');$('minPanel').textContent=$('panel').classList.contains('min')?'+':'—'};
+
+function render(){if(!app)return; camera.x=clamp(camera.x,0,W-innerWidth/camera.z); camera.y=clamp(camera.y,0,H-innerHeight/camera.z); world.position.set(-camera.x*camera.z,-camera.y*camera.z); world.scale.set(camera.z); world.removeChildren(); uiG.clear();
+ const g=new PIXI.Graphics(); world.addChild(g); g.beginFill(0x314b35).drawRect(0,0,W,H).endFill(); for(const t of terrain){if(t.t==='open')continue; const col={road:0x5a5548,forest:0x244a2f,rocks:0x6a685e,urban:0x555d62}[t.t];g.beginFill(col,.9).drawRoundedRect(t.x,t.y,t.w,t.h,16).endFill()}
+ for(const o of objectives){g.lineStyle(3,o.owner==='ally'?0x64d6ff:o.owner==='enemy'?0xff6755:0xf3e8a2,.9).beginFill(0x000000,.12).drawCircle(o.x,o.y,o.r).endFill();g.beginFill(o.owner==='ally'?0x64d6ff:o.owner==='enemy'?0xff6755:0xf3e8a2).drawRect(o.x-5,o.y-42,10,72).drawPolygon([o.x+5,o.y-42,o.x+42,o.y-28,o.x+5,o.y-14]).endFill()}
+ for(const ob of obstacles){g.beginFill(0xb49a62).drawRoundedRect(ob.x-34,ob.y-9,68,18,4).endFill()}
+ for(const m of mines.filter(m=>!m.used)){g.beginFill(0x222222).drawCircle(m.x,m.y,8).endFill();g.lineStyle(1,0xffd36a).drawCircle(m.x,m.y,12)}
+ for(const u of units){if(u.embarked||u.hidden)continue; drawUnit(g,u)}
+ for(const e of effects)drawEffect(g,e);
+ if(settings.gameplay.showVisionRanges&&selected){g.lineStyle(1,0x7fd0ff,.22).drawCircle(selected.x,selected.y,selected.vision)}
+ if(settings.gameplay.showAttackRanges&&selected){g.lineStyle(1,0xffe082,.22).drawCircle(selected.x,selected.y,selected.range)}
+ $('fps').style.display=settings.graphics.showFPS?'inline-block':'none'; if(settings.graphics.showFPS)$('fps').textContent=Math.round(app.ticker.FPS)+' FPS';
+}
+function drawUnit(g,u){if(u.selected){g.lineStyle(3,0xffffff,.9).drawCircle(u.x,u.y,u.kind==='vehicle'?42:34)}
+ const ally=u.faction==='ally', col=ally?0x4cc3ff:0xff654d; if(u.kind==='squad'){g.beginFill(col).drawCircle(u.x,u.y,18).endFill();g.beginFill(0x111111).drawRect(u.x-5,u.y-16,10,24).endFill();g.beginFill(ally?0x95ff9c:0xffb066).drawCircle(u.x,u.y-21,6).endFill(); if(u.cmd){g.lineStyle(2,0xfff0a0).drawCircle(u.x,u.y,27)}} else {g.save&&g.save(); g.beginFill(col).drawRoundedRect(u.x-28,u.y-16,56,32,6).endFill(); const nx=Math.cos(u.rot),ny=Math.sin(u.rot);g.lineStyle(5,0x1b2428).moveTo(u.x,u.y).lineTo(u.x+nx*36,u.y+ny*36); if(u.type==='mbt')g.beginFill(0x2b3335).drawCircle(u.x,u.y,13).endFill(); if(u.type==='ambulance'){g.lineStyle(3,0xffffff).moveTo(u.x-8,u.y).lineTo(u.x+8,u.y).moveTo(u.x,u.y-8).lineTo(u.x,u.y+8)} if(u.type==='support')g.beginFill(0xffd36a).drawRect(u.x-8,u.y-8,16,16).endFill();}
+ if(u.hp>0){g.beginFill(0x000000,.65).drawRect(u.x-24,u.y-36,48,5).endFill();g.beginFill(0x66e083).drawRect(u.x-24,u.y-36,48*(u.hp/u.max),5).endFill(); if(u.kind==='squad'){g.beginFill(0x62a4ff).drawRect(u.x-24,u.y-29,48*(u.morale/100),3).endFill();g.beginFill(0xffd36a).drawRect(u.x-24,u.y-24,48*(u.supp/100),3).endFill()}} else {g.beginFill(0x1c1a18).drawCircle(u.x,u.y,25).endFill()}}
+function drawEffect(g,e){const a=e.life/e.max;if(e.type==='dust')g.beginFill(0xcdbb8b,.18*a).drawCircle(e.x,e.y,18*(1-a)+5).endFill(); if(e.type==='impact')g.beginFill(0xfff1b0,a).drawCircle(e.x,e.y,4).endFill(); if(e.type==='armor')g.beginFill(0xff8a32,a).drawCircle(e.x,e.y,7).endFill(); if(e.type==='smoke')g.beginFill(0xaab0ad,.22*a).drawCircle(e.x,e.y,28*(1-a)+12).endFill(); if(e.type==='boom')g.beginFill(0xff7a1a,.7*a).drawCircle(e.x,e.y,58*(1-a)+10).endFill();}
 })();
 </script>
 </body>
