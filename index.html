@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#10161c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Odyssée — Conquête de l'Égée v0.1.2</title>
+  <title>Odyssée — Conquête de l'Égée v0.1.5</title>
   <style>
     :root{
       --gold:#d7b568;
@@ -90,6 +90,13 @@
       #bottom{grid-template-columns:1fr}
       #actions{grid-template-columns:repeat(5,1fr)}
     }
+  
+    #legend{
+      position:fixed;left:max(8px,env(safe-area-inset-left));top:72px;z-index:18;
+      padding:9px 11px;font-size:10px;color:var(--muted);line-height:1.5
+    }
+    #legend b{color:#fff}
+    @media(max-width:720px){#legend{display:none}}
   </style>
 </head>
 <body>
@@ -98,14 +105,22 @@
 <div id="top">
   <div id="brand" class="panel">
     <b>ODYSSÉE — CONQUÊTE DE L'ÉGÉE</b>
-    <span>Fondation v0.1.2 — Carte grecque</span>
+    <span>Fondation v0.1.5 — Carte grecque</span>
   </div>
   <div id="res" class="panel">
     <span>🌾 <b id="food">150</b></span>
     <span>🪵 <b id="wood">110</b></span>
     <span>🪙 <b id="gold">85</b></span>
   </div>
-  <div id="objective" class="panel">Objectif : sécuriser le sanctuaire d'Apollon au centre de la carte.</div>
+  <div id="objective" class="panel">Objectif : capturer le sanctuaire d'Apollon puis détruire le commandement ennemi.</div>
+</div>
+
+<div id="legend" class="panel">
+  <b>Effets du terrain</b><br>
+  Route : vitesse +16 %<br>
+  Forêt : camouflage, cavalerie ralentie<br>
+  Colline : portée et attaque renforcées<br>
+  Plage : moral et vitesse réduits
 </div>
 
 <div id="help" class="panel">
@@ -115,7 +130,9 @@
   Touchez une unité rouge pour l'attaquer.<br>
   Glissez pour déplacer la caméra avec inertie.<br>
   Pincez pour zoomer progressivement.<br>
-  Double-tapez pour recentrer rapidement.
+  Double-tapez pour recentrer rapidement.<br>
+  Hoplites > cavalerie · Cavalerie > archers<br>
+  Peltastes > cavalerie · Frondeurs > moral
 </div>
 
 <div id="toast"></div>
@@ -143,11 +160,11 @@
 <div id="start">
   <div id="card" class="panel">
     <h1>Conquête de l'Égée</h1>
-    <h2>Fondation — caméra tactique fluide</h2>
+    <h2>Fondation — armées, formations et terrain</h2>
     <p>
-      La carte conserve ses côtes, forêts, collines, routes et rivière, avec désormais une caméra
-      beaucoup plus fluide : inertie, zoom progressif, recentrage tactique et déplacement plus naturel
-      sur mobile.
+      Cette version réunit les étapes v0.1.3, v0.1.4 et v0.1.5 : formations plus lisibles,
+      six catégories d'unités, rôles tactiques distincts et véritables avantages ou pénalités
+      selon le terrain.
     </p>
     <button id="startBtn">Entrer sur le champ de bataille</button>
     <div id="version">Version 0.1.1</div>
@@ -260,12 +277,67 @@ const points=[
 ];
 
 const archetypes={
-  hoplite:{label:"Hoplites d'Ithaque",role:"Infanterie lourde — forte de face",count:90,hp:100,speed:72,range:38,damage:15,armor:.36,morale:100,fatigue:0,color:"#5bd380",shape:"shield"},
-  peltast:{label:"Peltastes",role:"Javeliniers — rapides et mobiles",count:70,hp:78,speed:108,range:165,damage:11,armor:.10,morale:88,fatigue:0,color:"#72dd9b",shape:"javelin"},
-  archer:{label:"Archers crétois",role:"Longue portée — fragiles au contact",count:58,hp:64,speed:83,range:255,damage:9,armor:.04,morale:82,fatigue:0,color:"#8ae5b3",shape:"bow"},
-  eH:{label:"Hoplites d'Argos",role:"Infanterie lourde ennemie",count:95,hp:100,speed:69,range:38,damage:14.5,armor:.34,morale:100,fatigue:0,color:"#dc6767",shape:"shield"},
-  eP:{label:"Peltastes d'Argos",role:"Tirailleurs ennemis",count:72,hp:76,speed:103,range:160,damage:10.5,armor:.09,morale:86,fatigue:0,color:"#e57b7b",shape:"javelin"},
-  eA:{label:"Archers d'Argos",role:"Archers ennemis",count:60,hp:62,speed:80,range:245,damage:8.5,armor:.04,morale:80,fatigue:0,color:"#ed9090",shape:"bow"}
+  hoplite:{
+    label:"Hoplites d'Ithaque",role:"Infanterie lourde — verrouille le front",
+    count:90,hp:100,speed:72,range:40,damage:15,armor:.36,morale:100,fatigue:0,
+    color:"#59d27e",shape:"shield",vision:460,cost:140,charge:1.0,terrainBonus:"Colline"
+  },
+  peltast:{
+    label:"Peltastes",role:"Javeliniers — harcèlement et repli rapide",
+    count:70,hp:78,speed:108,range:170,damage:11,armor:.10,morale:88,fatigue:0,
+    color:"#70dc99",shape:"javelin",vision:520,cost:115,charge:1.05,terrainBonus:"Forêt"
+  },
+  archer:{
+    label:"Archers crétois",role:"Longue portée — excellents sur les hauteurs",
+    count:58,hp:64,speed:83,range:265,damage:9,armor:.04,morale:82,fatigue:0,
+    color:"#8ae5b3",shape:"bow",vision:650,cost:150,charge:.7,terrainBonus:"Colline"
+  },
+  slinger:{
+    label:"Frondeurs",role:"Tir léger — brise le moral à moyenne portée",
+    count:75,hp:68,speed:96,range:205,damage:7.5,armor:.05,morale:80,fatigue:0,
+    color:"#a6e7c4",shape:"sling",vision:560,cost:95,charge:.8,terrainBonus:"Colline"
+  },
+  cavalry:{
+    label:"Cavaliers thessaliens",role:"Unité de choc — charge et contournement",
+    count:34,hp:92,speed:158,range:42,damage:20,armor:.22,morale:92,fatigue:0,
+    color:"#48c8a1",shape:"horse",vision:700,cost:230,charge:1.65,terrainBonus:"Plaine"
+  },
+  militia:{
+    label:"Miliciens d'Ithaque",role:"Infanterie bon marché — faible moral",
+    count:110,hp:72,speed:79,range:34,damage:8.5,armor:.08,morale:68,fatigue:0,
+    color:"#9bd7a7",shape:"spear",vision:410,cost:70,charge:.85,terrainBonus:"Route"
+  },
+
+  eH:{
+    label:"Hoplites d'Argos",role:"Infanterie lourde ennemie",
+    count:95,hp:100,speed:69,range:40,damage:14.5,armor:.34,morale:100,fatigue:0,
+    color:"#dc6767",shape:"shield",vision:460,cost:140,charge:1.0,terrainBonus:"Colline"
+  },
+  eP:{
+    label:"Peltastes d'Argos",role:"Tirailleurs ennemis",
+    count:72,hp:76,speed:103,range:165,damage:10.5,armor:.09,morale:86,fatigue:0,
+    color:"#e57b7b",shape:"javelin",vision:520,cost:115,charge:1.05,terrainBonus:"Forêt"
+  },
+  eA:{
+    label:"Archers d'Argos",role:"Archers ennemis",
+    count:60,hp:62,speed:80,range:250,damage:8.5,armor:.04,morale:80,fatigue:0,
+    color:"#ed9090",shape:"bow",vision:630,cost:150,charge:.7,terrainBonus:"Colline"
+  },
+  eS:{
+    label:"Frondeurs d'Argos",role:"Troupes légères ennemies",
+    count:78,hp:67,speed:94,range:198,damage:7.3,armor:.05,morale:79,fatigue:0,
+    color:"#efaaaa",shape:"sling",vision:550,cost:95,charge:.8,terrainBonus:"Colline"
+  },
+  eC:{
+    label:"Cavaliers d'Argos",role:"Cavalerie de choc ennemie",
+    count:32,hp:90,speed:154,range:42,damage:19,armor:.21,morale:90,fatigue:0,
+    color:"#d95151",shape:"horse",vision:690,cost:230,charge:1.6,terrainBonus:"Plaine"
+  },
+  eM:{
+    label:"Miliciens d'Argos",role:"Infanterie légère ennemie",
+    count:115,hp:70,speed:77,range:34,damage:8.2,armor:.07,morale:66,fatigue:0,
+    color:"#e99898",shape:"spear",vision:400,cost:70,charge:.85,terrainBonus:"Route"
+  }
 };
 
 const units=[];let nextId=1;
@@ -276,11 +348,24 @@ function add(type,x,y,team){
     maxCount:a.count,count:a.count,maxHP:a.hp,hp:a.hp,baseSpeed:a.speed,speed:a.speed,
     range:a.range,damage:a.damage,armor:a.armor,baseArmor:a.armor,
     morale:a.morale,maxMorale:a.morale,fatigue:0,color:a.color,label:a.label,role:a.role,shape:a.shape,
-    radius:38,attackCd:Math.random()*.5,rallyCd:0,facing:team==="player"?0:Math.PI,terrain:"Plaine"
+    vision:a.vision,cost:a.cost,charge:a.charge,terrainBonus:a.terrainBonus,
+    radius:a.shape==="horse"?44:38,attackCd:Math.random()*.5,rallyCd:0,
+    facing:team==="player"?0:Math.PI,terrain:"Plaine",movingTime:0,lastDist:0
   });
 }
-add("hoplite",720,1470,"player"); add("peltast",610,1640,"player"); add("archer",690,1840,"player"); add("hoplite",920,1770,"player");
-add("eH",3370,1240,"enemy"); add("eP",3520,1420,"enemy"); add("eA",3470,970,"enemy"); add("eH",3200,1530,"enemy");
+add("hoplite",720,1430,"player");
+add("peltast",600,1600,"player");
+add("archer",680,1830,"player");
+add("slinger",940,1930,"player");
+add("cavalry",980,1540,"player");
+add("militia",500,1830,"player");
+
+add("eH",3370,1200,"enemy");
+add("eP",3520,1390,"enemy");
+add("eA",3470,940,"enemy");
+add("eS",3170,930,"enemy");
+add("eC",3150,1510,"enemy");
+add("eM",3650,1570,"enemy");
 
 function terrainAt(x,y){
   for(const f of forests) if(Math.hypot(x-f.x,y-f.y)<f.r) return "Forêt";
@@ -299,18 +384,47 @@ function terrainAt(x,y){
 
 function applyTerrain(u){
   const t=terrainAt(u.x,u.y);u.terrain=t;
-  let mult=1;
-  if(t==="Route") mult=1.16;
-  if(t==="Forêt") mult=u.shape==="bow"?.82:.88;
-  if(t==="Colline") mult=.92;
-  if(t==="Plage") mult=.84;
-  u.speed=u.baseSpeed*mult*(1-u.fatigue*.0035);
+  let speedMult=1,attackMult=1,defenseMult=1,rangeMult=1,moraleMult=1,stealth=0;
+
+  if(t==="Route"){
+    speedMult=1.16;
+    if(u.terrainBonus==="Route")speedMult*=1.06;
+  }
+  if(t==="Forêt"){
+    speedMult=u.shape==="horse"?.58:.86;
+    defenseMult=1.08;
+    stealth=u.shape==="javelin"||u.shape==="sling"?.25:.14;
+    if(u.terrainBonus==="Forêt")attackMult=1.08;
+  }
+  if(t==="Colline"){
+    speedMult=.91;
+    attackMult=1.10;
+    defenseMult=1.07;
+    if(u.range>100)rangeMult=1.16;
+    if(u.terrainBonus==="Colline")attackMult*=1.05;
+  }
+  if(t==="Plage"){
+    speedMult=.82;
+    moraleMult=.94;
+  }
+  if(t==="Plaine"&&u.shape==="horse"){
+    speedMult=1.08;
+    attackMult=1.08;
+  }
+
+  const fatiguePenalty=Math.max(.58,1-u.fatigue*.0042);
+  u.speed=u.baseSpeed*speedMult*fatiguePenalty;
+  u.terrainAttack=attackMult;
+  u.terrainDefense=defenseMult;
+  u.terrainRange=rangeMult;
+  u.terrainMorale=moraleMult;
+  u.stealth=stealth;
 }
 
 function updateUI(){
   ui.food.textContent=Math.floor(resources.food);ui.wood.textContent=Math.floor(resources.wood);ui.gold.textContent=Math.floor(resources.gold);
   if(selected&&selected.count>0){
-    ui.name.textContent=selected.label;ui.role.textContent=selected.role;
+    ui.name.textContent=selected.label;ui.role.textContent=selected.role+" · Vision "+selected.vision+" · Coût "+selected.cost;
     ui.count.textContent=Math.ceil(selected.count);ui.hp.textContent=Math.ceil(selected.hp)+"%";
     ui.morale.textContent=Math.ceil(selected.morale)+"%";ui.fatigue.textContent=Math.ceil(selected.fatigue)+"%";
     ui.terrain.textContent=selected.terrain;
@@ -483,11 +597,27 @@ function enemyAI(){
   const ps=units.filter(u=>u.team==="player"&&u.count>0);
   for(const e of units.filter(u=>u.team==="enemy"&&u.count>0)){
     if(e.target&&e.target.count<=0)e.target=null;
+
     if(!e.target){
-      let best=null,bd=1e9;
-      for(const p of ps){const d=Math.hypot(p.x-e.x,p.y-e.y);if(d<bd){bd=d;best=p}}
-      if(best&&bd<900)e.target=best;
-      else{e.tx=2100+(Math.random()-.5)*160;e.ty=1390+(Math.random()-.5)*160}
+      let best=null,bestScore=1e9;
+      for(const p of ps){
+        const d=Math.hypot(p.x-e.x,p.y-e.y);
+        if(d>e.vision*(1-p.stealth))continue;
+
+        let score=d;
+        if(e.shape==="horse"&&(p.shape==="bow"||p.shape==="sling"))score*=.55;
+        if((e.shape==="bow"||e.shape==="sling")&&p.shape==="shield")score*=1.25;
+        if(e.shape==="shield"&&p.shape==="horse")score*=.72;
+        if(p.morale<45)score*=.74;
+        if(p.count<45)score*=.82;
+
+        if(score<bestScore){bestScore=score;best=p}
+      }
+      if(best)e.target=best;
+      else{
+        e.tx=2100+(Math.random()-.5)*220;
+        e.ty=1390+(Math.random()-.5)*220;
+      }
     }
   }
 }
@@ -497,28 +627,56 @@ function updateUnit(u,dt){
   applyTerrain(u);u.attackCd-=dt;u.rallyCd=Math.max(0,u.rallyCd-dt);
   if(u.target&&u.target.count>0){
     const dx=u.target.x-u.x,dy=u.target.y-u.y,d=Math.hypot(dx,dy)||1;u.facing=Math.atan2(dy,dx);
-    let range=u.range;if(u.terrain==="Colline"&&u.range>100)range*=1.14;
+    const range=u.range*(u.terrainRange||1);
     if(d<=range+u.target.radius){
       u.fatigue=Math.min(100,u.fatigue+dt*1.2);
       if(u.attackCd<=0){
-        let terrainBonus=1;
-        if(u.terrain==="Colline")terrainBonus=1.12;
-        if(u.terrain==="Forêt"&&u.shape==="bow")terrainBonus=.9;
-        const morale=.55+.45*(u.morale/u.maxMorale);
-        const dealt=u.damage*terrainBonus*morale*(.85+Math.random()*.3)*(1-u.target.armor);
-        u.target.hp-=dealt*.4;u.target.count-=dealt*.085;u.target.morale-=dealt*.13;
+        const morale=.50+.50*(u.morale/u.maxMorale);
+        const fatiguePower=Math.max(.58,1-u.fatigue*.004);
+        const targetDefense=(u.target.terrainDefense||1);
+        const movingCharge=u.movingTime>1.1&&u.range<80?u.charge:1;
+        let typeBonus=1;
+
+        if(u.shape==="shield"&&u.target.shape==="horse")typeBonus=1.28;
+        if(u.shape==="horse"&&(u.target.shape==="bow"||u.target.shape==="sling"))typeBonus=1.34;
+        if(u.shape==="javelin"&&u.target.shape==="horse")typeBonus=1.20;
+        if(u.shape==="sling")u.target.morale=Math.max(0,u.target.morale-2.2);
+
+        const dealt=u.damage*(u.terrainAttack||1)*morale*fatiguePower*movingCharge*typeBonus*
+          (.85+Math.random()*.3)*(1-u.target.armor)/targetDefense;
+
+        u.target.hp-=dealt*.4;
+        u.target.count-=dealt*.085;
+        u.target.morale-=dealt*(u.shape==="sling"?.22:.13);
         u.attackCd=u.range>100?1.22:.72;
-        if(u.target.hp<=0||u.target.count<=1||u.target.morale<=0){u.target.count=0;u.target.hp=0;u.target.morale=0;if(selected===u.target)selected=null;u.target=null}
+        u.movingTime=0;
+
+        if(u.target.hp<=0||u.target.count<=1||u.target.morale<=0){
+          u.target.count=0;u.target.hp=0;u.target.morale=0;
+          if(selected===u.target)selected=null;
+          u.target=null;
+        }
       }
     }else if(!u.hold){
-      const step=Math.min(d,u.speed*dt);u.x+=dx/d*step;u.y+=dy/d*step;u.fatigue=Math.min(100,u.fatigue+dt*.75);
+      const step=Math.min(d,u.speed*dt);
+      u.x+=dx/d*step;u.y+=dy/d*step;
+      u.fatigue=Math.min(100,u.fatigue+dt*.75);
+      u.movingTime+=dt;
     }
   }else if(!u.hold){
     const dx=u.tx-u.x,dy=u.ty-u.y,d=Math.hypot(dx,dy)||1;
-    if(d>3){u.facing=Math.atan2(dy,dx);const step=Math.min(d,u.speed*dt);u.x+=dx/d*step;u.y+=dy/d*step;u.fatigue=Math.min(100,u.fatigue+dt*.35)}
-    else u.fatigue=Math.max(0,u.fatigue-dt*2.6);
+    if(d>3){
+      u.facing=Math.atan2(dy,dx);
+      const step=Math.min(d,u.speed*dt);
+      u.x+=dx/d*step;u.y+=dy/d*step;
+      u.fatigue=Math.min(100,u.fatigue+dt*.35);
+      u.movingTime+=dt;
+    }else{
+      u.fatigue=Math.max(0,u.fatigue-dt*2.6);
+      u.movingTime=0;
+    }
   }else u.fatigue=Math.max(0,u.fatigue-dt*2.2);
-  u.morale=Math.min(u.maxMorale,u.morale+dt*.55);
+  u.morale=Math.min(u.maxMorale,(u.morale+dt*.55)*(u.terrainMorale||1));
 }
 
 function capture(dt){
@@ -541,7 +699,7 @@ function updateEconomy(dt){
 function checkWin(){
   if(victory)return;
   const aliveP=units.some(u=>u.team==="player"&&u.count>0),aliveE=units.some(u=>u.team==="enemy"&&u.count>0);
-  if(!aliveE||points[0].owner==="player"){victory="VICTOIRE";ui.objective.textContent="Victoire : le sanctuaire d'Apollon est sécurisé.";toast("Victoire d'Ithaque !")}
+  if(!aliveE||(points[0].owner==="player"&&!units.some(u=>u.team==="enemy"&&u.count>0&&Math.hypot(u.x-3450,u.y-1120)<500))){victory="VICTOIRE";ui.objective.textContent="Victoire : le sanctuaire et le commandement ennemi sont tombés.";toast("Victoire d'Ithaque !")}
   else if(!aliveP){victory="DÉFAITE";ui.objective.textContent="Défaite : ton armée a été détruite.";toast("L'armée d'Ithaque est anéantie")}
 }
 
@@ -611,26 +769,79 @@ function drawPoint(p){
 function drawUnit(u){
   if(u.count<=0)return;
   const s=w2s(u.x,u.y),z=camera.zoom;
-  if(selected===u){ctx.strokeStyle="#ffe28a";ctx.lineWidth=3;ctx.beginPath();ctx.arc(s.x,s.y,(u.radius+10)*z,0,Math.PI*2);ctx.stroke()}
-  if(u.target){const t=w2s(u.target.x,u.target.y);ctx.strokeStyle=u.team==="player"?"rgba(255,230,130,.42)":"rgba(255,90,90,.28)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(t.x,t.y);ctx.stroke()}
-  const cols=u.formation==="phalanx"?10:9,rows=Math.max(3,Math.min(7,Math.ceil(u.count/15)));
-  const sx=(u.formation==="phalanx"?5.5:7.2)*z,sy=(u.formation==="phalanx"?5:7)*z;
+
+  if(selected===u){
+    ctx.strokeStyle="#ffe28a";ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(s.x,s.y,(u.radius+12)*z,0,Math.PI*2);ctx.stroke();
+  }
+
+  if(u.target){
+    const t=w2s(u.target.x,u.target.y);
+    ctx.strokeStyle=u.team==="player"?"rgba(255,230,130,.42)":"rgba(255,90,90,.28)";
+    ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(t.x,t.y);ctx.stroke();
+  }
+
+  let cols=9,rows=Math.max(3,Math.min(7,Math.ceil(u.count/15)));
+  let sx=7.2*z,sy=7*z;
+  if(u.formation==="phalanx"){cols=12;rows=Math.max(3,Math.min(6,Math.ceil(u.count/18)));sx=5.2*z;sy=5.2*z}
+  if(u.shape==="horse"){cols=6;rows=Math.max(2,Math.min(5,Math.ceil(u.count/8)));sx=11*z;sy=10*z}
+
   ctx.save();ctx.translate(s.x,s.y);ctx.rotate(u.facing+Math.PI/2);
+
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     if(r*cols+c>=Math.ceil(u.count/1.35))break;
     const x=(c-(cols-1)/2)*sx,y=(r-(rows-1)/2)*sy;
-    ctx.fillStyle=u.color;ctx.beginPath();ctx.arc(x,y,2.2*z,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle="rgba(18,24,24,.72)";ctx.lineWidth=.8*z;
-    if(u.shape==="shield"){ctx.beginPath();ctx.arc(x-1.5*z,y,2.3*z,0,Math.PI*2);ctx.stroke()}
-    if(u.shape==="javelin"){ctx.beginPath();ctx.moveTo(x,y-4*z);ctx.lineTo(x,y+4*z);ctx.stroke()}
-    if(u.shape==="bow"){ctx.beginPath();ctx.arc(x,y,3.2*z,-1.2,1.2);ctx.stroke()}
+    ctx.fillStyle=u.color;
+
+    if(u.shape==="horse"){
+      ctx.fillRect(x-3*z,y-2*z,6*z,5*z);
+      ctx.beginPath();ctx.arc(x,y-4*z,2.1*z,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle="rgba(20,22,20,.75)";ctx.lineWidth=.8*z;
+      ctx.beginPath();ctx.moveTo(x-3*z,y+3*z);ctx.lineTo(x-4*z,y+6*z);ctx.moveTo(x+3*z,y+3*z);ctx.lineTo(x+4*z,y+6*z);ctx.stroke();
+      continue;
+    }
+
+    ctx.beginPath();ctx.arc(x,y,2.25*z,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="rgba(18,24,24,.75)";ctx.lineWidth=.8*z;
+
+    if(u.shape==="shield"){
+      ctx.beginPath();ctx.arc(x-1.6*z,y,2.45*z,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x+1*z,y-5*z);ctx.lineTo(x+1*z,y+6*z);ctx.stroke();
+    }else if(u.shape==="javelin"||u.shape==="spear"){
+      ctx.beginPath();ctx.moveTo(x,y-5*z);ctx.lineTo(x,y+5*z);ctx.stroke();
+    }else if(u.shape==="bow"){
+      ctx.beginPath();ctx.arc(x,y,3.3*z,-1.2,1.2);ctx.stroke();
+    }else if(u.shape==="sling"){
+      ctx.beginPath();ctx.arc(x+1*z,y-1*z,3.2*z,.2,2.5);ctx.stroke();
+    }
   }
+
+  // Banner and officer
+  ctx.fillStyle=u.team==="player"?"#d9b867":"#7f1f24";
+  ctx.fillRect(-1.2*z,-rows*sy/2-18*z,2.4*z,18*z);
+  ctx.beginPath();
+  ctx.moveTo(1*z,-rows*sy/2-18*z);
+  ctx.lineTo(13*z,-rows*sy/2-14*z);
+  ctx.lineTo(1*z,-rows*sy/2-9*z);
+  ctx.fill();
   ctx.restore();
-  const bw=74*z,bh=7*z;
-  ctx.fillStyle="rgba(0,0,0,.72)";ctx.fillRect(s.x-bw/2,s.y-54*z,bw,bh);
-  ctx.fillStyle=u.team==="player"?"#55d47d":"#e05f5f";ctx.fillRect(s.x-bw/2,s.y-54*z,bw*Math.max(0,u.hp/u.maxHP),bh);
-  ctx.fillStyle="rgba(5,8,10,.84)";ctx.fillRect(s.x-29*z,s.y-75*z,58*z,18*z);
-  ctx.fillStyle="#fff";ctx.font=`bold ${12*Math.max(.72,z)}px Arial`;ctx.textAlign="center";ctx.fillText(Math.max(0,Math.ceil(u.count)),s.x,s.y-62*z);
+
+  // Health and morale bars
+  const bw=78*z,bh=6*z;
+  ctx.fillStyle="rgba(0,0,0,.75)";
+  ctx.fillRect(s.x-bw/2,s.y-57*z,bw,bh);
+  ctx.fillStyle=u.team==="player"?"#55d47d":"#e05f5f";
+  ctx.fillRect(s.x-bw/2,s.y-57*z,bw*Math.max(0,u.hp/u.maxHP),bh);
+
+  ctx.fillStyle="rgba(0,0,0,.72)";
+  ctx.fillRect(s.x-bw/2,s.y-49*z,bw,3*z);
+  ctx.fillStyle="#d9b867";
+  ctx.fillRect(s.x-bw/2,s.y-49*z,bw*Math.max(0,u.morale/u.maxMorale),3*z);
+
+  ctx.fillStyle="rgba(5,8,10,.86)";
+  ctx.fillRect(s.x-30*z,s.y-79*z,60*z,18*z);
+  ctx.fillStyle="#fff";ctx.font=`bold ${12*Math.max(.72,z)}px Arial`;ctx.textAlign="center";
+  ctx.fillText(Math.max(0,Math.ceil(u.count)),s.x,s.y-66*z);
 }
 
 function drawMini(){
