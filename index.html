@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>OPERATION OVERWATCH — v0.5.3</title>
+  <title>OPERATION OVERWATCH — v0.5.4</title>
   <style>
     :root {
       --bg:#071017;
@@ -220,7 +220,7 @@
           </ul>
         </div>
         <div class="menu-footer">
-          <span class="menu-version">v0.5.3 Menu + Audio</span>
+          <span class="menu-version">v0.5.4 Menu + Audio</span>
           <span>Assets libres documentés</span>
         </div>
       </div>
@@ -456,7 +456,11 @@ class AudioManager {
     this.ambienceTimer = null;
     this.menuMusic = null;
     this.menuMusicTimer = null;
+    this.syntheticMenuMusic = null;
+    this.syntheticMenuTimer = null;
     this.syntheticAmbience = null;
+    this.audioMode = 'menu';
+    this.generation = 0;
     this.maxByCategory = { infantry:4, vehicle:4, explosion:3, rocket:2, impact:5, ui:5, ambience:1, music:1 };
     this.defaults = {
       masterVolume: .8,
@@ -491,20 +495,24 @@ class AudioManager {
         'assets/audio/music/menu_theme.ogg'
       ],
       button_hover: [
+        'https://opengameart.org/sites/default/files/click_sound_1.mp3',
         'assets/audio/ui/button_hover.mp3',
-        'https://opengameart.org/sites/default/files/click_sound_1.mp3'
+        'assets/audio/ui/button_hover.ogg'
       ],
       button_click: [
+        'https://opengameart.org/sites/default/files/click_sound_2.mp3',
         'assets/audio/ui/button_click.mp3',
-        'https://opengameart.org/sites/default/files/click_sound_2.mp3'
+        'assets/audio/ui/button_click.ogg'
       ],
       menu_open: [
+        'https://opengameart.org/sites/default/files/click_sound_4.mp3',
         'assets/audio/ui/menu_open.mp3',
-        'https://opengameart.org/sites/default/files/click_sound_4.mp3'
+        'assets/audio/ui/menu_open.ogg'
       ],
       menu_back: [
+        'https://opengameart.org/sites/default/files/click_sound_5.mp3',
         'assets/audio/ui/menu_back.mp3',
-        'https://opengameart.org/sites/default/files/click_sound_5.mp3'
+        'assets/audio/ui/menu_back.ogg'
       ],
       order_confirm: [
         'assets/audio/ui/order_confirm.wav',
@@ -626,6 +634,35 @@ class AudioManager {
   get uiVolume(){ return this.settings.uiVolume; }
   get muted(){ return this.settings.muted; }
 
+  setMode(mode){
+    this.audioMode = mode === 'game' ? 'game' : 'menu';
+    this.generation++;
+    if(this.audioMode === 'menu'){
+      this.stopAmbience();
+      this.stopCombatSfx();
+    }
+  }
+
+  stopCombatSfx(){
+    for(const a of [...this.activeHtml]){
+      const cat = a.dataset?.category || '';
+      if(cat && cat !== 'ui' && cat !== 'music' && cat !== 'ambience'){
+        try{ a.pause(); a.currentTime = 0; }catch(e){}
+        this.activeHtml.delete(a);
+      }
+    }
+    for(const node of [...this.activeNodes]){
+      const cat = node._owCategory || '';
+      if(cat && cat !== 'ui' && cat !== 'music' && cat !== 'ambience'){
+        try{ node.stop?.(); }catch(e){}
+        this.activeNodes.delete(node);
+      }
+    }
+    for(const [cat] of [...this.activeByCategory]){
+      if(cat !== 'ui' && cat !== 'music' && cat !== 'ambience') this.activeByCategory.set(cat,0);
+    }
+  }
+
   categoryCount(category){ return this.activeByCategory.get(category)||0; }
   incCategory(category){ this.activeByCategory.set(category, this.categoryCount(category)+1); }
   decCategory(category){ this.activeByCategory.set(category, Math.max(0, this.categoryCount(category)-1)); }
@@ -633,6 +670,7 @@ class AudioManager {
   play(name, position={x:0,z:0}, volume=1, cooldown=null, opts={}){
     if(this.muted || !this.unlocked) return false;
     const profile = this.profiles[name] || this.profiles.impact;
+    if(profile.category !== 'ui' && this.audioMode !== 'game' && !opts.allowInMenu) return false;
     const now = this.ctx?.currentTime || performance.now()/1000;
     const cd = cooldown ?? opts.cooldown ?? profile.cooldown;
     const cdKey = opts.cooldownKey || `${profile.category}:${name}`;
@@ -654,8 +692,11 @@ class AudioManager {
   playSample(key, volume, rate, category){
     const urls = this.sampleSources[key] || [];
     if(!urls.length) return false;
+    const token = this.generation;
 
     const attempt = (idx)=>{
+      if(token !== this.generation && category !== 'ui') return false;
+      if(category !== 'ui' && this.audioMode !== 'game' && key !== 'menu_theme') return false;
       if(idx>=urls.length){
         this.fallbackByKey(key, volume, category);
         return false;
@@ -666,6 +707,7 @@ class AudioManager {
         source.volume = clamp(volume,0,1);
         source.playbackRate = clamp(rate, .65, 1.35);
         source.loop = false;
+        source.dataset.category = category;
         this.activeHtml.add(source);
         this.incCategory(category);
         let released=false;
@@ -677,6 +719,7 @@ class AudioManager {
         };
         const fail=()=>{
           release();
+          if(token !== this.generation && category !== 'ui') return;
           attempt(idx+1);
         };
         source.addEventListener('ended', release, {once:true});
@@ -692,6 +735,14 @@ class AudioManager {
   }
 
   fallbackByKey(key, volume, category){
+    if(category === 'ui'){
+      if(key==='button_hover') return this.buttonHover(volume, category);
+      if(key==='menu_open') return this.menuOpenFallback(volume, category);
+      if(key==='menu_back') return this.menuBackFallback(volume, category);
+      if(key==='order_confirm') return this.orderThunk(volume, category);
+      return this.buttonClick(volume, category);
+    }
+    if(this.audioMode !== 'game') return false;
     if(key==='order_confirm') return this.orderThunk(volume, category);
     if(key==='button_click') return this.buttonClick(volume, category);
     if(key==='tank_cannon') return this.tankFallback(volume, category);
@@ -704,6 +755,14 @@ class AudioManager {
   }
 
   fallback(name, volume, category){
+    if(category === 'ui'){
+      if(name==='hover') return this.buttonHover(volume, category);
+      if(name==='menuOpen') return this.menuOpenFallback(volume, category);
+      if(name==='menuBack') return this.menuBackFallback(volume, category);
+      if(name==='order') return this.orderThunk(volume, category);
+      return this.buttonClick(volume, category);
+    }
+    if(this.audioMode !== 'game') return false;
     if(name==='order') return this.orderThunk(volume, category);
     if(name==='ui') return this.buttonClick(volume, category);
     if(name==='tank') return this.tankFallback(volume, category);
@@ -717,6 +776,7 @@ class AudioManager {
   }
 
   trackNode(node, duration, category){
+    node._owCategory = category;
     this.activeNodes.add(node);
     this.incCategory(category);
     const release=()=>{
@@ -725,6 +785,22 @@ class AudioManager {
     };
     try{ node.addEventListener?.('ended', release, {once:true}); }catch(e){}
     setTimeout(release, Math.ceil(duration*1000)+80);
+  }
+
+  buttonHover(volume, category='ui'){
+    if(!this.ctx) return;
+    this.thump(92,.026,volume*.12,category);
+  }
+
+  menuOpenFallback(volume, category='ui'){
+    if(!this.ctx) return;
+    this.thump(76,.05,volume*.18,category);
+    this.noiseBurst(.018,360,volume*.035,category);
+  }
+
+  menuBackFallback(volume, category='ui'){
+    if(!this.ctx) return;
+    this.thump(64,.05,volume*.16,category);
   }
 
   buttonClick(volume, category='ui'){
@@ -829,21 +905,36 @@ class AudioManager {
   }
 
   startMenuMusic(){
-    if(this.muted || !this.unlocked || this.menuMusic) return;
+    if(this.muted || !this.unlocked || this.menuMusic || this.syntheticMenuMusic) return;
+    if(this.audioMode !== 'menu') return;
     const urls = this.sampleSources.menu_theme || [];
+    const token = this.generation;
     const attempt = (idx)=>{
-      if(idx>=urls.length) return;
+      if(token !== this.generation || this.audioMode !== 'menu') return;
+      if(idx>=urls.length){ this.startSyntheticMenuMusic(); return; }
       try{
         const a = new Audio(urls[idx]);
         a.crossOrigin = 'anonymous';
         a.loop = true;
         a.volume = 0;
         a.preload = 'auto';
+        a.dataset.category = 'music';
         this.menuMusic = a;
+        const fail = ()=>{
+          if(this.menuMusic===a){
+            try{ a.pause(); }catch(e){}
+            this.menuMusic=null;
+          }
+          if(token === this.generation && this.audioMode === 'menu') attempt(idx+1);
+        };
         const p = a.play();
-        if(p?.catch) p.catch(()=>{ this.menuMusic=null; attempt(idx+1); });
-        a.addEventListener('error',()=>{ if(this.menuMusic===a) this.menuMusic=null; attempt(idx+1); },{once:true});
-        this.fadeMenuMusicTo(this.master*this.musicVolume, 1800);
+        if(p?.catch) p.catch(fail);
+        a.addEventListener('error', fail, {once:true});
+        setTimeout(()=>{
+          if(this.menuMusic===a && token===this.generation && this.audioMode==='menu'){
+            this.fadeMenuMusicTo(this.master*this.musicVolume, 1800);
+          }
+        }, 60);
       }catch(e){
         this.menuMusic=null;
         attempt(idx+1);
@@ -873,8 +964,8 @@ class AudioManager {
 
   stopMenuMusic(ms=650){
     clearInterval(this.menuMusicTimer);
-    if(!this.menuMusic) return;
-    this.fadeMenuMusicTo(0, ms, true);
+    if(this.menuMusic) this.fadeMenuMusicTo(0, ms, true);
+    if(this.syntheticMenuMusic) this.fadeSyntheticMenuMusicTo(0, ms, true);
   }
 
   startAmbience(){
@@ -922,6 +1013,8 @@ class AudioManager {
     if(this.ambience) this.fadeAmbienceTo(ambienceTarget, 450);
     if(this.syntheticAmbience) this.fadeSyntheticAmbienceTo(ambienceTarget, 450);
     if(this.menuMusic) this.fadeMenuMusicTo(musicTarget, 450);
+    if(this.syntheticMenuMusic) this.fadeSyntheticMenuMusicTo(musicTarget*.55, 450);
+    if(!this.muted && this.audioMode==='menu' && this.unlocked && !this.menuMusic && !this.syntheticMenuMusic) this.startMenuMusic();
   }
 
   applyAmbienceVolume(){ this.applyLoopVolumes(); }
@@ -970,6 +1063,7 @@ class AudioManager {
   }
 
   stopAll({keepUnlocked=true, keepMenuMusic=false}={}){
+    this.generation++;
     for(const a of [...this.activeHtml]){
       try{ a.pause(); a.currentTime=0; }catch(e){}
     }
@@ -2091,6 +2185,7 @@ function startBattle(){
   $('setup-screen').classList.add('hidden');
   $('hud').classList.remove('hidden');
   audio.unlock();
+  audio.setMode('game');
   audio.stopMenuMusic(450);
   audio.stopAmbience();
   resetScene();
@@ -2206,7 +2301,10 @@ function bindAudioOptions(){
 
 function activateMenuAudio(){
   audio.unlock();
-  if(gamePhase==='menu') audio.startMenuMusic();
+  if(gamePhase==='menu'){
+    audio.setMode('menu');
+    audio.startMenuMusic();
+  }
 }
 
 function showMainMenu(){
@@ -2217,6 +2315,7 @@ function showMainMenu(){
   $('reinforce-modal').classList.add('hidden');
   $('main-menu').classList.remove('hidden');
   audio.stopAll({keepUnlocked:true, keepMenuMusic:false});
+  audio.setMode('menu');
   audio.startMenuMusic();
 }
 
@@ -2245,7 +2344,6 @@ function setupMenus(){
   document.addEventListener('pointerdown', activateMenuAudio, {once:true, passive:true});
   $('btn-play').onclick=()=>{
     activateMenuAudio();
-    audio.stopMenuMusic(650);
     $('main-menu').classList.add('hidden');
     $('setup-screen').classList.remove('hidden');
   };
@@ -2257,7 +2355,7 @@ function setupMenus(){
   $('btn-fullscreen').onclick=toggleFullscreen;
   $('btn-fs-game').onclick=toggleFullscreen;
   $('btn-menu-game').onclick=()=>{ showMainMenu(); };
-  document.querySelectorAll('[data-back-main]').forEach(b=>b.onclick=()=>{ $('setup-screen').classList.add('hidden'); $('main-menu').classList.remove('hidden'); audio.startMenuMusic(); });
+  document.querySelectorAll('[data-back-main]').forEach(b=>b.onclick=()=>{ $('setup-screen').classList.add('hidden'); $('main-menu').classList.remove('hidden'); audio.setMode('menu'); audio.startMenuMusic(); });
   document.querySelectorAll('[data-back-setup]').forEach(b=>b.onclick=()=>{$('deploy-screen').classList.add('hidden');$('setup-screen').classList.remove('hidden')});
   document.querySelectorAll('[data-map]').forEach(el=>el.onclick=()=>{
     document.querySelectorAll('[data-map]').forEach(x=>x.classList.remove('selected'));
