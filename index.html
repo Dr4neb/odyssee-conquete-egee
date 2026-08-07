@@ -80,6 +80,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <script src="https://pixijs.download/release/pixi.min.js"></script>
 <script>
+window.addEventListener('load',()=>{setTimeout(()=>{if(!window.PIXI){document.getElementById('toast').textContent='PixiJS ne charge pas. Vérifie ta connexion internet ou utilise la version projet locale.';document.getElementById('toast').style.display='block';}},900)});
+</script>
+<script>
 (()=> {
 const W=2600,H=1600, ARRIVAL_RADIUS=22, SLOWDOWN_RADIUS=95, ANGLE_EPSILON=.08;
 const LS='operationOverwatchSettings';
@@ -102,7 +105,7 @@ function bindOptions(){ $('masterVol').value=settings.audio.masterVolume; $('eff
 bindOptions();
 $('masterVol').oninput=e=>{settings.audio.masterVolume=+e.target.value;save()};$('effects').onchange=e=>{settings.graphics.effects=e.target.value;save()};$('showFPS').onchange=e=>{settings.graphics.showFPS=e.target.checked;save()};$('uiScale').onchange=e=>{settings.graphics.uiScale=+e.target.value;document.body.style.fontSize=(16*settings.graphics.uiScale)+'px';save()};$('camSpeed').oninput=e=>{settings.gameplay.cameraSpeed=+e.target.value;save()};$('showVision').onchange=e=>{settings.gameplay.showVisionRanges=e.target.checked;save()};$('showRange').onchange=e=>{settings.gameplay.showAttackRanges=e.target.checked;save()};
 document.body.style.fontSize=(16*settings.graphics.uiScale)+'px';
-function orient(){ $('portrait').style.display=(mobile()&&innerHeight>innerWidth)?'flex':'none'} addEventListener('resize',orient); addEventListener('orientationchange',orient); orient();
+function orient(){ $('portrait').style.display=(mobile()&&innerHeight>innerWidth)?'flex':'none'; if(!started)$('mainMenu').style.display='flex'} addEventListener('resize',orient); addEventListener('orientationchange',orient); orient();
 
 let app,world,uiG,started=false,paused=false,selected=null,camera={x:0,y:0,z:.62,drag:false,lx:0,ly:0},units=[],effects=[],mines=[],obstacles=[];
 const terrain=[{t:'road',x:0,y:690,w:2600,h:130},{t:'forest',x:220,y:160,w:520,h:420},{t:'rocks',x:1580,y:260,w:420,h:330},{t:'urban',x:1180,y:980,w:520,h:340},{t:'open',x:0,y:0,w:W,h:H}];
@@ -129,12 +132,93 @@ function startGame(){if(started)return; started=true; $('hud').style.display='bl
 $('newGameBtn').onclick=startGame; $('pauseBtn').onclick=()=>pause(true); $('resumeBtn').onclick=()=>pause(false); $('mainBackBtn').onclick=()=>{pause(false);location.reload()};
 function pause(v){paused=v;$('pauseMenu').style.display=v?'flex':'none'}
 
-function setupInput(){const c=app.view;c.addEventListener('contextmenu',e=>e.preventDefault());
- c.addEventListener('pointerdown',e=>{e.preventDefault();camera.drag=true;camera.lx=e.clientX;camera.ly=e.clientY;});
- c.addEventListener('pointermove',e=>{if(!camera.drag)return; const dx=e.clientX-camera.lx,dy=e.clientY-camera.ly; if(e.buttons===4||e.buttons===2||(!selected&&mobile())){camera.x-=dx/camera.z*settings.gameplay.cameraSpeed;camera.y-=dy/camera.z*settings.gameplay.cameraSpeed;} camera.lx=e.clientX;camera.ly=e.clientY;});
- c.addEventListener('pointerup',e=>{camera.drag=false; const p=screenToWorld(e.clientX,e.clientY); const hit=pick(p); if(hit&&hit.faction==='ally')select(hit); else if(selected)order(p.x,p.y);});
- c.addEventListener('wheel',e=>{e.preventDefault(); const s=(e.deltaY>0?-0.08:0.08)*settings.gameplay.zoomSensitivity; camera.z=clamp(camera.z+s,.35,1.35)},{passive:false});
- addEventListener('keydown',e=>{if(e.key==='Escape')pause(!paused); if(!selected)return; if(['1','2','3','4'].includes(e.key)&&selected.kind==='squad')selected.formation=['line','column','wedge','spread'][+e.key-1];});
+function setupInput(){
+ const c=app.view;
+ c.style.touchAction='none';
+ const active=new Map();
+ let moved=false, pinchStart=0, pinchZoom=camera.z, lastTap={x:0,y:0,t:0};
+
+ function applyZoom(next, cx=innerWidth/2, cy=innerHeight/2){
+   const before=screenToWorld(cx,cy);
+   camera.z=clamp(next,.35,1.65);
+   const after=screenToWorld(cx,cy);
+   camera.x+=before.x-after.x;
+   camera.y+=before.y-after.y;
+ }
+ function wheelZoom(e){
+   if(!started || paused) return;
+   e.preventDefault();
+   const dir=(settings.controls.invertZoom?-1:1);
+   const delta=e.deltaY>0?-0.11:0.11;
+   applyZoom(camera.z + delta*settings.gameplay.zoomSensitivity*dir, e.clientX||innerWidth/2, e.clientY||innerHeight/2);
+ }
+ c.addEventListener('contextmenu',e=>e.preventDefault());
+ window.addEventListener('wheel',wheelZoom,{passive:false});
+
+ c.addEventListener('pointerdown',e=>{
+   if(!started || paused) return;
+   e.preventDefault();
+   c.setPointerCapture?.(e.pointerId);
+   active.set(e.pointerId,{x:e.clientX,y:e.clientY,px:e.clientX,py:e.clientY});
+   camera.drag=true; moved=false;
+   if(active.size===2){
+     const pts=[...active.values()];
+     pinchStart=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+     pinchZoom=camera.z;
+   }
+ });
+
+ c.addEventListener('pointermove',e=>{
+   if(!active.has(e.pointerId) || !started || paused) return;
+   e.preventDefault();
+   const p=active.get(e.pointerId);
+   const dx=e.clientX-p.x, dy=e.clientY-p.y;
+   if(Math.hypot(e.clientX-p.px,e.clientY-p.py)>8) moved=true;
+   p.x=e.clientX; p.y=e.clientY;
+
+   if(active.size===2){
+     const pts=[...active.values()];
+     const now=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+     if(pinchStart>0) applyZoom(pinchZoom*(now/pinchStart),(pts[0].x+pts[1].x)/2,(pts[0].y+pts[1].y)/2);
+     return;
+   }
+
+   const shouldPan = mobile() || e.buttons===2 || e.buttons===4 || e.shiftKey || (!selected && e.buttons===1);
+   if(shouldPan){
+     camera.x-=dx/camera.z*settings.gameplay.cameraSpeed;
+     camera.y-=dy/camera.z*settings.gameplay.cameraSpeed;
+   }
+ });
+
+ c.addEventListener('pointerup',e=>{
+   if(!started || paused) return;
+   e.preventDefault();
+   active.delete(e.pointerId);
+   if(active.size===0){
+     camera.drag=false; pinchStart=0;
+     if(moved) return;
+     const p=screenToWorld(e.clientX,e.clientY);
+     const hit=pick(p);
+     if(hit&&hit.faction==='ally') select(hit);
+     else if(selected) order(p.x,p.y);
+     else {
+       const now=performance.now();
+       if(now-lastTap.t<350){
+         camera.x-=80/camera.z; camera.y-=80/camera.z;
+       }
+       lastTap={x:e.clientX,y:e.clientY,t:now};
+     }
+   }
+ });
+ c.addEventListener('pointercancel',e=>{active.delete(e.pointerId); if(active.size===0){camera.drag=false;pinchStart=0}});
+
+ addEventListener('keydown',e=>{
+   if(e.key==='Escape')pause(!paused);
+   if(['+','='].includes(e.key)) applyZoom(camera.z+.12);
+   if(['-','_'].includes(e.key)) applyZoom(camera.z-.12);
+   if(!selected)return;
+   if(['1','2','3','4'].includes(e.key)&&selected.kind==='squad')selected.formation=['line','column','wedge','spread'][+e.key-1];
+ });
 }
 function screenToWorld(x,y){return {x:x/camera.z+camera.x,y:y/camera.z+camera.y}}
 function pick(p){let best=null,bd=1e9;for(const u of units){if(u.hp<=0||u.hidden||u.embarked)continue;let r=u.kind==='vehicle'?38:30;let d=Math.hypot(u.x-p.x,u.y-p.y);if(d<r&&d<bd){best=u;bd=d}}return best}
