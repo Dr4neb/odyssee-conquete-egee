@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>OPERATION OVERWATCH — v0.5.7</title>
+  <title>OPERATION OVERWATCH — v0.5.8</title>
   <style>
     :root {
       --bg:#071017;
@@ -178,6 +178,129 @@
       .countdown{top:32%}
     }
 
+
+    /* v0.5.8 — accueil mobile retravaillé : même design, layout tactile beaucoup plus propre */
+    @media (hover:none), (pointer:coarse), (max-width:760px){
+      .main-menu-screen{
+        align-items:stretch;
+        justify-content:center;
+        padding:0;
+        background:#020609;
+      }
+      .main-menu-screen::before{
+        inset:-8%;
+        background:
+          linear-gradient(180deg,rgba(2,5,8,.62),rgba(5,12,16,.96) 62%,rgba(3,6,9,.99)),
+          radial-gradient(circle at 74% 22%,rgba(85,125,118,.24),transparent 30%),
+          radial-gradient(circle at 18% 72%,rgba(184,118,44,.18),transparent 34%),
+          repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 28px),
+          linear-gradient(120deg,transparent 0 39%,rgba(65,75,65,.24) 39% 43%,transparent 43%),
+          radial-gradient(ellipse at center,#1e302c 0,#0a1418 50%,#030609 100%);
+        filter:saturate(.82) contrast(1.15);
+      }
+      .main-menu-screen::after{
+        background:
+          linear-gradient(rgba(118,224,161,.035) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(118,224,161,.03) 1px,transparent 1px),
+          linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.62));
+        background-size:42px 42px,42px 42px,100% 100%;
+      }
+      .menu-shell{
+        width:100vw;
+        min-height:100dvh;
+        height:100dvh;
+        border-radius:0;
+        border:0;
+        grid-template-columns:1fr;
+        padding:
+          calc(20px + env(safe-area-inset-top))
+          calc(16px + env(safe-area-inset-right))
+          calc(16px + env(safe-area-inset-bottom))
+          calc(16px + env(safe-area-inset-left));
+        background:linear-gradient(180deg,rgba(5,11,16,.35),rgba(5,12,16,.86) 54%,rgba(3,7,11,.98));
+        box-shadow:none;
+        overflow:auto;
+      }
+      .menu-left{
+        min-height:calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        justify-content:flex-start;
+      }
+      .menu-right{display:none}
+      .menu-silhouette{
+        right:-18vw;
+        bottom:18dvh;
+        width:80vw;
+        height:34dvh;
+        opacity:.22;
+      }
+      .kicker{
+        font-size:10px;
+        letter-spacing:.18em;
+        color:#a9c1bf;
+      }
+      .ow-logo{
+        font-size:clamp(46px,15vw,76px);
+        line-height:.88;
+        margin:12px 0 8px;
+      }
+      .logo-rule{width:78vw;margin:12px 0}
+      .subtitle{
+        font-size:13px;
+        line-height:1.45;
+        max-width:92vw;
+        color:#b8c9c8;
+      }
+      .menu-actions{
+        margin-top:auto;
+        padding-top:24px;
+        max-width:none;
+        gap:10px;
+        padding-bottom:4px;
+      }
+      .menu-actions .btn{
+        min-height:56px;
+        width:100%;
+        border-radius:14px;
+        padding:14px 16px;
+        font-size:14px;
+        letter-spacing:.10em;
+        background:linear-gradient(180deg,rgba(20,40,44,.88),rgba(5,12,16,.88));
+      }
+      .menu-actions .btn.primary{
+        min-height:66px;
+        font-size:16px;
+        border-color:rgba(126,216,137,.55);
+        box-shadow:inset 4px 0 0 rgba(126,216,137,.44),0 12px 36px rgba(0,0,0,.35);
+      }
+      .menu-actions .btn:active{
+        transform:scale(.985);
+        background:linear-gradient(180deg,rgba(38,68,63,.92),rgba(7,15,20,.92));
+      }
+    }
+    @media (orientation:landscape) and (hover:none), (orientation:landscape) and (pointer:coarse){
+      .menu-shell{
+        display:flex;
+        justify-content:center;
+        padding:
+          calc(12px + env(safe-area-inset-top))
+          calc(18px + env(safe-area-inset-right))
+          calc(12px + env(safe-area-inset-bottom))
+          calc(18px + env(safe-area-inset-left));
+      }
+      .menu-left{
+        width:min(680px,92vw);
+        min-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      }
+      .ow-logo{font-size:clamp(38px,8vw,62px)}
+      .subtitle{max-width:650px}
+      .menu-actions{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:10px;
+      }
+      .menu-actions .btn{min-height:50px}
+      .menu-actions .btn.primary{grid-column:1 / -1;min-height:58px}
+    }
+
   </style>
   <script type="importmap">
   {
@@ -220,7 +343,7 @@
           </ul>
         </div>
         <div class="menu-footer">
-          <span class="menu-version">v0.5.7 Sélection + Navigation</span>
+          <span class="menu-version">v0.5.8 Gameplay Hotfix</span>
           <span>Assets libres documentés</span>
         </div>
       </div>
@@ -414,7 +537,7 @@ const COLORS = {
 
 const UNIT_TYPES = {
   rifle: { label:'Fusiliers', kind:'infantry', cost:120, squad:4, hp:100, speed:40, radius:28, mass:1, range:240, vision:360, damage:5, reload:.44, ammo:260, optimal:180, weapon:'rifle' },
-  at: { label:'Anti-véhicule', kind:'infantry', cost:220, squad:3, hp:88, speed:34, radius:30, mass:1.1, range:430, vision:380, damage:145, reload:3.8, ammo:90, rockets:3, optimal:350, weapon:'rocket' },
+  at: { label:'Anti-véhicule', kind:'infantry', cost:220, squad:3, hp:88, speed:34, radius:30, mass:1.1, range:430, vision:380, damage:145, reload:3.8, ammo:90, rockets:3, optimal:350, weapon:'rocket', rifleRange:235, rifleDamage:4.5, rifleReload:.58, rifleOptimal:175 },
   command: { label:'Commandant', kind:'infantry', cost:180, squad:2, hp:75, speed:38, radius:24, mass:1, range:220, vision:430, damage:4, reload:.55, ammo:160, optimal:170, weapon:'rifle' },
   light: { label:'Humvee-like', kind:'vehicle', cost:260, hp:130, speed:60, reverse:28, accel:90, turn:2.2, radius:34, mass:4, range:280, vision:420, damage:8, reload:.22, ammo:340, fuel:100, optimal:230, weapon:'mg', armor:[8,4,2] },
   apc: { label:'APC', kind:'vehicle', cost:360, hp:240, speed:48, reverse:20, accel:70, turn:1.8, radius:45, mass:8, range:300, vision:380, damage:12, reload:.36, ammo:420, fuel:100, optimal:250, weapon:'mg', armor:[18,11,7] },
@@ -1148,6 +1271,67 @@ const OBSTACLE_CONFIG = {
   stuckStopTime: 4.2
 };
 
+
+const MAP_SPAWNS = {
+  route7: {
+    ally: { x:-2140, z:1205, yaw:Math.PI/2, cols:4, gapX:108, gapZ:-94, rowShiftX:18 },
+    enemy:{ x:2140, z:-1205, yaw:-Math.PI/2, cols:4, gapX:-108, gapZ:94, rowShiftX:-18 },
+    reinforce:{ x:-2220, z:880, yaw:Math.PI/2, cols:3, gapX:110, gapZ:-96, rowShiftX:20 }
+  },
+  industrial: {
+    ally: { x:-2145, z:1260, yaw:Math.PI/2, cols:4, gapX:110, gapZ:-96, rowShiftX:14 },
+    enemy:{ x:2145, z:-1260, yaw:-Math.PI/2, cols:4, gapX:-110, gapZ:96, rowShiftX:-14 },
+    reinforce:{ x:-2220, z:1010, yaw:Math.PI/2, cols:3, gapX:112, gapZ:-96, rowShiftX:22 }
+  }
+};
+
+function getMapSpawn(kind){
+  const cfg = MAP_SPAWNS[mapKey] || MAP_SPAWNS.route7;
+  return cfg[kind] || cfg.ally;
+}
+
+function spawnGridPosition(base, index){
+  const cols = base.cols || 4;
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  return {
+    x: base.x + col * (base.gapX || 110) + row * (base.rowShiftX || 0),
+    z: base.z + row * (base.gapZ || -95) + col * (base.colShiftZ || 0)
+  };
+}
+
+function isSpawnPointClear(x,z,radius){
+  if(Math.abs(x) > 2220 || Math.abs(z) > 1420) return false;
+  if(collidesWithStatic(x,z,radius + 12)) return false;
+  for(const ent of entities){
+    if(ent.dead) continue;
+    if(Math.hypot(ent.x - x, ent.z - z) < ent.radius + radius + 24) return false;
+  }
+  return true;
+}
+
+function findClearSpawnPoint(base, index, radius=34){
+  const origin = spawnGridPosition(base, index);
+  const candidates = [origin];
+  const step = 72;
+  for(let ring=1; ring<=6; ring++){
+    for(const sx of [-1,0,1]){
+      for(const sz of [-1,0,1]){
+        if(sx===0 && sz===0) continue;
+        candidates.push({
+          x: origin.x + sx * step * ring + (Math.random()-.5)*18,
+          z: origin.z + sz * step * ring + (Math.random()-.5)*18
+        });
+      }
+    }
+  }
+  for(const p of candidates){
+    if(isSpawnPointClear(p.x,p.z,radius)) return p;
+  }
+  return origin;
+}
+
+
 const DEBUG_STORAGE_KEY = 'operationOverwatchDebugSettings';
 let debugSettings = loadDebugSettings();
 let debugOverlayGroup = null;
@@ -1405,17 +1589,44 @@ function createSoldier(faction, role='rifle'){
   helmet.position.y = 2.58; helmet.castShadow=true;
   const pack = new THREE.Mesh(new THREE.BoxGeometry(.8,.9,.25), mat(c.dark,.8,.03));
   pack.position.set(0,1.3,-.45); pack.castShadow=true;
-  const weaponLen = role==='at' ? 1.7 : 1.2;
-  const weaponMat = mat(role==='at'?0x2b3030:0x202525,.55,.3);
-  const weapon = new THREE.Mesh(new THREE.BoxGeometry(.14,.16,weaponLen), weaponMat);
+
+  // Toutes les infanteries gardent le même corps. Seul l'équipement visible change.
+  const rifleMat = mat(0x202525,.55,.3);
+  const weapon = new THREE.Mesh(new THREE.BoxGeometry(.14,.16,1.18), rifleMat);
   weapon.position.set(.48,1.55,.58); weapon.castShadow=true;
-  if(role==='at') weapon.position.z = .72;
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,weaponLen*.88,8), weaponMat);
-  barrel.rotation.x = Math.PI/2; barrel.position.set(.62,1.58,.66); barrel.castShadow=true;
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,1.05,8), rifleMat);
+  barrel.rotation.x = Math.PI/2; barrel.position.set(.61,1.58,.70); barrel.castShadow=true;
   group.add(body, vest, head, helmet, pack, weapon, barrel);
+
+  if(role==='at'){
+    const launcherMat = mat(0x2c3434,.52,.36);
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,2.05,14), launcherMat);
+    tube.rotation.x = Math.PI/2;
+    tube.position.set(-.08,2.05,.54);
+    tube.castShadow=true;
+    const front = new THREE.Mesh(new THREE.CylinderGeometry(.24,.21,.12,14), mat(0x3e4542,.55,.3));
+    front.rotation.x = Math.PI/2;
+    front.position.set(-.08,2.05,1.60);
+    front.castShadow=true;
+    const rear = new THREE.Mesh(new THREE.CylinderGeometry(.26,.18,.16,14), mat(0x1e2424,.55,.32));
+    rear.rotation.x = Math.PI/2;
+    rear.position.set(-.08,2.05,-.50);
+    rear.castShadow=true;
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(.16,.42,.14), launcherMat);
+    grip.position.set(.08,1.72,.22);
+    grip.castShadow=true;
+    const sling = new THREE.Mesh(new THREE.TorusGeometry(.43,.018,6,18), mat(0x151b1b,.6,.2));
+    sling.scale.set(.55,.28,1.05);
+    sling.rotation.x = Math.PI/2;
+    sling.position.set(-.08,1.93,.44);
+    group.add(tube, front, rear, grip, sling);
+  }
+
   if(role==='command'){
     const ant = new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,1.2,6), mat(0x111111,.6,.25));
     ant.position.set(-.55,2.05,-.35); ant.rotation.z = .25; group.add(ant);
+    const tablet = new THREE.Mesh(new THREE.BoxGeometry(.34,.05,.44), mat(0x192b32,.55,.1));
+    tablet.position.set(.42,1.72,.28); tablet.rotation.x=.42; group.add(tablet);
   }
   group.scale.set(7.2,7.2,7.2);
   return group;
@@ -1564,7 +1775,7 @@ function updateSelectedPanel(){
   if(!selected || selected.dead) { $('unit-panel').classList.add('hidden'); return; }
   const cfg = selected.cfg;
   $('unit-title').textContent = `${cfg.label} · ${selected.faction==='ally'?'Allié':'Ennemi'}`;
-  const ammo = selected.type==='at' ? `${selected.rockets} roq.` : `${selected.ammo}`;
+  const ammo = selected.type==='at' ? `${selected.rockets} roq. · ${selected.ammo} balles` : `${selected.ammo}`;
   const fuel = cfg.kind==='vehicle' ? ` · Fuel ${Math.ceil(selected.fuel)}` : '';
   $('unit-meta').textContent = `HP ${Math.ceil(selected.hp)}/${selected.maxHp} · Ammo ${ammo}${fuel} · ${selected.state}`;
   $('unit-details').innerHTML = `
@@ -2437,26 +2648,75 @@ function createTracer(a,b,color=0xffdf8a){
   effects.push({mesh:line,life:.08,max:.08,type:'line'});
 }
 
-function spawnRocket(shooter,target){
+function onRocketLaunch(projectile){
+  if(!projectile || projectile.launchSoundPlayed) return;
+  projectile.launchSoundPlayed = true;
+  audio.play('rocket',{x:projectile.x,z:projectile.z},1,.08,{cooldownKey:projectile.id+'_launch', cooldown:999});
+  // Whoosh court : seulement après création réelle du projectile.
+  audio.play('rocket_fly',{x:projectile.x,z:projectile.z},.52,.08,{cooldownKey:projectile.id+'_whoosh_start', cooldown:999});
+}
+
+function onRocketImpact(projectile, target){
+  if(!projectile || projectile.impactHandled) return;
+  projectile.impactHandled = true;
+  const x = projectile.x, z = projectile.z;
+  if(target && !target.dead){
+    applyDamage(target, projectile.damage || projectile.shooter.cfg.damage, projectile.shooter, 'rocket', {audio:false});
+    if(!target.dead){
+      audio.play('rocket_explosion',{x,z},.95,.05,{cooldownKey:projectile.id+'_impact', cooldown:999});
+      createExplosion(x,z,false,{audio:false});
+    }
+    // Si la cible est détruite, on laisse onVehicleDestroyed jouer la grosse explosion une seule fois.
+  } else {
+    audio.play('rocket_explosion',{x,z},.82,.05,{cooldownKey:projectile.id+'_ground_impact', cooldown:999});
+    createExplosion(x,z,false,{audio:false});
+  }
+}
+
+function onVehicleDestroyed(vehicle){
+  if(!vehicle || vehicle.vehicleDestroyedFxPlayed) return;
+  vehicle.vehicleDestroyedFxPlayed = true;
+  const heavy = vehicle.type==='mbt'||vehicle.type==='ifv'||vehicle.type==='apc';
+  createExplosion(vehicle.x,vehicle.z,heavy,{audio:false, cooldownKey:vehicle.id+'_destroyed'});
+  audio.play('explosion',{x:vehicle.x,z:vehicle.z},heavy?1.18:.88,.1,{cooldownKey:vehicle.id+'_destroyed', cooldown:999});
+  createSmoke(vehicle.x,vehicle.z,22,heavy?24:14);
+  for(let i=0;i<(heavy?3:2);i++){
+    setTimeout(()=>createSmoke(vehicle.x+rand(-16,16), vehicle.z+rand(-16,16), 20, 2), i*420);
+  }
+}
+
+function spawnRocket(shooter,target,muzzle=null,damage=null){
   const forward = new THREE.Vector3(Math.sin(shooter.yaw),0,Math.cos(shooter.yaw));
-  const start = new THREE.Vector3(shooter.x + forward.x*24, 25, shooter.z + forward.z*24);
+  const start = muzzle
+    ? new THREE.Vector3(muzzle.x, muzzle.y, muzzle.z)
+    : new THREE.Vector3(shooter.x + forward.x*24, 25, shooter.z + forward.z*24);
   const body = new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,22,10), mat(0x2b2d2d,.45,.2));
   body.rotation.x=Math.PI/2;
   const cone = new THREE.Mesh(new THREE.ConeGeometry(3.0,8,10), mat(0x5c5d5a,.45,.2));
   cone.rotation.x=Math.PI/2; cone.position.z=13;
   const flame = new THREE.Mesh(new THREE.ConeGeometry(4.0,13,12), new THREE.MeshBasicMaterial({color:0xffa04a,transparent:true,opacity:.75}));
   flame.rotation.x=-Math.PI/2; flame.position.z=-16;
-  const group=new THREE.Group(); group.add(body,cone,flame); group.position.copy(start); scene.add(group);
-  projectiles.push({type:'rocket',mesh:group,flame,shooter,target,x:start.x,y:start.y,z:start.z,speed:430,life:3.5,whooshTimer:.22});
-  audio.play('rocket',{x:start.x,z:start.z},1,.2,{cooldownKey:shooter.id+'_rocket_launch'});
-  audio.play('rocket_fly',{x:start.x,z:start.z},.65,.3,{cooldownKey:shooter.id+'_rocket_whoosh'});
+  const group=new THREE.Group(); group.add(body,cone,flame); group.position.copy(start); group.rotation.y = shooter.yaw; scene.add(group);
+  const projectile = {
+    id:`rocket_${shooter.id}_${Date.now()}_${Math.floor(Math.random()*9999)}`,
+    type:'rocket',mesh:group,flame,shooter,target,
+    x:start.x,y:start.y,z:start.z,
+    speed:430,life:3.5,whooshTimer:.55,
+    damage:damage ?? shooter.cfg.damage,
+    launchSoundPlayed:false, impactHandled:false
+  };
+  projectiles.push(projectile);
+  onRocketLaunch(projectile);
   createSmoke(start.x,start.z,start.y*.7,2);
 }
 
 function updateProjectiles(dt){
   for(let i=projectiles.length-1;i>=0;i--){
     const p=projectiles[i];
-    if(!p.target || p.target.dead){ scene.remove(p.mesh); projectiles.splice(i,1); continue; }
+    if(!p.target || p.target.dead){
+      // Le projectile est annulé si la cible est détruite avant l'impact : pas d'explosion fantôme.
+      scene.remove(p.mesh); projectiles.splice(i,1); continue;
+    }
     const tx=p.target.x, tz=p.target.z, ty=p.target.cfg.kind==='vehicle'?26:20;
     const dx=tx-p.x, dz=tz-p.z, dy=ty-p.y;
     const d=Math.hypot(dx,dz,dy);
@@ -2466,24 +2726,23 @@ function updateProjectiles(dt){
     if(p.flame) p.flame.visible = Math.sin(performance.now()/55)>-.2;
     if(d<=step+12){
       p.x=tx; p.y=ty; p.z=tz; p.mesh.position.set(p.x,p.y,p.z);
-      const wasDead = p.target.dead;
-      applyDamage(p.target, p.shooter.cfg.damage, p.shooter, 'rocket');
-      if(!p.target.dead){
-        audio.play('rocket_explosion',{x:p.x,z:p.z},1,.08,{cooldownKey:p.shooter.id+'_rocket_impact_'+Math.floor(performance.now()/500)});
-        createExplosion(p.x,p.z,false,{audio:false});
-      }
+      onRocketImpact(p,p.target);
       scene.remove(p.mesh); projectiles.splice(i,1);
       continue;
     }
     p.x += dx/d*step; p.y += dy/d*step; p.z += dz/d*step;
     p.mesh.position.set(p.x,p.y,p.z);
     p.whooshTimer -= dt;
-    if(p.whooshTimer<=0){
-      p.whooshTimer = .45;
-      audio.play('rocket_fly',{x:p.x,z:p.z},.32,.3,{cooldownKey:p.shooter.id+'_rocket_fly'});
+    if(p.whooshTimer<=0 && !p.midWhooshPlayed){
+      p.midWhooshPlayed = true;
+      audio.play('rocket_fly',{x:p.x,z:p.z},.30,.08,{cooldownKey:p.id+'_whoosh_mid', cooldown:999});
     }
     if(Math.random()<.55) createSmoke(p.x,p.z,p.y*.7,1);
-    p.life-=dt; if(p.life<=0){scene.remove(p.mesh); projectiles.splice(i,1);}
+    p.life-=dt;
+    if(p.life<=0){
+      onRocketImpact(p,null);
+      scene.remove(p.mesh); projectiles.splice(i,1);
+    }
   }
 }
 
@@ -2497,29 +2756,31 @@ function armorForHit(target, shooter){
   return target.cfg.armor[1];
 }
 
-function applyDamage(target, raw, shooter, source){
+function applyDamage(target, raw, shooter, source, opts={}){
   if(target.dead) return;
+  const wantsAudio = opts.audio !== false;
   let dmg=raw;
   if(target.cfg.kind==='vehicle') {
     const armor = armorForHit(target, shooter);
     dmg = Math.max(2, raw - armor);
     if(source==='rocket') {
-      audio.play('rocket_impact',{x:target.x,z:target.z},.92,.08,{cooldownKey:shooter.id+'_rocket_hit'});
+      if(wantsAudio) audio.play('rocket_impact',{x:target.x,z:target.z},.78,.08,{cooldownKey:shooter.id+'_rocket_hit'});
       target.atHits++;
       target.threatTimer = 4;
       target.threatFrom = shooter;
       if(target.type==='mbt' && target.atHits>=3) dmg=999;
     } else if(source==='tank') {
-      audio.play('tank_impact',{x:target.x,z:target.z},.92,.12,{cooldownKey:shooter.id+'_tank_impact'});
+      if(wantsAudio) audio.play('tank_impact',{x:target.x,z:target.z},.92,.12,{cooldownKey:shooter.id+'_tank_impact'});
     } else {
       const ricochet = armor > raw*.65 && Math.random()<.32;
-      audio.play(ricochet?'armorRicochet':'armorHeavy',{x:target.x,z:target.z},ricochet?.8:.72,.10);
+      if(wantsAudio) audio.play(ricochet?'armorRicochet':'armorHeavy',{x:target.x,z:target.z},ricochet?.8:.72,.10);
     }
   } else {
     if(shooter.type==='mbt') dmg *= 2.7;
     if(shooter.type==='ifv') dmg *= 1.75;
-    if(source==='tank') audio.play('tank_impact',{x:target.x,z:target.z},.56,.10);
-    else audio.play('impact',{x:target.x,z:target.z},.30,.04);
+    if(source==='tank') {
+      if(wantsAudio) audio.play('tank_impact',{x:target.x,z:target.z},.56,.10);
+    } else if(wantsAudio) audio.play('impact',{x:target.x,z:target.z},.30,.04);
   }
   target.hp -= dmg;
   if(target.hp <= 0) destroyEntity(target, {source, shooter});
@@ -2534,13 +2795,7 @@ function destroyEntity(ent, info={}){
     const wreck = makeWreck(ent.type, ent.faction);
     wreck.position.set(ent.x,0,ent.z); wreck.rotation.y=ent.yaw; scene.add(wreck);
     ent.group=wreck;
-    const heavy = ent.type==='mbt'||ent.type==='ifv'||ent.type==='apc';
-    createExplosion(ent.x,ent.z,heavy,{audio:false, cooldownKey:ent.id+'_destroyed'});
-    audio.play('explosion',{x:ent.x,z:ent.z},heavy?1.18:.88,.1,{cooldownKey:ent.id+'_destroyed', cooldown:999});
-    createSmoke(ent.x,ent.z,22,heavy?24:14);
-    for(let i=0;i<(heavy?3:2);i++){
-      setTimeout(()=>createSmoke(ent.x+rand(-16,16), ent.z+rand(-16,16), 20, 2), i*420);
-    }
+    onVehicleDestroyed(ent);
   } else {
     ent.group.visible=false;
     audio.playRandom(['infantryDown','infantryDown2','squadEliminated'],{x:ent.x,z:ent.z},1,.05,{cooldownKey:ent.id+'_death', cooldown:999});
@@ -2563,38 +2818,94 @@ function findNearestEnemy(ent, maxRange){
 function acquireTarget(ent){
   const awareness = Math.max(ent.cfg.vision || 0, (ent.cfg.range || 0) + 260);
   const current = ent.attackTarget && !ent.attackTarget.dead ? ent.attackTarget : null;
-  if(current && dist2(ent,current) <= awareness) return current;
+  if(current && dist2(ent,current) <= awareness){
+    // Un AT ne reste pas focalisé sur de l'infanterie si un véhicule devient visible.
+    if(!(ent.type==='at' && ent.rockets>0 && current.cfg.kind!=='vehicle')) return current;
+  }
   let best=null, bestScore=Infinity;
   for(const other of entities){
     if(other.dead || other.faction===ent.faction) continue;
     const d=dist2(ent,other);
     if(d>awareness) continue;
+    const profile = getWeaponProfile(ent, other);
+    if(!profile) continue;
     let score = d;
-    if(other.cfg.kind==='vehicle' && ent.type==='at') score -= 180;
+    if(ent.type==='at'){
+      if(other.cfg.kind==='vehicle' && ent.rockets>0) score -= 360;
+      if(other.cfg.kind==='infantry') score += 35;
+      if(ent.rockets<=0 && other.cfg.kind==='vehicle') score += 500;
+    }
     if(other.attackTarget===ent) score -= 120;
-    if(d <= (ent.cfg.range || 0)) score -= 90;
+    if(d <= profile.range) score -= 90;
     if(score < bestScore){ bestScore=score; best=other; }
   }
   return best;
 }
 
+
+function getWeaponProfile(ent,target){
+  if(!ent || !target || ent.dead || target.dead) return null;
+  if(ent.type==='at'){
+    if(target.cfg.kind === 'vehicle' && ent.rockets > 0){
+      return {
+        weapon:'rocket',
+        range:ent.cfg.range,
+        damage:ent.cfg.damage,
+        reload:ent.cfg.reload,
+        optimal:ent.cfg.optimal || 350,
+        ammoKey:'rockets',
+        muzzleSize:13,
+        hitChance:.92
+      };
+    }
+    // L'AT garde une arme légère contre l'infanterie et conserve les roquettes pour les véhicules.
+    if(target.cfg.kind === 'infantry'){
+      return {
+        weapon:'rifle',
+        range:ent.cfg.rifleRange || 230,
+        damage:ent.cfg.rifleDamage || 4,
+        reload:ent.cfg.rifleReload || .6,
+        optimal:ent.cfg.rifleOptimal || 175,
+        ammoKey:'ammo',
+        muzzleSize:8,
+        hitChance:.48
+      };
+    }
+    return null;
+  }
+  return {
+    weapon:ent.cfg.weapon,
+    range:ent.cfg.range || 0,
+    damage:ent.cfg.damage || 0,
+    reload:ent.cfg.reload || 0,
+    optimal:ent.cfg.optimal || (ent.cfg.range || 0) * .7,
+    ammoKey:ent.cfg.kind === 'vehicle' ? 'ammo' : 'ammo',
+    muzzleSize:ent.type==='mbt'?28:ent.type==='ifv'?18:10,
+    hitChance:ent.cfg.weapon==='tank'?.72:ent.cfg.weapon==='autocannon'?.64:ent.cfg.weapon==='mg'?.56:.50
+  };
+}
+
 function canFire(ent,target){
   if(ent.reload>0 || ent.dead || target.dead) return false;
-  if(ent.cfg.weapon==='none') return false;
-  if(ent.type==='at' && ent.rockets<=0) return false;
-  if(ent.type!=='at' && ent.ammo<=0) return false;
+  const profile = getWeaponProfile(ent,target);
+  if(!profile || profile.weapon==='none') return false;
+  if(profile.ammoKey === 'rockets'){
+    if(ent.rockets <= 0) return false;
+  } else if((ent.ammo || 0) <= 0) return false;
   const d=dist2(ent,target);
-  if(d>ent.cfg.range) return false;
+  if(d>profile.range) return false;
   if(ent.cfg.kind==='vehicle'){
     const targetYaw=Math.atan2(target.x-ent.x,target.z-ent.z);
     const diff=Math.abs(normalizeAngle(targetYaw-ent.yaw));
-    if(diff>.32) return false;
+    if(diff>.28) return false;
   }
   return true;
 }
 
 function fireAt(ent,target){
-  ent.reload = ent.cfg.reload;
+  const profile = getWeaponProfile(ent,target);
+  if(!profile) return;
+  ent.reload = profile.reload;
   ent.state='engaging';
   const dir = new THREE.Vector3(Math.sin(ent.yaw),0,Math.cos(ent.yaw));
   const muzzle = {
@@ -2602,38 +2913,41 @@ function fireAt(ent,target){
     y:ent.cfg.kind==='vehicle'?28:24,
     z:ent.z + dir.z*(ent.cfg.kind==='vehicle'?ent.radius+18:22)
   };
-  createMuzzleFlash(muzzle.x,muzzle.z,muzzle.y, ent.type==='mbt'?28:ent.type==='ifv'?18:10);
-  if(ent.type==='at'){
-    ent.rockets--;
-    spawnRocket(ent,target);
+  createMuzzleFlash(muzzle.x,muzzle.z,muzzle.y, profile.muzzleSize || 10);
+
+  if(profile.weapon==='rocket'){
+    ent.rockets = Math.max(0, ent.rockets - 1);
+    spawnRocket(ent,target,muzzle,profile.damage);
     return;
   }
+
   ent.ammo = Math.max(0, ent.ammo - 1);
-  if(ent.cfg.weapon==='rifle') {
-    audio.playRandom(['rifle1','rifle2','burst'],muzzle,.92,.05,{cooldownKey:ent.id+'_infantry_fire', cooldown:.35});
+  if(profile.weapon==='rifle') {
+    audio.playRandom(['rifle1','rifle2','burst'],muzzle,.88,.05,{cooldownKey:ent.id+'_infantry_fire', cooldown:.35});
   }
-  if(ent.cfg.weapon==='mg') {
+  if(profile.weapon==='mg') {
     audio.play('vehicle_mg',muzzle,.86,.06,{cooldownKey:ent.id+'_vehicle_mg', cooldown:.28});
   }
-  if(ent.cfg.weapon==='autocannon') {
-    audio.play('autocannon',muzzle,.92,.12,{cooldownKey:ent.id+'_autocannon', cooldown:ent.cfg.reload*.75});
+  if(profile.weapon==='autocannon') {
+    audio.play('autocannon',muzzle,.92,.12,{cooldownKey:ent.id+'_autocannon', cooldown:profile.reload*.75});
     triggerScreenShake(muzzle.x,muzzle.z,.32);
   }
-  if(ent.cfg.weapon==='tank') {
-    audio.play('tank',muzzle,1,.20,{cooldownKey:ent.id+'_main_cannon', cooldown:ent.cfg.reload*.88});
+  if(profile.weapon==='tank') {
+    audio.play('tank',muzzle,1,.20,{cooldownKey:ent.id+'_main_cannon', cooldown:profile.reload*.88});
     triggerScreenShake(muzzle.x,muzzle.z,.76);
   }
-  createTracer(muzzle,{x:target.x,y:target.cfg.kind==='vehicle'?24:18,z:target.z}, ent.cfg.weapon==='tank'?0xffcc6b:0xffe8a0);
-  const hitChance = ent.cfg.weapon==='tank'?.72:ent.cfg.weapon==='autocannon'?.64:ent.cfg.weapon==='mg'?.56:.50;
-  if(Math.random()<hitChance) applyDamage(target, ent.cfg.damage, ent, ent.cfg.weapon);
+  createTracer(muzzle,{x:target.x,y:target.cfg.kind==='vehicle'?24:18,z:target.z}, profile.weapon==='tank'?0xffcc6b:0xffe8a0);
+  if(Math.random()<profile.hitChance) applyDamage(target, profile.damage, ent, profile.weapon);
 }
 function maintainEngagementDistance(ent,target){
+  const profile = getWeaponProfile(ent,target);
+  if(!profile) return;
   const d = dist2(ent,target);
-  const optimal = ent.cfg.optimal || ent.cfg.range*.7;
+  const optimal = profile.optimal || profile.range*.7;
   const dx=ent.x-target.x, dz=ent.z-target.z;
   const len=Math.max(.001,Math.hypot(dx,dz));
   const tooClose = d < optimal*.62;
-  const tooFar = d > Math.min(ent.cfg.range*.92, optimal*1.28);
+  const tooFar = d > Math.min(profile.range*.92, optimal*1.28);
   if(tooClose || tooFar){
     const goalDistance = tooClose ? optimal*1.05 : optimal;
     setUnitDestination(ent, {x: target.x + dx/len*goalDistance, z: target.z + dz/len*goalDistance}, {minChange:42, repathCooldown:.55});
@@ -2959,9 +3273,14 @@ function animate(){
 
 function spawnInitialPlayer(cart){
   const entries = Object.entries(cart).flatMap(([type,count])=>Array(count).fill(type));
-  const baseX=-1900, baseZ=780, cols=4, gapX=120, gapZ=110;
-  entries.forEach((type,i)=>spawnEntity(type,'ally',baseX+(i%cols)*gapX,baseZ-Math.floor(i/cols)*gapZ,{yaw:Math.PI/2}));
-  cameraTarget.set(baseX + 190, 0, baseZ - 70);
+  const base = getMapSpawn('ally');
+  entries.forEach((type,i)=>{
+    const r = UNIT_TYPES[type].radius || 32;
+    const pos = findClearSpawnPoint(base, i, r);
+    spawnEntity(type,'ally',pos.x,pos.z,{yaw:base.yaw ?? Math.PI/2});
+  });
+  const focus = findClearSpawnPoint(base, 1, 28);
+  cameraTarget.set(focus.x + 120, 0, focus.z - 90);
   zoom = isMobileViewport() ? 1.18 : 1.08;
   updateCamera();
 }
@@ -2969,8 +3288,11 @@ function spawnInitialPlayer(cart){
 function spawnEnemyForces(){
   const types=['rifle','rifle','at','command','light','apc','ifv','mbt','truck','ambulance','support'];
   const goals=objectives;
+  const base = getMapSpawn('enemy');
   types.forEach((type,i)=>{
-    const ent=spawnEntity(type,'enemy',1850-(i%4)*120,-780+Math.floor(i/4)*120,{yaw:-Math.PI/2, aiDelay:1.5+i*1.1, aiGoal:goals[i%goals.length]});
+    const r = UNIT_TYPES[type].radius || 32;
+    const pos = findClearSpawnPoint(base, i, r);
+    const ent=spawnEntity(type,'enemy',pos.x,pos.z,{yaw:base.yaw ?? -Math.PI/2, aiDelay:1.5+i*1.1, aiGoal:goals[i%goals.length]});
     ent.aiPattern = aiPatterns[(i*17)%aiPatterns.length];
   });
 }
@@ -3035,7 +3357,12 @@ function spawnReinforcements(){
   const entries=Object.entries(reinforceCart).flatMap(([type,count])=>Array(count).fill(type));
   if(!entries.length){ showNotice('Choisis des renforts.'); return; }
   reinforcePoints-=cost;
-  entries.forEach((type,i)=>spawnEntity(type,'ally',-2050+(i%3)*95, -980+Math.floor(i/3)*95,{yaw:Math.PI/2}));
+  const base = getMapSpawn('reinforce');
+  entries.forEach((type,i)=>{
+    const r = UNIT_TYPES[type].radius || 32;
+    const pos = findClearSpawnPoint(base, i, r);
+    spawnEntity(type,'ally',pos.x,pos.z,{yaw:base.yaw ?? Math.PI/2});
+  });
   reinforceCart={};
   $('reinforce-modal').classList.add('hidden');
   refreshDeployUis();
@@ -3318,16 +3645,19 @@ function handleTap(x,y,isTouch=false){
   }
 
   if(selected){
+    const acting = selected;
     const enemy = findAttackableEnemyAt(pt.x, pt.z, isTouch);
     if(enemy){
-      selected.attackTarget = enemy;
-      maintainEngagementDistance(selected, enemy);
-      audio.play('order',{x:selected.x,z:selected.z},.9,.18);
+      acting.attackTarget = enemy;
+      maintainEngagementDistance(acting, enemy);
+      audio.play('order',{x:acting.x,z:acting.z},.9,.18);
+      setSelected(null);
       return;
     }
-    setUnitDestination(selected,{x:pt.x,z:pt.z},{minChange:16});
-    selected.attackTarget=null;
+    setUnitDestination(acting,{x:pt.x,z:pt.z},{minChange:16});
+    acting.attackTarget=null;
     audio.play('order',{x:pt.x,z:pt.z},.9,.18);
+    setSelected(null);
   }
 }
 
