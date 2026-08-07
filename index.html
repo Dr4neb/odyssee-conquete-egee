@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.2b — Visible Infantry Asset Pass</title>
+<title>OPERATION OVERWATCH v0.4.3 — Déploiement par points</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -82,6 +82,26 @@ h2{font-size:26px;margin:0 0 10px}
 #toast{position:fixed;z-index:40;left:50%;bottom:18px;transform:translateX(-50%);display:none;background:#071013e8;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:12px;box-shadow:0 8px 32px #0008}
 #portrait{position:fixed;inset:0;display:none;z-index:30;background:#06100df3;align-items:center;justify-content:center;text-align:center;padding:24px}
 #portrait .card{max-width:440px}
+
+.deploy-card{width:min(920px,100%);padding:18px}
+.deploy-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}
+.budgetBox{min-width:150px;text-align:right;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:10px}
+.budgetBox span,.budgetBox small{display:block;color:var(--mut);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.budgetBox b{display:block;font-size:34px;line-height:1;color:#dff8ef;margin:4px 0}
+.deploy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.deploy-item{border:1px solid rgba(190,220,230,.16);border-radius:13px;background:rgba(255,255,255,.045);padding:10px;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:center}
+.deploy-icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(111,199,234,.10);border:1px solid rgba(111,199,234,.24);font-size:20px}
+.deploy-meta b{display:block;font-size:13px;color:#f2fbf8}
+.deploy-meta small{display:block;color:var(--mut);font-size:11px;line-height:1.25;margin-top:2px}
+.deploy-controls{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px}
+.deploy-controls button{min-height:34px;min-width:42px;padding:5px 9px}
+.deploy-count{font-weight:900;color:#fff;min-width:38px;text-align:center}
+.deploy-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+#deployList{color:var(--mut);font-size:12px;line-height:1.35}
+.deploy-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.deploy-actions button{min-height:40px}
+@media (max-width:760px){.deploy-grid{grid-template-columns:1fr 1fr}.deploy-head,.deploy-summary{flex-direction:column}.budgetBox{text-align:left;width:100%}.deploy-actions{width:100%;justify-content:stretch}.deploy-actions button{flex:1 1 auto}}
+
 @media (max-width:560px){
   .screen{align-items:flex-start;padding:10px}
   .card{padding:16px;border-radius:16px}
@@ -110,6 +130,20 @@ h2{font-size:26px;margin:0 0 10px}
   .chip{font-size:10px;padding:5px 7px}
   .iconbtn{min-width:38px;min-height:36px}
 }
+
+@media (orientation:landscape) and (max-height:560px){
+  .deploy-card{width:min(940px,100%);padding:12px}
+  .deploy-head{margin-bottom:8px}
+  .deploy-head h2{font-size:20px;margin:0}
+  .deploy-grid{grid-template-columns:repeat(4,1fr);gap:7px}
+  .deploy-item{padding:7px;gap:6px}
+  .deploy-icon{width:34px;height:34px;border-radius:9px;font-size:16px}
+  .deploy-meta b{font-size:11px}.deploy-meta small{font-size:10px}
+  .deploy-controls{margin-top:3px}.deploy-controls button{min-height:30px}
+  .budgetBox b{font-size:24px}
+  .deploy-summary{margin-top:8px;padding-top:8px}
+}
+
 </style>
 </head>
 <body>
@@ -120,17 +154,47 @@ h2{font-size:26px;margin:0 0 10px}
     <div class="brand">
       <p class="eyebrow">RTS tactique mobile</p>
       <h1>OPERATION<br>OVERWATCH</h1>
-      <p class="sub">v0.4.2b — Asset Pass visuel : infanterie réellement visible, style Kenney Top-down Shooter.</p>
+      <p class="sub">v0.4.3 — Déploiement par points : choisissez votre force avant la bataille.</p>
     </div>
     <div class="menu">
-      <button id="playNow" class="primary" onclick="OW.play(event)" ontouchend="OW.play(event)" onpointerup="OW.play(event)">▶ JOUER</button>
-      <button id="newGame" onclick="OW.play(event)" ontouchend="OW.play(event)" onpointerup="OW.play(event)">Nouvelle partie</button>
+      <button id="playNow" class="primary" onclick="OW.openDeployment(event)" ontouchend="OW.openDeployment(event)" onpointerup="OW.openDeployment(event)">▶ JOUER</button>
+      <button id="newGame" onclick="OW.openDeployment(event)" ontouchend="OW.openDeployment(event)" onpointerup="OW.openDeployment(event)">Nouvelle partie</button>
       <button onclick="OW.showOptions('mainMenu')">Options</button>
       <button onclick="OW.show('creditsMenu')">Crédits</button>
       <button onclick="OW.fullscreen()">Plein écran</button>
       <button class="ghost" onclick="OW.toast('Merci d’avoir joué à OPERATION OVERWATCH.')">Quitter / Retour</button>
     </div>
     <p class="hint">Mobile : jouez en paysage, tap sur une unité puis tap au sol. L’audio se débloque après JOUER.</p>
+  </div>
+</div>
+
+
+<div id="deployMenu" class="screen" style="display:none">
+  <div class="card deploy-card">
+    <div class="deploy-head">
+      <div>
+        <p class="eyebrow">Déploiement initial</p>
+        <h2>Choisir la force</h2>
+        <p class="sub">Budget limité : compose ton groupe avant de lancer la carte prototype.</p>
+      </div>
+      <div class="budgetBox">
+        <span>Points restants</span>
+        <b id="deployRemaining">1800</b>
+        <small id="deploySpent">0 / 1800 utilisés</small>
+      </div>
+    </div>
+
+    <div id="deployGrid" class="deploy-grid"></div>
+
+    <div class="deploy-summary">
+      <div id="deployList">Aucune unité sélectionnée.</div>
+      <div class="deploy-actions">
+        <button onclick="OW.deployRecommended()">Composition conseillée</button>
+        <button onclick="OW.deployClear()">Vider</button>
+        <button class="primary" id="deployLaunch" onclick="OW.startDeployment(event)">Lancer la partie</button>
+        <button class="ghost" onclick="OW.show('mainMenu')">Retour</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -159,7 +223,7 @@ h2{font-size:26px;margin:0 0 10px}
 <div id="creditsMenu" class="screen" style="display:none">
   <div class="card">
     <h2>Crédits</h2>
-    <p class="sub">OPERATION OVERWATCH — prototype autonome. Correction DA : l’infanterie suit maintenant la direction <b>Kenney Top-down Shooter</b> au lieu de Kenney Top-down Shooter. Le pack choisi est 2D top-down, cohérent avec PixiJS et documenté dans ASSET_LICENSES.md.</p>
+    <p class="sub">OPERATION OVERWATCH — prototype autonome. Correction DA : l’infanterie suit maintenant la direction <b>Kenney Top-down Shooter</b> au lieu de Kenney Mini Characters. Le pack choisi est 2D top-down, cohérent avec PixiJS et documenté dans ASSET_LICENSES.md.</p>
     <p class="sub">Pour ce fichier unique, les sprites restent embarqués et optimisés dans <code>index.html</code>. Dans la version projet Vite, ils doivent être remplacés par les PNG/WebP extraits localement de Kenney Top-down Shooter. Véhicules, bâtiments, routes, nature, UI et effets gardent la direction Kenney-style validée.</p>
     <div class="menu"><button class="ghost" onclick="OW.show('mainMenu')">Retour</button></div>
   </div>
@@ -187,7 +251,7 @@ h2{font-size:26px;margin:0 0 10px}
 <div id="hud">
   <div id="topbar">
     <div class="chips">
-      <span class="chip">OW v0.4.2a</span>
+      <span class="chip">OW v0.4.3</span>
       <span id="modeChip" class="chip">Prêt</span>
       <span id="fps" class="chip" style="display:none">60 FPS</span>
     </div>
@@ -211,7 +275,7 @@ const W=2600,H=1600, ARRIVE=22,SLOW=95,EPS=.08;
 const LS='operationOverwatchSettings';
 const $=id=>document.getElementById(id);
 const canvas=$('game'), ctx=canvas.getContext('2d',{alpha:false});
-const screens=['mainMenu','optionsMenu','creditsMenu','pauseMenu'];
+const screens=['mainMenu','deployMenu','optionsMenu','creditsMenu','pauseMenu'];
 const defaults={audio:{masterVolume:1,musicVolume:.7,sfxVolume:.8,muted:false},graphics:{quality:'medium',effects:'normal',showFPS:false,showDebug:false,uiScale:1},gameplay:{cameraSpeed:1,zoomSensitivity:1,showVisionRanges:false,showAttackRanges:false},controls:{inputMode:'auto',invertZoom:false,confirmImportantOrders:false,touchButtonScale:1}};
 let stored={};try{stored=JSON.parse(localStorage.getItem(LS)||'{}')||{}}catch(e){stored={};try{localStorage.removeItem(LS)}catch(_){}} 
 let settings=merge(defaults,stored), optionsReturn='mainMenu';
@@ -238,6 +302,22 @@ const V={
   ambulance:{hp:110,af:3,as:2,ar:1,spd:115,rev:45,acc:120,turn:2.0,vis:280,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:1,heal:180},
   support:{hp:130,af:4,as:2,ar:1,spd:105,rev:40,acc:110,turn:2.0,vis:260,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:1,repair:180}
 };
+
+const DEPLOYMENT_BUDGET=1800;
+const DEPLOYABLE=[
+  {key:'rifle',label:'Fusiliers',kind:'squad',cost:100,icon:'♙',desc:'Escouade standard, 4 soldats, polyvalente.'},
+  {key:'anti_vehicle',label:'Anti-véhicule',kind:'squad',cost:150,icon:'AT',desc:'3 soldats, arme lourde, utile contre blindés.'},
+  {key:'command',label:'Commandant',kind:'squad',cost:200,icon:'★',desc:'Bonus moral et discipline proche.'},
+  {key:'humvee',label:'Humvee',kind:'vehicle',cost:160,icon:'◇',desc:'Recon rapide, fragile, transport léger.'},
+  {key:'apc',label:'APC',kind:'vehicle',cost:240,icon:'▰',desc:'Transport blindé et appui léger.'},
+  {key:'ifv',label:'IFV',kind:'vehicle',cost:320,icon:'▱',desc:'Appui direct, menace véhicules légers.'},
+  {key:'mbt',label:'MBT',kind:'vehicle',cost:480,icon:'▣',desc:'Char lourd, blindage et canon puissant.'},
+  {key:'truck',label:'Camion',kind:'vehicle',cost:120,icon:'▤',desc:'Transport économique, fragile.'},
+  {key:'ambulance',label:'Ambulance',kind:'vehicle',cost:160,icon:'✚',desc:'Soigne lentement les escouades proches.'},
+  {key:'support',label:'Support',kind:'vehicle',cost:160,icon:'⚙',desc:'Répare lentement les véhicules proches.'}
+];
+const DEFAULT_DEPLOYMENT={rifle:3,anti_vehicle:1,command:1,humvee:1,apc:1,ifv:1,truck:1,ambulance:1};
+let deployment=Object.fromEntries(DEPLOYABLE.map(d=>[d.key,0]));
 const audio=createAudio();
 
 function createAudio(){
@@ -306,6 +386,63 @@ function merge(a,b){const r=Array.isArray(a)?[]:{};for(const k in a)r[k]=typeof 
 function save(){try{localStorage.setItem(LS,JSON.stringify(settings))}catch(e){}}
 function show(id){screens.forEach(s=>$(s).style.display=s===id?'flex':'none')}
 function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',1500)}
+
+function deploymentSpent(){return DEPLOYABLE.reduce((sum,d)=>sum+(deployment[d.key]||0)*d.cost,0)}
+function deploymentCount(){return DEPLOYABLE.reduce((sum,d)=>sum+(deployment[d.key]||0),0)}
+function deploymentRemaining(){return DEPLOYMENT_BUDGET-deploymentSpent()}
+function openDeployment(ev){
+  if(ev){ev.preventDefault?.();ev.stopPropagation?.();}
+  audio.unlock();audio.play('ui_click',{volume:.35,cooldownKey:'ui',cooldown:.08});
+  show('deployMenu');renderDeployment();
+}
+function deployAdd(key){
+  const d=DEPLOYABLE.find(x=>x.key===key);if(!d)return;
+  if(deploymentRemaining()<d.cost){toast('Points insuffisants');return}
+  deployment[key]=(deployment[key]||0)+1;audio.play('ui_click',{volume:.25,cooldownKey:'ui',cooldown:.06});renderDeployment();
+}
+function deployRemove(key){
+  if((deployment[key]||0)<=0)return;
+  deployment[key]--;audio.play('ui_click',{volume:.22,cooldownKey:'ui',cooldown:.06});renderDeployment();
+}
+function deployClear(){for(const d of DEPLOYABLE)deployment[d.key]=0;renderDeployment();toast('Déploiement vidé')}
+function deployRecommended(){
+  deployment=Object.assign(Object.fromEntries(DEPLOYABLE.map(d=>[d.key,0])),DEFAULT_DEPLOYMENT);
+  renderDeployment();toast('Composition conseillée chargée');
+}
+function renderDeployment(){
+  const grid=$('deployGrid');if(!grid)return;
+  if(!grid.dataset.ready){
+    grid.innerHTML=DEPLOYABLE.map(d=>`<div class="deploy-item">
+      <div class="deploy-icon">${d.icon}</div>
+      <div class="deploy-meta"><b>${d.label} · ${d.cost} pts</b><small>${d.desc}</small></div>
+      <div class="deploy-controls">
+        <button onclick="OW.deployRemove('${d.key}')">−</button>
+        <span class="deploy-count" id="dep_${d.key}">0</span>
+        <button id="depAdd_${d.key}" onclick="OW.deployAdd('${d.key}')">+</button>
+      </div>
+    </div>`).join('');
+    grid.dataset.ready='1';
+  }
+  const spent=deploymentSpent(), remaining=deploymentRemaining();
+  $('deployRemaining').textContent=remaining;
+  $('deploySpent').textContent=`${spent} / ${DEPLOYMENT_BUDGET} utilisés`;
+  $('deployRemaining').style.color=remaining<0?'#ff8d7b':remaining<160?'#ffd36f':'#dff8ef';
+  for(const d of DEPLOYABLE){
+    const count=deployment[d.key]||0;
+    const c=$('dep_'+d.key), add=$('depAdd_'+d.key);
+    if(c)c.textContent=count;
+    if(add)add.disabled=remaining<d.cost;
+  }
+  const picked=DEPLOYABLE.filter(d=>(deployment[d.key]||0)>0).map(d=>`${deployment[d.key]}× ${d.label}`);
+  $('deployList').textContent=picked.length?picked.join(' · '):'Aucune unité sélectionnée.';
+  $('deployLaunch').disabled=deploymentCount()<=0||remaining<0;
+}
+function startDeployment(ev){
+  if(ev){ev.preventDefault?.();ev.stopPropagation?.();}
+  if(deploymentCount()<=0){toast('Choisis au moins une unité');return}
+  play(ev);
+}
+
 async function fullscreen(){audio.play('ui_click',{volume:.35,cooldownKey:'ui',cooldown:.08});try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){toast('Plein écran bloqué par le navigateur')}}
 function showOptions(back='mainMenu'){optionsReturn=back;if(back==='game')paused=true;bindOptions();show('optionsMenu')}
 function closeOptions(){show(optionsReturn==='game'?null:optionsReturn);if(optionsReturn==='game'){paused=false;orient()}}
@@ -354,20 +491,33 @@ function play(ev){
   audio.play('ui_click',{volume:.4,cooldownKey:'ui',cooldown:.08});
   show(null);
   $('hud').style.display='block';
-  $('modeChip').textContent='Combat actif';
+  $('modeChip').textContent=`Combat actif · ${deploymentSpent()} pts`;
   initGame();
   started=true;paused=false;portraitDismissed=false;minimized=false;detailOpen=false;
   last=performance.now();
   orient();
   requestAnimationFrame(loop);
-  toast('Partie lancée');
+  toast(`Partie lancée · ${deploymentCount()} unités · ${deploymentSpent()} pts`);
 }
 
 function initGame(){
   camera={x:0,y:170,z:innerWidth<700?.56:.72};
   selected=null;units=[];effects=[];mines=[];obstacles=[];buildings=[];shake=0;detailOpen=false;minimized=false;
-  for(let i=0;i<4;i++){units.push(squad(i+1,'ally',260,360+i*105,i===0));units.push(squad(i+1,'enemy',1960,360+i*105,i===0))}
-  ['humvee','apc','ifv','mbt','truck','ambulance','support'].forEach((t,i)=>units.push(vehicle('A'+i,t,'ally',300+i*92,950+(i%2)*90)));
+  const chosen=deploymentCount()>0?deployment:DEFAULT_DEPLOYMENT;
+  let sq=0,veh=0;
+  for(const type of ['command','rifle','anti_vehicle']){
+    for(let n=0;n<(chosen[type]||0);n++){
+      const x=245+(sq%2)*76, y=335+Math.floor(sq/2)*88;
+      units.push(squad(sq+1,'ally',x,y,false,type));sq++;
+    }
+  }
+  for(const type of ['humvee','apc','ifv','mbt','truck','ambulance','support']){
+    for(let n=0;n<(chosen[type]||0);n++){
+      const x=300+(veh%5)*94, y=910+Math.floor(veh/5)*86;
+      units.push(vehicle('A'+(veh+1),type,'ally',x,y));veh++;
+    }
+  }
+  for(let i=0;i<4;i++)units.push(squad(i+1,'enemy',1960,360+i*105,i===0));
   ['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>units.push(vehicle('E'+i,t,'enemy',2100-i*92,950+(i%2)*90)));
   obstacles.push({x:920,y:640,hp:90,type:'sandbags'},{x:1450,y:880,hp:90,type:'barrier'},{x:640,y:970,hp:90,type:'concrete'});
   buildings.push(
@@ -377,12 +527,13 @@ function initGame(){
     {x:1030,y:535,w:126,h:88,rot:0,type:'outpost',state:'normal'}
   );
   mines.push({x:1030,y:735,faction:'ally',used:false},{x:1750,y:790,faction:'enemy',used:false},{x:1510,y:1120,faction:'ally',used:false});
-  units[0].selected=true;selected=units[0];updatePanel(true);
+  selected=units.find(u=>u.faction==='ally')||null;if(selected){selected.selected=true;updatePanel(true)}
   clampCam();
 }
-function squad(id,f,x,y,cmd=false){
-  const av=!cmd&&id===4;
-  return{kind:'squad',id:`${f[0].toUpperCase()}-SQ${id}`,name:cmd?'Commandant':av?'Anti-véhicule':'Escouade',type:cmd?'command':av?'anti_vehicle':'infantry',faction:f,x,y,dx:x,dy:y,selected:false,hp:cmd?135:av?105:110,max:cmd?135:av?105:110,morale:100,supp:0,fatigue:0,vision:cmd?370:av?300:320,range:cmd?280:av?330:260,dmg:cmd?9:av?24:8,acc:av?.48:.55,ammo:av?44:160,cd:0,speed:cmd?78:av?78:85,state:'idle',formation:'wedge',cover:'none',terrain:'open',cmd,hidden:f==='enemy',underFire:0,embarked:false,hold:false}
+function squad(id,f,x,y,cmd=false,role=null){
+  const isCmd=cmd||role==='command', av=role==='anti_vehicle'||(!isCmd&&id===4), rifle=role==='rifle'||(!isCmd&&!av);
+  const label=isCmd?'Commandant':av?'Anti-véhicule':'Fusiliers';
+  return{kind:'squad',id:`${f[0].toUpperCase()}-SQ${id}`,name:label,type:isCmd?'command':av?'anti_vehicle':'infantry',faction:f,x,y,dx:x,dy:y,selected:false,hp:isCmd?135:av?105:110,max:isCmd?135:av?105:110,morale:100,supp:0,fatigue:0,vision:isCmd?370:av?300:320,range:isCmd?280:av?330:260,dmg:isCmd?9:av?24:8,acc:av?.48:.55,ammo:av?44:160,cd:0,speed:isCmd?78:av?78:85,state:'idle',formation:'wedge',cover:'none',terrain:'open',cmd:isCmd,hidden:f==='enemy',underFire:0,embarked:false,hold:false}
 }
 function vehicle(id,type,f,x,y){const c=V[type];return{kind:'vehicle',id,name:type.toUpperCase(),type,faction:f,x,y,dx:x,dy:y,rot:f==='ally'?0:Math.PI,vel:0,selected:false,hp:c.hp,max:c.hp,af:c.af,as:c.as,ar:c.ar,speed:c.spd,rev:c.rev,accel:c.acc,turn:c.turn,vision:c.vis,range:c.range,dmg:c.dmg,acc:c.accu,reload:c.rel,cd:0,ammo:c.ammo,fuel:c.fuel,cap:c.cap,pass:[],state:'idle',crit:'normal',terrain:'open',cover:'none',hidden:f==='enemy',stuckTimer:0,lastX:x,lastY:y,hold:false,heal:c.heal||0,repair:c.repair||0}}
 
@@ -1022,7 +1173,7 @@ addEventListener('resize',()=>{resize();orient()});addEventListener('orientation
 document.addEventListener('gesturestart',e=>e.preventDefault?.(),{passive:false});
 document.addEventListener('touchmove',e=>{if(started)e.preventDefault()},{passive:false});
 
-return{play,show,toast,fullscreen,showOptions,closeOptions,get optionsReturn(){return optionsReturn},pause,resume,toMenu,dismissPortrait,togglePanel,toggleDetails,stop,retreat,formation,hold,reverse,embark,disembark};
+return{play,openDeployment,startDeployment,deployAdd,deployRemove,deployClear,deployRecommended,show,toast,fullscreen,showOptions,closeOptions,get optionsReturn(){return optionsReturn},pause,resume,toMenu,dismissPortrait,togglePanel,toggleDetails,stop,retreat,formation,hold,reverse,embark,disembark};
 })();
 </script>
 </body>
