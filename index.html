@@ -1,1 +1,153 @@
-<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/><title>Operation Overwatch v0.1</title><link rel="stylesheet" href="/styles/main.css"></head><body><div id="app"></div><script type="module" src="/src/main.js"></script></body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Mission Codex — Operation Overwatch v0.1 Standalone</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;font-family:Arial,sans-serif;color:#eee;touch-action:none}
+#hud{position:fixed;left:10px;top:10px;background:#0009;padding:10px 12px;border:1px solid #ffffff22;border-radius:8px;font-size:13px;line-height:1.4;z-index:2;max-width:360px}
+#err{position:fixed;inset:auto 10px 10px 10px;background:#5b1111;color:white;padding:10px;border-radius:8px;display:none;z-index:3}
+canvas{display:block}
+</style>
+</head>
+<body>
+<div id="hud"><b>Operation Overwatch v0.1</b><br>
+Desktop: clic gauche sélection, glisser multi-sélection, clic droit déplacer, molette zoom, WASD/clic milieu caméra.<br>
+Mobile: toucher une escouade, toucher la carte pour déplacer, pincer pour zoomer, glisser fond pour caméra.</div>
+<div id="err"></div>
+<script type="module">
+import * as PIXI from 'https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.mjs';
+
+const errBox=document.getElementById('err');
+window.addEventListener('error',e=>{errBox.style.display='block';errBox.textContent='Erreur: '+e.message});
+const app=new PIXI.Application();
+await app.init({resizeTo:window,background:'#1e2a1a',antialias:true,powerPreference:'high-performance'});
+document.body.appendChild(app.canvas);
+
+const WORLD={w:2600,h:1800};
+const factions={ally:0x62a8ff,enemy:0xff6b5c,neutral:0xd8d8d8};
+const root=new PIXI.Container(); app.stage.addChild(root);
+const mapLayer=new PIXI.Container(), coverLayer=new PIXI.Container(), objLayer=new PIXI.Container(), unitLayer=new PIXI.Container(), fxLayer=new PIXI.Container();
+root.addChild(mapLayer,coverLayer,objLayer,unitLayer,fxLayer);
+
+const camera={x:WORLD.w/2,y:WORLD.h/2,z:0.55};
+const keys={}; const squads=[]; let selected=[]; let drag=null; let lastTap=null; let pinching=null;
+
+const covers=[
+ {x:520,y:430,w:320,h:150,type:'trees',bonus:.45},{x:1320,y:770,w:420,h:170,type:'rocks',bonus:.55},{x:1940,y:1220,w:350,h:160,type:'trees',bonus:.45}
+];
+const objectives=[{id:'Alpha',x:850,y:930,r:120,owner:null,progress:0,g:new PIXI.Graphics()},{id:'Bravo',x:1770,y:600,r:120,owner:null,progress:0,g:new PIXI.Graphics()}];
+
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function screenToWorld(x,y){return {x:(x-app.screen.width/2)/camera.z+camera.x,y:(y-app.screen.height/2)/camera.z+camera.y}}
+function updateCam(){root.scale.set(camera.z); root.position.set(app.screen.width/2-camera.x*camera.z,app.screen.height/2-camera.y*camera.z)}
+function squad(id,faction,x,y){const g=new PIXI.Graphics(); unitLayer.addChild(g); return {id,faction,position:{x,y},destination:null,members:6,health:100,morale:100,suppression:0,visionRange:430,attackRange:310,damage:9,accuracy:.62,ammo:220,fatigue:0,coverState:'open',selected:false,fireCd:0,retreat:0,g};}
+for(let i=0;i<4;i++)squads.push(squad('A'+(i+1),'ally',260,420+i*170));
+for(let i=0;i<4;i++)squads.push(squad('E'+(i+1),'enemy',2180,430+i*240));
+
+function drawMap(){
+ const g=new PIXI.Graphics(); mapLayer.addChild(g);
+ g.rect(0,0,WORLD.w,WORLD.h).fill(0x30452b);
+ for(let i=0;i<70;i++){const x=(i*193)%WORLD.w,y=(i*317)%WORLD.h; g.circle(x,y,18+(i%5)*6).fill(i%2?0x24401f:0x425d35)}
+ g.poly([0,880,650,800,1220,860,1830,760,WORLD.w,830,WORLD.w,960,1830,900,1220,990,650,930,0,1010]).fill(0x635f4b);
+ g.poly([1110,0,1190,0,1440,WORLD.h,1320,WORLD.h]).fill(0x585441);
+ for(const c of covers){g.roundRect(c.x-c.w/2,c.y-c.h/2,c.w,c.h,22).fill(c.type==='trees'?0x1e5a26:0x55534b)}
+ for(let i=0;i<34;i++){g.circle(360+(i*71)%1900,260+(i*131)%1240,8+i%7).fill(0x2b251f)}
+ for(const o of objectives){objLayer.addChild(o.g)}
+}
+drawMap();
+
+function drawObjective(o){
+ o.g.clear();
+ const col=o.owner?factions[o.owner]:factions.neutral;
+ o.g.circle(o.x,o.y,o.r).stroke({color:col,width:5,alpha:.9}).fill({color:col,alpha:.10});
+ o.g.rect(o.x-55,o.y-o.r-26,110,18).stroke({color:0x000000,width:2}).fill(0x111111);
+ o.g.rect(o.x-53,o.y-o.r-24,106*clamp(Math.abs(o.progress)/100,0,1),14).fill(col);
+ const t=new PIXI.Text({text:o.id,style:{fontSize:18,fill:0xffffff,fontWeight:'bold'}}); t.anchor.set(.5); t.position.set(o.x,o.y); o.g.addChild(t);
+}
+function drawSquad(s){
+ const g=s.g; g.clear(); g.position.set(s.position.x,s.position.y);
+ const col=factions[s.faction];
+ if(s.selected)g.circle(0,0,36).stroke({color:0xffff66,width:4});
+ g.circle(0,0,s.visionRange).fill({color:col,alpha:s.faction==='ally'?0.035:0});
+ g.roundRect(-28,-20,56,40,8).fill(col).stroke({color:0x101010,width:3});
+ for(let i=0;i<s.members;i++)g.circle(-18+i*7,-2+(i%2)*12,4).fill(0x111111);
+ g.rect(-32,-35,64,7).fill(0x350000); g.rect(-32,-35,64*(s.health/100),7).fill(0x42d66b);
+ g.rect(-32,-26,64,5).fill(0x222); g.rect(-32,-26,64*(s.morale/100),5).fill(0xffd75f);
+ if(s.destination){g.moveTo(0,0).lineTo(s.destination.x-s.position.x,s.destination.y-s.position.y).stroke({color:col,width:2,alpha:.35});}
+}
+
+function coverAt(p){return covers.find(c=>Math.abs(p.x-c.x)<c.w/2&&Math.abs(p.y-c.y)<c.h/2)}
+function enemiesOf(s){return squads.filter(o=>o.faction!==s.faction&&o.health>0)}
+function visibleEnemies(s){return enemiesOf(s).filter(o=>dist(s.position,o.position)<=s.visionRange)}
+
+function select(s,add=false){if(!add){selected.forEach(x=>x.selected=false);selected=[]} if(s&&!selected.includes(s)){s.selected=true;selected.push(s)}}
+function orderMove(p){selected.forEach((s,i)=>s.destination={x:p.x+(i%2)*56,y:p.y+Math.floor(i/2)*56})}
+function squadAt(p){return squads.find(s=>s.faction==='ally'&&s.health>0&&dist(s.position,p)<42)}
+
+app.canvas.addEventListener('contextmenu',e=>e.preventDefault());
+app.canvas.addEventListener('pointerdown',e=>{
+ app.canvas.setPointerCapture(e.pointerId); const p=screenToWorld(e.clientX,e.clientY);
+ if(e.button===2){orderMove(p);return}
+ drag={id:e.pointerId,start:{x:e.clientX,y:e.clientY},last:{x:e.clientX,y:e.clientY},world:p,moved:false};
+});
+app.canvas.addEventListener('pointermove',e=>{
+ if(!drag||drag.id!==e.pointerId)return;
+ const dx=e.clientX-drag.last.x,dy=e.clientY-drag.last.y; drag.last={x:e.clientX,y:e.clientY};
+ if(Math.abs(e.clientX-drag.start.x)+Math.abs(e.clientY-drag.start.y)>8)drag.moved=true;
+ if(drag.moved && !squadAt(drag.world)){camera.x-=dx/camera.z;camera.y-=dy/camera.z}
+});
+app.canvas.addEventListener('pointerup',e=>{
+ const p=screenToWorld(e.clientX,e.clientY);
+ if(drag&&!drag.moved){const s=squadAt(p); s?select(s,e.shiftKey):orderMove(p)}
+ drag=null;
+});
+app.canvas.addEventListener('wheel',e=>{e.preventDefault(); const before=screenToWorld(e.clientX,e.clientY); camera.z=clamp(camera.z*(e.deltaY<0?1.1:.9),.35,1.7); const after=screenToWorld(e.clientX,e.clientY); camera.x+=before.x-after.x; camera.y+=before.y-after.y},{passive:false});
+window.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true); window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+function stepMovement(s,dt){
+ const c=coverAt(s.position); s.coverState=c?c.type:'open';
+ if(s.morale<18&&s.retreat<=0){const dir=s.faction==='ally'?-1:1;s.destination={x:clamp(s.position.x+dir*180,80,WORLD.w-80),y:clamp(s.position.y+80-Math.random()*160,80,WORLD.h-80)};s.retreat=3}
+ if(!s.destination)return;
+ const d=dist(s.position,s.destination); if(d<5){s.destination=null;return}
+ const speed=(s.morale<18?38:78)*(1-s.fatigue*.35); s.position.x+=(s.destination.x-s.position.x)/d*speed*dt; s.position.y+=(s.destination.y-s.position.y)/d*speed*dt; s.fatigue=clamp(s.fatigue+dt*.015,0,1)
+}
+function stepAI(s,dt){
+ if(s.faction!=='enemy'||s.health<=0)return;
+ const vis=visibleEnemies(s).sort((a,b)=>dist(s.position,a.position)-dist(s.position,b.position))[0];
+ if(vis){ if(dist(s.position,vis.position)>s.attackRange*.85)s.destination={x:vis.position.x-120,y:vis.position.y}; return; }
+ const target=objectives[s.id.endsWith('1')||s.id.endsWith('2')?0:1]; if(!s.destination||Math.random()<dt*.12)s.destination={x:target.x-80+Math.random()*160,y:target.y-80+Math.random()*160};
+}
+function stepCombat(s,dt){
+ if(s.health<=0)return; s.fireCd-=dt; s.suppression=clamp(s.suppression-dt*4,0,100); s.retreat-=dt;
+ const target=visibleEnemies(s).filter(o=>dist(s.position,o.position)<=s.attackRange).sort((a,b)=>dist(s.position,a.position)-dist(s.position,b.position))[0];
+ if(!target||s.fireCd>0||s.ammo<=0)return;
+ s.fireCd=.55+Math.random()*.45; s.ammo--;
+ const acc=clamp(s.accuracy*(1-s.suppression/140)*(s.morale/100),.05,.9);
+ const hit=Math.random()<acc; const cov=coverAt(target.position); const reduction=cov?cov.bonus:0;
+ target.suppression=clamp(target.suppression+9,0,100); target.morale=clamp(target.morale-(hit?6:2),0,100);
+ if(hit){target.health=clamp(target.health-s.damage*(1-reduction),0,100); target.members=Math.max(0,Math.ceil(target.health/17));}
+ const line=new PIXI.Graphics(); fxLayer.addChild(line); line.moveTo(s.position.x,s.position.y).lineTo(target.position.x,target.position.y).stroke({color:0xfff0aa,width:2,alpha:.9}); setTimeout(()=>line.destroy(),70);
+}
+function stepObjectives(dt){
+ for(const o of objectives){
+  const inA=squads.some(s=>s.faction==='ally'&&s.health>0&&dist(s.position,o)<o.r);
+  const inE=squads.some(s=>s.faction==='enemy'&&s.health>0&&dist(s.position,o)<o.r);
+  if(inA&&!inE)o.progress=clamp(o.progress+dt*22,-100,100);
+  else if(inE&&!inA)o.progress=clamp(o.progress-dt*22,-100,100);
+  if(o.progress>=100)o.owner='ally'; if(o.progress<=-100)o.owner='enemy';
+  drawObjective(o);
+ }
+}
+app.ticker.add(t=>{
+ const dt=Math.min(t.deltaMS/1000,.05);
+ const camSpeed=600*dt/camera.z; if(keys.w||keys.arrowup)camera.y-=camSpeed;if(keys.s||keys.arrowdown)camera.y+=camSpeed;if(keys.a||keys.arrowleft)camera.x-=camSpeed;if(keys.d||keys.arrowright)camera.x+=camSpeed;
+ for(const s of squads){stepAI(s,dt);stepMovement(s,dt);stepCombat(s,dt);drawSquad(s)}
+ stepObjectives(dt); camera.x=clamp(camera.x,app.screen.width/(2*camera.z),WORLD.w-app.screen.width/(2*camera.z)); camera.y=clamp(camera.y,app.screen.height/(2*camera.z),WORLD.h-app.screen.height/(2*camera.z)); updateCam();
+});
+updateCam();
+</script>
+</body>
+</html>
