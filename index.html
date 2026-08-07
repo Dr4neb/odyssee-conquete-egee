@@ -62,13 +62,13 @@
     .top-right{top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;gap:8px;align-items:center}
     .pill{border:1px solid rgba(162,198,212,.22);border-radius:999px;padding:8px 11px;background:var(--panel);color:#dfeef4;backdrop-filter:blur(8px);font-size:13px}
     .timer{font-weight:900;font-size:18px;letter-spacing:.08em;background:rgba(4,10,16,.74);border:1px solid rgba(227,178,91,.35);color:#ffe0a4;border-radius:999px;padding:8px 16px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
-    .bottom-panel{left:calc(12px + env(safe-area-inset-left));bottom:calc(12px + env(safe-area-inset-bottom));width:min(520px,calc(100vw - 24px));background:rgba(4,9,14,.76);border:1px solid rgba(142,184,204,.25);border-radius:16px;backdrop-filter:blur(10px);box-shadow:0 10px 36px rgba(0,0,0,.38);overflow:hidden}
-    .unit-compact{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px}
-    .unit-name{font-weight:900;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .unit-meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
-    .unit-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-    .mini-btn{border:1px solid rgba(158,196,210,.2);border-radius:10px;background:rgba(18,35,50,.82);color:#e7f7ff;padding:8px 10px;min-height:38px}
-    .details{border-top:1px solid rgba(142,184,204,.18);padding:8px 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;font-size:12px;color:#c9dbe3}
+    .bottom-panel{left:calc(10px + env(safe-area-inset-left));bottom:calc(10px + env(safe-area-inset-bottom));width:min(390px,calc(100vw - 20px));background:rgba(4,9,14,.58);border:1px solid rgba(142,184,204,.20);border-radius:14px;backdrop-filter:blur(8px);box-shadow:0 8px 26px rgba(0,0,0,.28);overflow:hidden}
+    .unit-compact{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px}
+    .unit-name{font-weight:900;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+    .unit-meta{font-size:10.8px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;line-height:1.25}
+    .unit-actions{display:flex;gap:5px;flex-wrap:nowrap;justify-content:flex-end}
+    .mini-btn{border:1px solid rgba(158,196,210,.18);border-radius:9px;background:rgba(18,35,50,.72);color:#e7f7ff;padding:6px 8px;min-height:30px;font-size:11.5px}
+    .details{border-top:1px solid rgba(142,184,204,.13);padding:6px 8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;font-size:10.5px;color:#c9dbe3;max-height:78px;overflow:auto;background:rgba(0,0,0,.18)}
     .deploy-fab{right:calc(12px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom))}
     .countdown{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:18;padding:20px 30px;border-radius:22px;background:rgba(0,0,0,.62);border:1px solid rgba(255,225,151,.38);font-size:clamp(46px,10vw,100px);font-weight:900;color:#ffe1a2;text-shadow:0 6px 24px rgba(0,0,0,.8)}
     .modal-backdrop{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:18px}
@@ -81,9 +81,10 @@
       .brand h1{font-size:30px}
       .menu-grid{grid-template-columns:1fr 1fr}
       #deploy-list,.unit-list{grid-template-columns:repeat(3,minmax(0,1fr));max-height:42dvh}
-      .bottom-panel{width:min(560px,56vw)}
-      .unit-compact{padding:8px 10px}
-      .mini-btn{min-height:36px;padding:7px 9px}
+      .bottom-panel{width:min(420px,45vw);max-height:22dvh}
+      .unit-compact{padding:6px 8px}
+      .mini-btn{min-height:32px;padding:6px 8px}
+      .details{max-height:58px;font-size:10px}
       .btn{min-height:44px;padding:10px 12px}
     }
     @media (max-width:640px){
@@ -179,7 +180,7 @@
         <div class="unit-actions">
           <button id="btn-stop" class="mini-btn">Stop</button>
           <button id="btn-retreat" class="mini-btn">Repli</button>
-          <button id="btn-details" class="mini-btn">Détails</button>
+          <button id="btn-details" class="mini-btn">Détail</button>
         </div>
       </div>
       <div id="unit-details" class="details hidden"></div>
@@ -292,8 +293,9 @@ class AudioManager {
     else if(name==='impact') this.noiseBurst(.04,900,vol*.4);
     else if(name==='armor') { this.thump(180,.07,vol*.6); this.noiseBurst(.05,1100,vol*.45); }
     else if(name==='explosion') { this.thump(45,.45,vol); this.noiseBurst(.4,280,vol); }
-    else if(name==='ui') this.beep(520,.035,vol*.35);
-    else this.beep(400,.06,vol*.3);
+    else if(name==='order') { this.thump(155,.055,vol*.38); this.noiseBurst(.026,520,vol*.10); }
+    else if(name==='ui') { this.thump(210,.026,vol*.22); }
+    else this.thump(180,.045,vol*.22);
   }
   noiseBurst(duration, freq, volume){
     const sr=this.ctx.sampleRate, len=Math.max(1,Math.floor(duration*sr));
@@ -616,6 +618,7 @@ function setSelected(ent){
   if(selected) {
     selected.selection.visible = true;
     $('unit-panel').classList.remove('hidden');
+    $('unit-details').classList.add('hidden');
   } else {
     $('unit-panel').classList.add('hidden');
   }
@@ -845,6 +848,7 @@ function spawnRocket(shooter,target){
   const group=new THREE.Group(); group.add(body,cone); group.position.copy(start); scene.add(group);
   projectiles.push({type:'rocket',mesh:group,shooter,target,x:start.x,y:start.y,z:start.z,speed:430,life:3.5});
   audio.play('rocket',{x:start.x,z:start.z},1,.2);
+  audio.play('rocket_fly',{x:start.x,z:start.z},.55,.5);
 }
 
 function updateProjectiles(dt){
@@ -932,6 +936,24 @@ function findNearestEnemy(ent, maxRange){
   return best;
 }
 
+function acquireTarget(ent){
+  const awareness = Math.max(ent.cfg.vision || 0, (ent.cfg.range || 0) + 260);
+  const current = ent.attackTarget && !ent.attackTarget.dead ? ent.attackTarget : null;
+  if(current && dist2(ent,current) <= awareness) return current;
+  let best=null, bestScore=Infinity;
+  for(const other of entities){
+    if(other.dead || other.faction===ent.faction) continue;
+    const d=dist2(ent,other);
+    if(d>awareness) continue;
+    let score = d;
+    if(other.cfg.kind==='vehicle' && ent.type==='at') score -= 180;
+    if(other.attackTarget===ent) score -= 120;
+    if(d <= (ent.cfg.range || 0)) score -= 90;
+    if(score < bestScore){ bestScore=score; best=other; }
+  }
+  return best;
+}
+
 function canFire(ent,target){
   if(ent.reload>0 || ent.dead || target.dead) return false;
   if(ent.cfg.weapon==='none') return false;
@@ -942,7 +964,7 @@ function canFire(ent,target){
   if(ent.cfg.kind==='vehicle'){
     const targetYaw=Math.atan2(target.x-ent.x,target.z-ent.z);
     const diff=Math.abs(normalizeAngle(targetYaw-ent.yaw));
-    if(diff>.20) return false;
+    if(diff>.32) return false;
   }
   return true;
 }
@@ -973,31 +995,34 @@ function maintainEngagementDistance(ent,target){
   const optimal = ent.cfg.optimal || ent.cfg.range*.7;
   const dx=ent.x-target.x, dz=ent.z-target.z;
   const len=Math.max(.001,Math.hypot(dx,dz));
-  if(d < optimal*.72 || d > optimal*1.22){
-    ent.dest = {x: target.x + dx/len*optimal, z: target.z + dz/len*optimal};
-  } else {
+  const tooClose = d < optimal*.62;
+  const tooFar = d > Math.min(ent.cfg.range*.92, optimal*1.28);
+  if(tooClose || tooFar){
+    const goalDistance = tooClose ? optimal*1.05 : optimal;
+    ent.dest = {x: target.x + dx/len*goalDistance, z: target.z + dz/len*goalDistance};
+  } else if(ent.attackTarget === target) {
     ent.dest = null;
+    if(ent.cfg.kind==='vehicle') ent.speedNow = Math.min(ent.speedNow || 0, ent.cfg.speed*.12);
   }
 }
 
 function updateCombat(ent,dt){
   ent.reload=Math.max(0,ent.reload-dt);
   if(gamePhase!=='running' || ent.dead) return;
-  let target = ent.attackTarget && !ent.attackTarget.dead ? ent.attackTarget : null;
-  if(!target || dist2(ent,target)>ent.cfg.vision) target = findNearestEnemy(ent, ent.cfg.vision);
-  if(!target) return;
+  const target = acquireTarget(ent);
+  if(!target) { ent.attackTarget=null; return; }
   ent.attackTarget = target;
   if(ent.cfg.weapon==='none') return;
   maintainEngagementDistance(ent,target);
+  const targetYaw = Math.atan2(target.x-ent.x,target.z-ent.z);
   if(ent.cfg.kind==='vehicle'){
-    const targetYaw = Math.atan2(target.x-ent.x,target.z-ent.z);
     const diff = normalizeAngle(targetYaw-ent.yaw);
-    if(Math.abs(diff)>.06){
-      ent.yaw += clamp(diff, -ent.cfg.turn*dt, ent.cfg.turn*dt);
+    if(Math.abs(diff)>.035){
+      ent.yaw += clamp(diff, -ent.cfg.turn*dt*1.35, ent.cfg.turn*dt*1.35);
       ent.group.rotation.y = ent.yaw;
     }
   } else {
-    ent.yaw = Math.atan2(target.x-ent.x,target.z-ent.z);
+    ent.yaw = targetYaw;
     ent.group.rotation.y = ent.yaw;
   }
   if(canFire(ent,target)) fireAt(ent,target);
@@ -1313,6 +1338,8 @@ function setupMenus(){
   $('btn-clear-reinforce').onclick=()=>{reinforceCart={}; refreshDeployUis();};
   $('btn-spawn-reinforce').onclick=spawnReinforcements;
   $('btn-pause').onclick=()=>{ if(gamePhase==='running'){gamePhase='paused';showNotice('Pause');} else if(gamePhase==='paused'){gamePhase='running';showNotice('Reprise');} };
+  $('btn-zoom-in').onclick=()=>setZoom(zoom*1.18);
+  $('btn-zoom-out').onclick=()=>setZoom(zoom*.84);
   $('btn-stop').onclick=()=>{ if(selected){selected.dest=null; selected.attackTarget=null; selected.speedNow=0;} };
   $('btn-retreat').onclick=()=>{ if(selected){selected.dest={x:selected.x-220,z:selected.z+160}; selected.attackTarget=null;} };
   $('btn-details').onclick=()=>$('unit-details').classList.toggle('hidden');
@@ -1325,6 +1352,11 @@ async function toggleFullscreen(){
   }catch(e){ showNotice('Plein écran bloqué par le navigateur.'); }
 }
 
+function setZoom(value){
+  zoom = clamp(value, .28, 2.25);
+  updateCamera();
+}
+
 function setupInput(){
   const canvas = renderer.domElement;
   let down=false, dragging=false, last={x:0,y:0}, start={x:0,y:0};
@@ -1332,8 +1364,17 @@ function setupInput(){
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   canvas.addEventListener('wheel',e=>{
     e.preventDefault();
-    zoom = clamp(zoom * (e.deltaY>0?.92:1.08), .38, 1.45);
+    setZoom(zoom * (e.deltaY>0?.90:1.12));
   },{passive:false});
+  document.addEventListener('wheel',e=>{
+    const t=e.target; if(gamePhase==='menu' || (t && t.closest && t.closest('.screen,.modal-backdrop,button,select,input'))) return;
+    e.preventDefault();
+    setZoom(zoom * (e.deltaY>0?.90:1.12));
+  },{passive:false});
+  document.addEventListener('keydown',e=>{
+    if(e.key==='+' || e.key==='=') setZoom(zoom*1.15);
+    if(e.key==='-' || e.key==='_') setZoom(zoom*.87);
+  });
   canvas.addEventListener('pointerdown',e=>{
     audio.unlock();
     canvas.setPointerCapture(e.pointerId);
@@ -1351,7 +1392,7 @@ function setupInput(){
     if(pointers.size===2){
       const ps=[...pointers.values()];
       const d=Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y);
-      zoom=clamp(zoomStart*(d/Math.max(1,pinchStart)),.38,1.45);
+      setZoom(zoomStart*(d/Math.max(1,pinchStart)));
       return;
     }
     if(!down) return;
@@ -1393,7 +1434,7 @@ function handleTap(x,y){
     const ent = entities.find(e=>e.id===hits[0].object.userData.entityId);
     if(ent && !ent.dead){
       if(ent.faction==='ally') setSelected(ent);
-      else if(selected){ selected.attackTarget=ent; maintainEngagementDistance(selected,ent); audio.play('ui'); }
+      else if(selected){ selected.attackTarget=ent; maintainEngagementDistance(selected,ent); audio.play('order',{x:selected.x,z:selected.z},.9,.18); }
       return;
     }
   }
@@ -1401,7 +1442,7 @@ function handleTap(x,y){
   if(pt && selected){
     selected.dest = {x:pt.x,z:pt.z};
     selected.attackTarget=null;
-    audio.play('ui');
+    audio.play('order',{x:pt.x,z:pt.z},.9,.18);
   }
 }
 
