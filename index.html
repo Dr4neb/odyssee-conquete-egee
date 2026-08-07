@@ -77,6 +77,15 @@
     .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .close{border-radius:50%;width:42px;height:42px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);color:#fff;font-weight:900}
     .notice{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:40;background:rgba(5,9,14,.92);border:1px solid rgba(142,184,204,.28);border-radius:12px;padding:10px 14px;color:#dcecf3;max-width:min(560px,90vw);text-align:center}
+    .audio-modal{width:min(620px,94vw)}
+    .audio-grid{display:grid;gap:12px}
+    .audio-row{display:grid;grid-template-columns:150px 1fr 54px;gap:12px;align-items:center;border:1px solid rgba(142,184,204,.14);border-radius:12px;padding:10px;background:rgba(255,255,255,.025)}
+    .audio-row span{font-weight:800}
+    .audio-row b{text-align:right;color:#ffe1a2}
+    .audio-row input[type="range"]{width:100%}
+    .audio-row.check{grid-template-columns:150px auto;justify-content:start}
+    .audio-row.check input{width:22px;height:22px}
+
     @media (orientation:landscape) and (max-width:900px){
       .menu-card{padding:14px;border-radius:18px;width:min(900px,96vw)}
       .brand h1{font-size:30px}
@@ -132,7 +141,7 @@
           <small>RTS tactique 3D WebGL</small>
           <h1>OPERATION<br>OVERWATCH</h1>
         </div>
-        <div class="tag">v0.5 3D ASSET PASS</div>
+        <div class="tag">v0.5.2 AUDIO PASS</div>
       </div>
       <p class="muted">Cette build bascule le prototype en vraie scène 3D WebGL. Les modèles Quaternius/Kenney locaux sont chargés s’ils sont présents, sinon le jeu utilise des modèles low-poly 3D intégrés pour rester jouable.</p>
       <div class="menu-row">
@@ -191,6 +200,7 @@
     <div class="top-center"><div class="timer" id="match-timer">05:00</div></div>
     <div class="top-right">
       <button id="btn-reinforce" class="btn">Renforts · <span id="reinforce-points">0</span> pts</button>
+      <button id="btn-audio-game" class="btn">Audio</button>
       <button id="btn-pause" class="btn">Pause</button>
       <button id="btn-fs-game" class="btn">⛶</button>
     </div>
@@ -225,6 +235,45 @@
       </div>
     </div>
   </div>
+
+  <div id="audio-modal" class="modal-backdrop hidden">
+    <div class="modal audio-modal">
+      <div class="modal-head">
+        <div>
+          <h2 style="margin:0">Options audio</h2>
+          <div class="muted">Volumes appliqués immédiatement et sauvegardés localement.</div>
+        </div>
+        <button id="btn-close-audio" class="close">×</button>
+      </div>
+      <div class="audio-grid">
+        <label class="audio-row">
+          <span>Volume général</span>
+          <input id="audio-master" type="range" min="0" max="1" step="0.01">
+          <b id="audio-master-value">80%</b>
+        </label>
+        <label class="audio-row">
+          <span>Effets</span>
+          <input id="audio-sfx" type="range" min="0" max="1" step="0.01">
+          <b id="audio-sfx-value">75%</b>
+        </label>
+        <label class="audio-row">
+          <span>Ambiance</span>
+          <input id="audio-ambience" type="range" min="0" max="1" step="0.01">
+          <b id="audio-ambience-value">20%</b>
+        </label>
+        <label class="audio-row check">
+          <span>Muet</span>
+          <input id="audio-muted" type="checkbox">
+        </label>
+      </div>
+      <div class="menu-row" style="margin-top:14px">
+        <button id="btn-test-order" class="btn">Tester ordre</button>
+        <button id="btn-test-cannon" class="btn">Tester canon</button>
+        <button id="btn-test-explosion" class="btn">Tester explosion</button>
+      </div>
+    </div>
+  </div>
+
   <div id="notice" class="notice hidden"></div>
 
 <script type="module">
@@ -287,158 +336,453 @@ const ASSET_MANIFEST = {
   }
 };
 
+
 class AudioManager {
   constructor(){
-    this.ctx=null;
-    this.master=.82;
-    this.sfx=.92;
-    this.muted=false;
-    this.last=new Map();
-    this.sampleLast=new Map();
-    this.activeSamples=0;
-    this.maxSamples=10;
-    this.sampleSources={
-      // Vrais sons gratuits/CC0 utilisés en priorité. Les chemins locaux sont là pour la version projet avec assets/audio/.
-      order:[
+    this.ctx = null;
+    this.unlocked = false;
+    this.activeHtml = new Set();
+    this.activeNodes = new Set();
+    this.activeByCategory = new Map();
+    this.last = new Map();
+    this.preloaded = new Map();
+    this.ambience = null;
+    this.ambienceGain = null;
+    this.ambienceTimer = null;
+    this.syntheticAmbience = null;
+    this.maxByCategory = { infantry:4, vehicle:4, explosion:3, rocket:2, impact:5, ui:4, ambience:1 };
+    this.defaults = {
+      masterVolume: .8,
+      sfxVolume: .75,
+      ambienceVolume: .2,
+      muted: false
+    };
+    this.settings = this.loadSettings();
+    this.profiles = {
+      ui:        { key:'button_click', category:'ui',        volume:.32, cooldown:.08, spatial:false, rate:[.96,1.04] },
+      order:    { key:'order_confirm',category:'ui',        volume:.42, cooldown:.18, spatial:false, rate:[.74,.86] },
+      rifle:    { key:'rifle_burst',  category:'infantry',  volume:.43, cooldown:.32, spatial:true,  rate:[.92,1.06] },
+      mg:       { key:'machinegun',    category:'infantry',  volume:.53, cooldown:.22, spatial:true,  rate:[.88,1.02] },
+      autocannon:{key:'autocannon',    category:'vehicle',   volume:.68, cooldown:.55, spatial:true,  rate:[.94,1.04] },
+      tank:     { key:'tank_cannon',   category:'vehicle',   volume:.88, cooldown:2.35, spatial:true,  rate:[.92,1.02] },
+      rocket:   { key:'rocket_launch', category:'rocket',    volume:.67, cooldown:.85, spatial:true,  rate:[.92,1.02] },
+      rocket_fly:{key:'rocket_fly',    category:'rocket',    volume:.30, cooldown:.65, spatial:true,  rate:[.96,1.08] },
+      rocket_impact:{key:'rocket_impact',category:'explosion',volume:.82,cooldown:.18, spatial:true,  rate:[.94,1.02] },
+      impact:   { key:'bullet_impact', category:'impact',    volume:.34, cooldown:.06, spatial:true,  rate:[.9,1.12] },
+      armor:    { key:'armor_impact',  category:'impact',    volume:.58, cooldown:.12, spatial:true,  rate:[.9,1.06] },
+      explosion:{ key:'vehicle_explosion',category:'explosion',volume:.88,cooldown:.28, spatial:true, rate:[.88,1.02] }
+    };
+    this.sampleSources = {
+      button_click: [
+        'https://opengameart.org/sites/default/files/click.wav',
+        'assets/audio/ui/button_click.ogg'
+      ],
+      order_confirm: [
         'https://opengameart.org/sites/default/files/equipment_clicks3.wav',
-        'assets/audio/ui/equipment_clicks3.wav'
+        'assets/audio/ui/order_confirm.ogg'
       ],
-      rifle:[
+      rifle_burst: [
         'https://opengameart.org/sites/default/files/snd_gunshot1.wav',
-        'assets/audio/sfx/rifle_single.wav'
+        'assets/audio/sfx/infantry_rifle_burst.ogg'
       ],
-      rocket:[
+      machinegun: [
+        'https://opengameart.org/sites/default/files/snd_gunshot1.wav',
+        'assets/audio/sfx/infantry_machinegun_burst.ogg'
+      ],
+      rocket_launch: [
         'https://opengameart.org/sites/default/files/missile.wav',
-        'assets/audio/sfx/missile.wav'
+        'assets/audio/sfx/at_rocket_launch.ogg'
       ],
-      tank:[
-        'https://opengameart.org/sites/default/files/bangs.wav',
-        'assets/audio/sfx/tank_cannon.wav'
+      rocket_fly: [
+        'https://opengameart.org/sites/default/files/missile.wav',
+        'assets/audio/sfx/at_rocket_fly.ogg'
       ],
-      explosion:[
+      rocket_impact: [
         'https://opengameart.org/sites/default/files/dull_explosion.wav',
-        'assets/audio/sfx/dull_explosion.wav'
+        'assets/audio/sfx/at_rocket_impact.ogg'
+      ],
+      autocannon: [
+        'https://opengameart.org/sites/default/files/bangs.wav',
+        'assets/audio/sfx/vehicle_autocannon.ogg'
+      ],
+      tank_cannon: [
+        'https://opengameart.org/sites/default/files/bangs.wav',
+        'assets/audio/sfx/tank_cannon.ogg'
+      ],
+      bullet_impact: [
+        'https://opengameart.org/sites/default/files/cannonball_tap.wav',
+        'assets/audio/sfx/bullet_impact.ogg'
+      ],
+      armor_impact: [
+        'https://opengameart.org/sites/default/files/cannonball_tap.wav',
+        'assets/audio/sfx/armor_impact.ogg'
+      ],
+      vehicle_explosion: [
+        'https://opengameart.org/sites/default/files/dull_explosion.wav',
+        'assets/audio/sfx/vehicle_explosion.ogg'
+      ],
+      battlefield_light: [
+        'https://opengameart.org/sites/default/files/wind%20woosh%20loop.ogg',
+        'assets/audio/ambience/battlefield_light.ogg'
       ]
     };
   }
-  unlock(){
-    if(!this.ctx){
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if(AC) this.ctx = new AC();
-    }
-    if(this.ctx?.state === 'suspended') this.ctx.resume();
-  }
-  play(name, position={x:0,z:0}, volume=1, cooldown=.04){
-    if(this.muted) return;
-    this.unlock();
-    if(!this.ctx) return;
-    const now=this.ctx.currentTime;
-    const key=name;
-    if((this.last.get(key)||0)+cooldown>now) return;
-    this.last.set(key,now);
-    const camVol = getDistanceVolume(position.x, position.z);
-    const vol = volume * this.master * this.sfx * camVol;
-    if(vol<=.02) return;
 
-    if(name==='order') { this.playSample('order',vol*.46,.78,cooldown) || this.orderThunk(vol); return; }
-    if(name==='tank') { this.playSample('tank',vol*.92,.86,cooldown) || this.tankFallback(vol); this.thump(42,.22,vol*.38); return; }
-    if(name==='rocket') { this.playSample('rocket',vol*.9,.92,cooldown) || this.rocketLaunch(vol); return; }
-    if(name==='explosion') { this.playSample('explosion',vol*.82,.92,cooldown) || this.explosionFallback(vol); return; }
-
-    if(name==='rifle') { this.playSample('rifle',vol*.42,rand(.92,1.06),.07); this.noiseBurst(0.035, 1600, vol*.24); }
-    else if(name==='mg') { this.playSample('rifle',vol*.38,rand(.82,.98),.045); this.noiseBurst(0.034, 1100, vol*.34); }
-    else if(name==='autocannon') { this.playSample('tank',vol*.48,1.18,.16); this.thump(88, .10, vol*.55); this.noiseBurst(.055,820,vol*.38); }
-    else if(name==='rocket_fly') { this.whoosh(vol*.35,.32); }
-    else if(name==='impact') this.noiseBurst(.04,900,vol*.4);
-    else if(name==='armor') { this.thump(150,.075,vol*.6); this.noiseBurst(.05,950,vol*.38); }
-    else if(name==='ui') { this.orderThunk(vol*.28); }
-    else this.thump(150,.045,vol*.20);
-  }
-  playSample(name, volume=1, rate=1, cooldown=.05){
-    const urls=this.sampleSources[name];
-    if(!urls || this.activeSamples>=this.maxSamples) return false;
-    const now=performance.now()/1000;
-    if((this.sampleLast.get(name)||0)+cooldown>now) return true;
-    this.sampleLast.set(name,now);
-    const src = urls[0];
+  loadSettings(){
     try{
-      const a = new Audio(src);
-      a.preload='auto';
-      a.volume=clamp(volume,0,1);
-      a.playbackRate=clamp(rate,0.65,1.35);
-      this.activeSamples++;
-      const done=()=>{ this.activeSamples=Math.max(0,this.activeSamples-1); };
-      a.addEventListener('ended',done,{once:true});
-      a.addEventListener('error',done,{once:true});
-      a.play().then(()=>{}).catch(()=>{
-        done();
-        this.fallbackByName(name, volume);
+      const raw = localStorage.getItem('operationOverwatchAudioSettings');
+      if(!raw) return {...this.defaults};
+      const parsed = JSON.parse(raw);
+      return {
+        masterVolume: clamp(Number(parsed.masterVolume ?? this.defaults.masterVolume),0,1),
+        sfxVolume: clamp(Number(parsed.sfxVolume ?? this.defaults.sfxVolume),0,1),
+        ambienceVolume: clamp(Number(parsed.ambienceVolume ?? this.defaults.ambienceVolume),0,1),
+        muted: !!parsed.muted
+      };
+    }catch(e){
+      localStorage.removeItem('operationOverwatchAudioSettings');
+      return {...this.defaults};
+    }
+  }
+
+  saveSettings(){
+    try{ localStorage.setItem('operationOverwatchAudioSettings', JSON.stringify(this.settings)); }catch(e){}
+    this.applyAmbienceVolume();
+  }
+
+  setSettings(partial){
+    this.settings = {...this.settings, ...partial};
+    this.settings.masterVolume = clamp(Number(this.settings.masterVolume),0,1);
+    this.settings.sfxVolume = clamp(Number(this.settings.sfxVolume),0,1);
+    this.settings.ambienceVolume = clamp(Number(this.settings.ambienceVolume),0,1);
+    this.settings.muted = !!this.settings.muted;
+    this.saveSettings();
+  }
+
+  unlock(){
+    if(this.unlocked) {
+      if(this.ctx?.state === 'suspended') this.ctx.resume().catch?.(()=>{});
+      return;
+    }
+    this.unlocked = true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(AC && !this.ctx) this.ctx = new AC();
+    if(this.ctx?.state === 'suspended') this.ctx.resume().catch?.(()=>{});
+    this.preloadSamples();
+  }
+
+  preloadSamples(){
+    for(const [name, urls] of Object.entries(this.sampleSources)){
+      if(this.preloaded.has(name)) continue;
+      const src = urls[0];
+      try{
+        const a = new Audio();
+        a.preload = 'auto';
+        a.crossOrigin = 'anonymous';
+        a.src = src;
+        a.load();
+        this.preloaded.set(name, a);
+      }catch(e){}
+    }
+  }
+
+  get master(){ return this.settings.masterVolume; }
+  get sfx(){ return this.settings.sfxVolume; }
+  get ambienceVolume(){ return this.settings.ambienceVolume; }
+  get muted(){ return this.settings.muted; }
+
+  categoryCount(category){ return this.activeByCategory.get(category)||0; }
+  incCategory(category){ this.activeByCategory.set(category, this.categoryCount(category)+1); }
+  decCategory(category){ this.activeByCategory.set(category, Math.max(0, this.categoryCount(category)-1)); }
+
+  play(name, position={x:0,z:0}, volume=1, cooldown=null, opts={}){
+    if(this.muted || !this.unlocked) return false;
+    const profile = this.profiles[name] || this.profiles.impact;
+    const now = this.ctx?.currentTime || performance.now()/1000;
+    const cd = cooldown ?? opts.cooldown ?? profile.cooldown;
+    const cdKey = opts.cooldownKey || `${profile.category}:${name}`;
+    if((this.last.get(cdKey)||0)+cd > now) return false;
+    if(this.categoryCount(profile.category) >= (this.maxByCategory[profile.category]||4)) return false;
+
+    const spatialVolume = profile.spatial ? getDistanceVolume(position.x||0, position.z||0) : 1;
+    const finalVolume = clamp((volume ?? 1) * profile.volume * this.master * this.sfx * spatialVolume, 0, 1);
+    if(finalVolume <= .018) return false;
+
+    this.last.set(cdKey, now);
+    const rate = rand(profile.rate[0], profile.rate[1]);
+    const sampleStarted = this.playSample(profile.key, finalVolume, rate, profile.category);
+    if(!sampleStarted) this.fallback(name, finalVolume, profile.category);
+    return true;
+  }
+
+  playSample(key, volume, rate, category){
+    const srcEl = this.preloaded.get(key);
+    const urls = this.sampleSources[key];
+    if(!srcEl && !urls) return false;
+
+    try{
+      const a = srcEl ? srcEl.cloneNode(true) : new Audio(urls[0]);
+      a.crossOrigin = 'anonymous';
+      a.volume = clamp(volume,0,1);
+      a.playbackRate = clamp(rate, .65, 1.35);
+      a.loop = false;
+      this.activeHtml.add(a);
+      this.incCategory(category);
+      let released=false;
+      const release=()=>{
+        if(released) return;
+        released=true;
+        this.activeHtml.delete(a);
+        this.decCategory(category);
+      };
+      a.addEventListener('ended', release, {once:true});
+      a.addEventListener('error', release, {once:true});
+      const playPromise = a.play();
+      if(playPromise?.catch) playPromise.catch(()=>{
+        release();
+        this.fallbackByKey(key, volume, category);
       });
       return true;
     }catch(e){
-      this.fallbackByName(name, volume);
       return false;
     }
   }
-  fallbackByName(name,volume){
-    if(name==='order') this.orderThunk(volume);
-    else if(name==='tank') this.tankFallback(volume);
-    else if(name==='rocket') this.rocketLaunch(volume);
-    else if(name==='explosion') this.explosionFallback(volume);
-    else if(name==='rifle') this.noiseBurst(.04,1200,volume*.42);
+
+  fallbackByKey(key, volume, category){
+    if(key==='order_confirm') return this.orderThunk(volume, category);
+    if(key==='button_click') return this.buttonClick(volume, category);
+    if(key==='tank_cannon') return this.tankFallback(volume, category);
+    if(key==='rocket_launch') return this.rocketLaunch(volume, category);
+    if(key==='vehicle_explosion' || key==='rocket_impact') return this.explosionFallback(volume, category);
+    if(key==='armor_impact') return this.armorFallback(volume, category);
+    if(key==='bullet_impact') return this.noiseBurst(.035, 900, volume*.55, category);
+    if(key==='machinegun') return this.machinegunFallback(volume, category);
+    return this.rifleFallback(volume, category);
   }
-  orderThunk(volume){
-    // Son d'ordre plus grave et sec : clic métallique + radio courte, plus de bip aigu.
-    this.thump(92,.045,volume*.34);
-    this.noiseBurst(.028,360,volume*.11);
+
+  fallback(name, volume, category){
+    if(name==='order') return this.orderThunk(volume, category);
+    if(name==='ui') return this.buttonClick(volume, category);
+    if(name==='tank') return this.tankFallback(volume, category);
+    if(name==='rocket') return this.rocketLaunch(volume, category);
+    if(name==='rocket_fly') return this.whoosh(volume*.7,.45, category);
+    if(name==='explosion' || name==='rocket_impact') return this.explosionFallback(volume, category);
+    if(name==='armor') return this.armorFallback(volume, category);
+    if(name==='mg') return this.machinegunFallback(volume, category);
+    if(name==='autocannon') return this.autocannonFallback(volume, category);
+    return this.rifleFallback(volume, category);
   }
-  tankFallback(volume){
-    this.thump(38,.34,volume*.95);
-    this.noiseBurst(.18,360,volume*.62);
+
+  trackNode(node, duration, category){
+    this.activeNodes.add(node);
+    this.incCategory(category);
+    const release=()=>{
+      this.activeNodes.delete(node);
+      this.decCategory(category);
+    };
+    try{ node.addEventListener?.('ended', release, {once:true}); }catch(e){}
+    setTimeout(release, Math.ceil(duration*1000)+80);
   }
-  explosionFallback(volume){
-    this.thump(36,.5,volume);
-    this.noiseBurst(.46,260,volume*.9);
+
+  buttonClick(volume, category='ui'){
+    if(!this.ctx) return;
+    this.thump(130,.035,volume*.24,category);
   }
-  noiseBurst(duration, freq, volume){
+
+  orderThunk(volume, category='ui'){
+    // Confirmation tactique grave : clic équipement + souffle radio très court, sans bip aigu.
+    if(!this.ctx) return;
+    this.thump(82,.055,volume*.40,category);
+    this.noiseBurst(.028,330,volume*.13,category);
+  }
+
+  rifleFallback(volume, category='infantry'){
+    this.noiseBurst(.045,1450,volume*.45,category);
+    this.thump(115,.045,volume*.22,category);
+  }
+
+  machinegunFallback(volume, category='infantry'){
+    this.noiseBurst(.055,1180,volume*.55,category);
+    this.thump(95,.05,volume*.22,category);
+  }
+
+  autocannonFallback(volume, category='vehicle'){
+    this.thump(72,.12,volume*.58,category);
+    this.noiseBurst(.08,760,volume*.48,category);
+  }
+
+  tankFallback(volume, category='vehicle'){
+    this.thump(38,.36,volume*.92,category);
+    this.noiseBurst(.2,330,volume*.55,category);
+  }
+
+  rocketLaunch(volume, category='rocket'){
+    this.thump(62,.18,volume*.68,category);
+    this.noiseBurst(.20,580,volume*.55,category);
+    this.whoosh(volume*.38,.34,category);
+  }
+
+  armorFallback(volume, category='impact'){
+    this.thump(155,.09,volume*.58,category);
+    this.noiseBurst(.055,980,volume*.35,category);
+  }
+
+  explosionFallback(volume, category='explosion'){
+    this.thump(34,.52,volume*.92,category);
+    this.noiseBurst(.42,260,volume*.75,category);
+  }
+
+  noiseBurst(duration, freq, volume, category='impact'){
+    if(!this.ctx) return;
     const sr=this.ctx.sampleRate, len=Math.max(1,Math.floor(duration*sr));
     const buffer=this.ctx.createBuffer(1,len,sr);
     const data=buffer.getChannelData(0);
     for(let i=0;i<len;i++){
-      const env = Math.pow(1-i/len,2.4);
+      const env = Math.pow(1-i/len,2.3);
       data[i]=(Math.random()*2-1)*env;
     }
     const src=this.ctx.createBufferSource(); src.buffer=buffer;
-    const filter=this.ctx.createBiquadFilter(); filter.type='bandpass'; filter.frequency.value=freq; filter.Q.value=1.2;
-    const gain=this.ctx.createGain(); gain.gain.value=volume;
-    src.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination); src.start();
+    const filter=this.ctx.createBiquadFilter(); filter.type='bandpass'; filter.frequency.value=freq; filter.Q.value=1.1;
+    const gain=this.ctx.createGain(); gain.gain.setValueAtTime(Math.max(.0001,volume),this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001,this.ctx.currentTime+duration);
+    src.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+    this.trackNode(src,duration,category);
+    src.start(); src.stop(this.ctx.currentTime+duration);
   }
-  thump(freq,duration,volume){
+
+  thump(freq,duration,volume,category='impact'){
+    if(!this.ctx) return;
     const osc=this.ctx.createOscillator(); const gain=this.ctx.createGain();
-    osc.type='sine'; osc.frequency.setValueAtTime(freq,this.ctx.currentTime);
+    osc.type='sine';
+    osc.frequency.setValueAtTime(freq,this.ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(Math.max(20,freq*.42),this.ctx.currentTime+duration);
     gain.gain.setValueAtTime(Math.max(.0001,volume),this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(.001,this.ctx.currentTime+duration);
-    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime+duration);
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    this.trackNode(osc,duration,category);
+    osc.start(); osc.stop(this.ctx.currentTime+duration);
   }
-  rocketLaunch(volume){
-    this.thump(68,.18,volume*.78);
-    this.noiseBurst(.24,620,volume*.68);
-    this.whoosh(volume*.50,.5);
-  }
-  whoosh(volume,duration){
+
+  whoosh(volume,duration,category='rocket'){
+    if(!this.ctx) return;
     const sr=this.ctx.sampleRate, len=Math.floor(duration*sr);
     const buffer=this.ctx.createBuffer(1,len,sr);
     const data=buffer.getChannelData(0);
     for(let i=0;i<len;i++){
       const t=i/len;
-      data[i]=(Math.random()*2-1)*Math.sin(Math.PI*t)*0.8;
+      data[i]=(Math.random()*2-1)*Math.sin(Math.PI*t)*0.7;
     }
     const src=this.ctx.createBufferSource(); src.buffer=buffer;
-    const filter=this.ctx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.setValueAtTime(240,this.ctx.currentTime);
+    const filter=this.ctx.createBiquadFilter(); filter.type='lowpass';
+    filter.frequency.setValueAtTime(260,this.ctx.currentTime);
     filter.frequency.linearRampToValueAtTime(1450,this.ctx.currentTime+duration*.55);
-    const gain=this.ctx.createGain(); gain.gain.value=volume;
-    src.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination); src.start();
+    const gain=this.ctx.createGain();
+    gain.gain.setValueAtTime(Math.max(.0001,volume),this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001,this.ctx.currentTime+duration);
+    src.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+    this.trackNode(src,duration,category);
+    src.start(); src.stop(this.ctx.currentTime+duration);
+  }
+
+  startAmbience(){
+    if(this.muted || !this.unlocked || this.ambience || this.syntheticAmbience) return;
+    const urls = this.sampleSources.battlefield_light;
+    try{
+      const a = new Audio(urls[0]);
+      a.crossOrigin = 'anonymous';
+      a.loop = true;
+      a.volume = 0;
+      a.preload = 'auto';
+      this.ambience = a;
+      const p = a.play();
+      if(p?.catch) p.catch(()=>{ this.ambience=null; this.startSyntheticAmbience(); });
+      this.fadeAmbienceTo(this.master*this.ambienceVolume, 1800);
+    }catch(e){
+      this.startSyntheticAmbience();
+    }
+  }
+
+  startSyntheticAmbience(){
+    if(!this.ctx || this.syntheticAmbience) return;
+    const sr=this.ctx.sampleRate, len=Math.floor(sr*2);
+    const buffer=this.ctx.createBuffer(1,len,sr);
+    const data=buffer.getChannelData(0);
+    for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*.25;
+    const src=this.ctx.createBufferSource(); src.buffer=buffer; src.loop=true;
+    const filter=this.ctx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=420;
+    const gain=this.ctx.createGain(); gain.gain.value=0;
+    src.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+    this.syntheticAmbience = {src,gain};
+    src.start();
+    this.fadeSyntheticAmbienceTo(this.master*this.ambienceVolume, 1800);
+  }
+
+  applyAmbienceVolume(){
+    const target = this.muted ? 0 : this.master*this.ambienceVolume;
+    if(this.ambience) this.fadeAmbienceTo(target, 450);
+    if(this.syntheticAmbience) this.fadeSyntheticAmbienceTo(target, 450);
+  }
+
+  fadeAmbienceTo(target, ms=600){
+    if(!this.ambience) return;
+    clearInterval(this.ambienceTimer);
+    const a=this.ambience, start=a.volume, t0=performance.now();
+    this.ambienceTimer=setInterval(()=>{
+      const t=clamp((performance.now()-t0)/ms,0,1);
+      a.volume = clamp(lerp(start,target,t),0,1);
+      if(t>=1) clearInterval(this.ambienceTimer);
+    },50);
+  }
+
+  fadeSyntheticAmbienceTo(target, ms=600){
+    if(!this.syntheticAmbience || !this.ctx) return;
+    const g=this.syntheticAmbience.gain.gain;
+    g.cancelScheduledValues(this.ctx.currentTime);
+    g.setValueAtTime(g.value,this.ctx.currentTime);
+    g.linearRampToValueAtTime(clamp(target,0,1),this.ctx.currentTime+ms/1000);
+  }
+
+  pauseAmbience(){
+    this.fadeAmbienceTo(0, 500);
+    this.fadeSyntheticAmbienceTo(0, 500);
+  }
+
+  resumeAmbience(){
+    if(this.muted) return;
+    if(!this.ambience && !this.syntheticAmbience) this.startAmbience();
+    this.fadeAmbienceTo(this.master*this.ambienceVolume, 700);
+    this.fadeSyntheticAmbienceTo(this.master*this.ambienceVolume, 700);
+  }
+
+  stopAmbience(){
+    clearInterval(this.ambienceTimer);
+    if(this.ambience){
+      try{ this.ambience.pause(); this.ambience.currentTime=0; }catch(e){}
+      this.ambience = null;
+    }
+    if(this.syntheticAmbience){
+      try{ this.syntheticAmbience.src.stop(); }catch(e){}
+      this.syntheticAmbience = null;
+    }
+  }
+
+  stopAll({keepUnlocked=true}={}){
+    for(const a of [...this.activeHtml]){
+      try{ a.pause(); a.currentTime=0; }catch(e){}
+    }
+    this.activeHtml.clear();
+    for(const node of [...this.activeNodes]){
+      try{ node.stop?.(); }catch(e){}
+    }
+    this.activeNodes.clear();
+    this.activeByCategory.clear();
+    this.last.clear();
+    this.stopAmbience();
+    if(!keepUnlocked){
+      this.unlocked=false;
+      try{ this.ctx?.close?.(); }catch(e){}
+      this.ctx=null;
+    }
   }
 }
 
@@ -1475,7 +1819,12 @@ function updateHud(dt){
   if(gamePhase==='countdown'){
     countdownTime -= dt;
     $('countdown').textContent = Math.ceil(Math.max(0,countdownTime));
-    if(countdownTime<=0){ gamePhase='running'; $('countdown').classList.add('hidden'); showNotice('Combat ouvert'); }
+    if(countdownTime<=0){
+      gamePhase='running';
+      $('countdown').classList.add('hidden');
+      audio.startAmbience();
+      showNotice('Combat ouvert');
+    }
   }
   $('match-timer').textContent = `${String(Math.floor(matchTime/60)).padStart(2,'0')}:${String(Math.floor(matchTime%60)).padStart(2,'0')}`;
   $('reinforce-points').textContent = Math.floor(reinforcePoints);
@@ -1484,6 +1833,7 @@ function updateHud(dt){
 
 function endMatch(){
   gamePhase='ended';
+  audio.stopAmbience();
   showNotice('Partie terminée : limite de 5 minutes atteinte', 5000);
 }
 
@@ -1491,14 +1841,16 @@ function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(.033, clock.getDelta());
   if(gamePhase!=='menu'){
-    for(const ent of entities) updateAI(ent,dt);
-    for(const ent of entities) updateMovement(ent,dt);
-    solveCollisions();
-    for(const ent of entities) updateCombat(ent,dt);
-    updateProjectiles(dt);
-    updateObjectives(dt);
-    updateSupport(dt);
-    updateEffects(dt);
+    if(gamePhase!=='paused' && gamePhase!=='ended'){
+      for(const ent of entities) updateAI(ent,dt);
+      for(const ent of entities) updateMovement(ent,dt);
+      solveCollisions();
+      for(const ent of entities) updateCombat(ent,dt);
+      updateProjectiles(dt);
+      updateObjectives(dt);
+      updateSupport(dt);
+      updateEffects(dt);
+    }
     updateHud(dt);
   }
   for(const ent of entities) if(!ent.dead) updateHealthBar(ent);
@@ -1535,6 +1887,7 @@ function startBattle(){
   $('setup-screen').classList.add('hidden');
   $('hud').classList.remove('hidden');
   audio.unlock();
+  audio.stopAll({keepUnlocked:true});
   resetScene();
   spawnInitialPlayer(deployCart);
   spawnEnemyForces();
@@ -1591,12 +1944,61 @@ function spawnReinforcements(){
   showNotice('Renforts déployés');
 }
 
+
+function openAudioOptions(){
+  audio.unlock();
+  syncAudioControls();
+  $('audio-modal').classList.remove('hidden');
+}
+
+function closeAudioOptions(){
+  $('audio-modal').classList.add('hidden');
+}
+
+function pct(v){ return `${Math.round(v*100)}%`; }
+
+function syncAudioControls(){
+  const s=audio.settings;
+  $('audio-master').value=s.masterVolume;
+  $('audio-sfx').value=s.sfxVolume;
+  $('audio-ambience').value=s.ambienceVolume;
+  $('audio-muted').checked=s.muted;
+  $('audio-master-value').textContent=pct(s.masterVolume);
+  $('audio-sfx-value').textContent=pct(s.sfxVolume);
+  $('audio-ambience-value').textContent=pct(s.ambienceVolume);
+}
+
+function bindAudioOptions(){
+  syncAudioControls();
+  const apply=()=>{
+    audio.setSettings({
+      masterVolume:Number($('audio-master').value),
+      sfxVolume:Number($('audio-sfx').value),
+      ambienceVolume:Number($('audio-ambience').value),
+      muted:$('audio-muted').checked
+    });
+    syncAudioControls();
+  };
+  ['audio-master','audio-sfx','audio-ambience','audio-muted'].forEach(id=>{
+    const el=$(id);
+    el.oninput=apply;
+    el.onchange=apply;
+  });
+  $('btn-close-audio').onclick=closeAudioOptions;
+  $('btn-test-order').onclick=()=>{audio.unlock(); audio.play('order',{x:cameraTarget.x,z:cameraTarget.z},1,.05,{cooldownKey:'test_order'});};
+  $('btn-test-cannon').onclick=()=>{audio.unlock(); audio.play('tank',{x:cameraTarget.x,z:cameraTarget.z},1,.05,{cooldownKey:'test_tank'});};
+  $('btn-test-explosion').onclick=()=>{audio.unlock(); audio.play('explosion',{x:cameraTarget.x,z:cameraTarget.z},.75,.05,{cooldownKey:'test_explosion'});};
+}
+
+
 function setupMenus(){
+  bindAudioOptions();
   $('btn-play').onclick=()=>{ audio.unlock(); audio.play('ui'); $('main-menu').classList.add('hidden'); $('setup-screen').classList.remove('hidden'); };
-  $('btn-options').onclick=()=>showNotice('Options détaillées à réintégrer dans la build 3D.');
+  $('btn-options').onclick=()=>openAudioOptions();
+  $('btn-audio-game').onclick=()=>openAudioOptions();
   $('btn-fullscreen').onclick=toggleFullscreen;
   $('btn-fs-game').onclick=toggleFullscreen;
-  document.querySelectorAll('[data-back-main]').forEach(b=>b.onclick=()=>{$('setup-screen').classList.add('hidden');$('main-menu').classList.remove('hidden')});
+  document.querySelectorAll('[data-back-main]').forEach(b=>b.onclick=()=>{audio.stopAll({keepUnlocked:true});$('setup-screen').classList.add('hidden');$('main-menu').classList.remove('hidden')});
   document.querySelectorAll('[data-back-setup]').forEach(b=>b.onclick=()=>{$('deploy-screen').classList.add('hidden');$('setup-screen').classList.remove('hidden')});
   document.querySelectorAll('[data-map]').forEach(el=>el.onclick=()=>{
     document.querySelectorAll('[data-map]').forEach(x=>x.classList.remove('selected'));
@@ -1610,7 +2012,10 @@ function setupMenus(){
   $('btn-close-reinforce').onclick=()=>$('reinforce-modal').classList.add('hidden');
   $('btn-clear-reinforce').onclick=()=>{reinforceCart={}; refreshDeployUis();};
   $('btn-spawn-reinforce').onclick=spawnReinforcements;
-  $('btn-pause').onclick=()=>{ if(gamePhase==='running'){gamePhase='paused';showNotice('Pause');} else if(gamePhase==='paused'){gamePhase='running';showNotice('Reprise');} };
+  $('btn-pause').onclick=()=>{
+    if(gamePhase==='running'){ gamePhase='paused'; audio.pauseAmbience(); showNotice('Pause'); }
+    else if(gamePhase==='paused'){ gamePhase='running'; audio.resumeAmbience(); showNotice('Reprise'); }
+  };
   const zoomInBtn = $('btn-zoom-in');
   const zoomOutBtn = $('btn-zoom-out');
   if(zoomInBtn) zoomInBtn.onclick=()=>setZoom(zoom*1.18);
@@ -1618,6 +2023,10 @@ function setupMenus(){
   $('btn-stop').onclick=()=>{ if(selected){selected.dest=null; selected.attackTarget=null; selected.speedNow=0;} };
   $('btn-retreat').onclick=()=>{ if(selected){selected.dest={x:selected.x-220,z:selected.z+160}; selected.attackTarget=null;} };
   $('btn-details').onclick=()=>$('unit-details').classList.toggle('hidden');
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden) audio.pauseAmbience();
+    else if(gamePhase==='running') audio.resumeAmbience();
+  });
 }
 
 async function toggleFullscreen(){
