@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.9 — Quaternius Vehicle Pass</title>
+<title>OPERATION OVERWATCH v0.4.10 — Realistic Combat Audio</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -575,11 +575,25 @@ const AT_THREAT_DURATION=6.5;
 const AI_REACTION_MODES=['reverse_smoke','hard_flank_left','hard_flank_right','hull_down','break_contact','zigzag_retreat','bait_and_hold','screen_infantry','wide_arc','objective_cover'];
 const SAMPLE_ROOT='https://raw.githubusercontent.com/ETdoFresh/kenney.nl/master/';
 const AUDIO_SAMPLE_URLS={
-  ui_click:SAMPLE_ROOT+'kenney_interfacesounds/Audio/click_001.ogg',
-  order:SAMPLE_ROOT+'kenney_interfacesounds/Audio/confirmation_001.ogg',
-  impact:SAMPLE_ROOT+'kenney_impactsounds/Audio/impactGeneric_light_000.ogg',
-  armor:SAMPLE_ROOT+'kenney_impactsounds/Audio/impactMetal_heavy_000.ogg',
-  debris:SAMPLE_ROOT+'kenney_impactsounds/Audio/impactMetal_medium_003.ogg'
+  // Chaque entrée essaie d'abord l'asset local, puis la source distante vérifiée.
+  ui_click:['assets/audio/ui/click_001.ogg', SAMPLE_ROOT+'kenney_interfacesounds/Audio/click_001.ogg'],
+  order:['assets/audio/ui/confirmation_001.ogg', SAMPLE_ROOT+'kenney_interfacesounds/Audio/confirmation_001.ogg'],
+  impact:['assets/audio/sfx/impactGeneric_light_000.ogg', SAMPLE_ROOT+'kenney_impactsounds/Audio/impactGeneric_light_000.ogg'],
+  debris:['assets/audio/sfx/impactMetal_medium_003.ogg', SAMPLE_ROOT+'kenney_impactsounds/Audio/impactMetal_medium_003.ogg'],
+
+  // OpenGameArt / KuraiWolf : Light Machine Gun, CC-BY 4.0.
+  rifle:['assets/audio/sfx/lmg_fire01.mp3', 'https://opengameart.org/sites/default/files/lmg_fire01.mp3'],
+  mg:['assets/audio/sfx/lmg_fire01.mp3', 'https://opengameart.org/sites/default/files/lmg_fire01.mp3'],
+  autocannon:['assets/audio/sfx/lmg_fire01.mp3', 'https://opengameart.org/sites/default/files/lmg_fire01.mp3'],
+
+  // OpenGameArt / Thimras : Cannon fire + hit, CC0.
+  tank:['assets/audio/sfx/cannon_fire.ogg', 'https://opengameart.org/sites/default/files/cannon_fire_0.ogg'],
+  at_launch:['assets/audio/sfx/at_launch_heavy.ogg', 'https://opengameart.org/sites/default/files/cannon_fire_0.ogg'],
+  armor:['assets/audio/sfx/cannon_hit.ogg', 'https://opengameart.org/sites/default/files/cannon_hit_0.ogg'],
+
+  // OpenGameArt / EZduzziteh : explosions CC0.
+  explosion:['assets/audio/sfx/explosion1.ogg', 'https://opengameart.org/sites/default/files/explosion1_0.ogg'],
+  explosion_light:['assets/audio/sfx/explosion3.ogg', 'https://opengameart.org/sites/default/files/explosion3.ogg']
 };
 const MAPS={
   route7:{
@@ -676,7 +690,7 @@ let reinforceShopSignature='';
 const audio=createAudio();
 
 function createAudio(){
-  let ac=null, active=0, ambient=null, samplesRequested=false; const cd=new Map(); const maxActive=22, sampleBuffers=new Map();
+  let ac=null, active=0, ambient=null, samplesRequested=false; const cd=new Map(); const maxActive=24, sampleBuffers=new Map(), sampleElements=new Map();
   function unlock(){
     const C=window.AudioContext||window.webkitAudioContext;
     if(!C)return false;
@@ -686,10 +700,28 @@ function createAudio(){
     return true;
   }
   function requestSamples(){
-    if(samplesRequested||!ac||!window.fetch)return;
+    if(samplesRequested||!ac)return;
     samplesRequested=true;
-    Object.entries(AUDIO_SAMPLE_URLS).forEach(([name,url])=>{
-      fetch(url,{mode:'cors'}).then(r=>r.ok?r.arrayBuffer():Promise.reject(new Error('audio'))).then(b=>ac.decodeAudioData(b)).then(buf=>sampleBuffers.set(name,buf)).catch(()=>{});
+    Object.entries(AUDIO_SAMPLE_URLS).forEach(([name,value])=>{
+      const urls=Array.isArray(value)?value:[value];
+      const els=[];
+      for(const url of urls){
+        try{
+          const el=new Audio(url);
+          el.preload='auto';
+          el.load();
+          els.push(el);
+        }catch(e){}
+        // Tentative WebAudio pour une latence basse si le serveur autorise le décodage.
+        if(window.fetch){
+          fetch(url,{mode:'cors'})
+            .then(r=>r.ok?r.arrayBuffer():Promise.reject(new Error('audio')))
+            .then(b=>ac.decodeAudioData(b))
+            .then(buf=>{if(!sampleBuffers.has(name))sampleBuffers.set(name,buf)})
+            .catch(()=>{});
+        }
+      }
+      sampleElements.set(name,els);
     });
   }
   function vol(base,x,y){
@@ -712,10 +744,37 @@ function createAudio(){
     g.connect(ac.destination); active++; setTimeout(()=>active=Math.max(0,active-1),(dur+0.1)*1000); return g;
   }
   function playSample(name,v,rate=1){
+    if(!v)return false;
     const buf=sampleBuffers.get(name);
-    if(!buf||!v)return false;
-    const s=ac.createBufferSource(); s.buffer=buf; s.playbackRate.value=rate*(.94+Math.random()*.12);
-    s.connect(gain(v,Math.min(1.2,buf.duration+.03))); s.start(); return true;
+    if(buf){
+      const s=ac.createBufferSource(); s.buffer=buf; s.playbackRate.value=rate*(.94+Math.random()*.12);
+      s.connect(gain(v,Math.min(1.35,buf.duration+.03))); s.start(); return true;
+    }
+    const fromCache=sampleElements.get(name);
+    const raw=AUDIO_SAMPLE_URLS[name];
+    const srcs=(fromCache&&fromCache.length)?fromCache:(Array.isArray(raw)?raw:[raw]).filter(Boolean);
+    if(!srcs.length)return false;
+    let i=0;
+    const tryPlay=()=>{
+      if(i>=srcs.length)return;
+      try{
+        const src=srcs[i++];
+        const el=(typeof HTMLAudioElement!=='undefined'&&src instanceof HTMLAudioElement)?src.cloneNode(true):new Audio(src);
+        el.preload='auto';
+        el.volume=clamp(v,0,1);
+        el.playbackRate=clamp(rate*(.96+Math.random()*.08),.65,1.45);
+        active++;
+        let done=false;
+        const release=()=>{if(!done){done=true;active=Math.max(0,active-1)}};
+        el.onended=release;
+        el.onerror=()=>{release();tryPlay()};
+        const pr=el.play();
+        if(pr&&pr.catch)pr.catch(()=>{release();tryPlay()});
+        setTimeout(release,2600);
+      }catch(e){tryPlay()}
+    };
+    tryPlay();
+    return true;
   }
   function osc(freq,dur,type,v,slide=.55){
     if(!v)return; const o=ac.createOscillator(), g=gain(v,dur);
@@ -739,7 +798,8 @@ function createAudio(){
     const v=vol(o.volume??1,o.x,o.y); if(v<=.01)return;
     if(!allowed(o.cooldownKey||name,o.cooldown||0))return;
     const sampleRate=o.rate||1;
-    if(['ui_click','order','impact','armor','debris'].includes(name)&&playSample(name,v,sampleRate))return;
+    const sampleName=(name==='explosion'&&o.light)?'explosion_light':name;
+    if(playSample(sampleName,v,sampleRate))return;
     switch(name){
       case 'ui_click': osc(760,.045,'triangle',v*.28); break;
       case 'order': osc(540,.07,'sine',v*.32); osc(880,.045,'triangle',v*.18); break;
