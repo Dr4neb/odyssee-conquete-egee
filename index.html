@@ -1,240 +1,79 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>OPERATION OVERWATCH v0.2 Combat</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>OPERATION OVERWATCH v0.3 — Blindés</title>
 <style>
-  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10140f;font-family:Arial,sans-serif;color:#e8f0df;touch-action:none}
-  #game{position:fixed;inset:0}
-  #hud{position:fixed;left:12px;right:12px;bottom:12px;display:flex;gap:10px;align-items:flex-end;pointer-events:none}
-  .panel{background:rgba(12,18,16,.82);border:1px solid rgba(180,220,170,.35);border-radius:12px;padding:10px;backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(0,0,0,.25)}
-  #info{min-width:240px;max-width:360px;font-size:13px;line-height:1.35}
-  #buttons{display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto}
-  button{background:#22352d;color:#e8f0df;border:1px solid #5b8065;border-radius:9px;padding:10px 12px;font-weight:700}
-  button:active{transform:translateY(1px)}
-  #top{position:fixed;left:12px;top:12px;font-size:13px;background:rgba(12,18,16,.72);padding:8px 10px;border-radius:10px;border:1px solid rgba(180,220,170,.25)}
-  #hint{position:fixed;right:12px;top:12px;max-width:320px;font-size:12px;text-align:right;color:#d6e8ca;background:rgba(12,18,16,.55);padding:8px 10px;border-radius:10px}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#e8e8e8;font-family:system-ui,Arial;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
+#game{width:100vw;height:100vh;display:block}
+#hud{position:fixed;left:10px;right:10px;bottom:10px;display:flex;gap:10px;align-items:end;pointer-events:none}
+.panel{background:rgba(14,18,20,.86);border:1px solid #5f6b66;border-radius:12px;padding:10px;min-width:230px;box-shadow:0 6px 18px #0008}
+.title{font-weight:800;color:#fff;margin-bottom:4px}.small{font-size:12px;color:#bfc8c2;line-height:1.35}
+.bar{height:7px;background:#333;border-radius:9px;overflow:hidden;margin:3px 0}.fill{height:100%;background:#62d17b}.mor{background:#7db8ff}.sup{background:#ffb14e}.fat{background:#e6dd76}
+.buttons{display:flex;flex-wrap:wrap;gap:6px;pointer-events:auto}.buttons button{background:#26312f;color:#eaf2ee;border:1px solid #74847e;border-radius:8px;padding:8px 9px;font-weight:700}
+.buttons button:active{transform:scale(.96);background:#3b4b47}
+#top{position:fixed;left:10px;top:10px;background:rgba(0,0,0,.55);border:1px solid #777;border-radius:10px;padding:8px 10px;font-size:12px;max-width:420px}
 </style>
 </head>
 <body>
-<div id="game"></div>
-<div id="top">OPERATION OVERWATCH v0.2 — Combat infantry prototype</div>
-<div id="hint">Desktop: clic gauche sélectionner, clic droit déplacer, molette zoom, WASD caméra, 1-4 formations. Mobile: tap sélectionner, appui long déplacer, glisser caméra, pinch zoom.</div>
-<div id="hud">
-  <div id="info" class="panel">Sélectionne une escouade alliée.</div>
-  <div id="buttons" class="panel">
-    <button data-formation="line">Ligne</button>
-    <button data-formation="column">Colonne</button>
-    <button data-formation="wedge">Wedge</button>
-    <button data-formation="spread">Dispersé</button>
-    <button id="stop">Stop</button>
-    <button id="retreat">Repli</button>
-  </div>
-</div>
+<canvas id="game"></canvas>
+<div id="top">OPERATION OVERWATCH v0.3 — Blindés<br/>Desktop: glisser caméra, molette zoom, clic unité puis clic sol. Touch: tap unité puis tap sol. 1-4 formations.</div>
+<div id="hud"><div class="panel" id="info"><div class="title">Aucune sélection</div><div class="small">Sélectionne une escouade ou un véhicule allié.</div></div><div class="panel"><div class="buttons" id="buttons"></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
 <script>
+'use strict';
+const W=2400,H=1600, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y), ang=(a,b)=>Math.atan2(b.y-a.y,b.x-a.x);
+const terrain=[{t:'road',x:0,y:720,w:2400,h:110},{t:'road',x:1080,y:0,w:130,h:1600},{t:'forest',x:180,y:150,w:430,h:310},{t:'forest',x:1700,y:160,w:470,h:330},{t:'rocks',x:370,y:1060,w:430,h:280},{t:'urban',x:1420,y:960,w:500,h:340}];
+const T={open:{s:1,v:1,d:1,sup:1.2,c:'none'},road:{s:1.25,v:1,d:1,sup:1.15,c:'none'},forest:{s:.75,v:.8,d:.82,sup:.75,c:'light'},urban:{s:.65,v:.75,d:.65,sup:.65,c:'medium'},rocks:{s:.55,v:.9,d:.55,sup:.55,c:'heavy'}};
+const F={line:{speed:.9,acc:1.08,sup:.95,vuln:1.05,w:52},column:{speed:1.15,acc:.95,sup:1.25,vuln:1.2,w:28},wedge:{speed:1,acc:1,sup:1,vuln:1,w:42},spread:{speed:.82,acc:.95,sup:.72,vuln:.82,w:72}};
+const VCFG={
+humvee:{name:'Humvee',hp:120,af:8,as:5,ar:3,speed:150,rev:70,acc:220,turn:3.2,vision:360,range:260,dmg:10,accuracy:.55,reload:.6,ammo:300,fuel:100,cap:1,role:'recon'},
+apc:{name:'APC',hp:220,af:18,as:12,ar:8,speed:110,rev:50,acc:140,turn:2.4,vision:320,range:260,dmg:14,accuracy:.5,reload:.8,ammo:400,fuel:100,cap:2,role:'transport'},
+ifv:{name:'IFV',hp:260,af:26,as:16,ar:10,speed:100,rev:45,acc:120,turn:2.1,vision:340,range:320,dmg:26,accuracy:.58,reload:1.4,ammo:120,fuel:100,cap:1,role:'support'},
+mbt:{name:'MBT',hp:420,af:60,as:35,ar:20,speed:75,rev:35,acc:80,turn:1.4,vision:330,range:420,dmg:90,accuracy:.62,reload:3.5,ammo:40,fuel:100,cap:0,role:'tank'},
+truck:{name:'Camion',hp:100,af:2,as:1,ar:1,speed:120,rev:45,acc:120,turn:2,vision:260,range:0,dmg:0,accuracy:0,reload:0,ammo:0,fuel:100,cap:3,role:'logistics'},
+ambulance:{name:'Ambulance',hp:110,af:3,as:2,ar:1,speed:115,rev:45,acc:120,turn:2,vision:280,range:0,dmg:0,accuracy:0,reload:0,ammo:0,fuel:100,cap:1,heal:180,role:'medical'}
+};
 (async()=>{
-const {Application,Container,Graphics,Text} = PIXI;
-const app = new Application();
-await app.init({resizeTo:window,background:'#182018',antialias:true,powerPreference:'high-performance'});
-document.getElementById('game').appendChild(app.canvas);
-
-const MAP={w:2400,h:1600};
-const BAL={
- speed:78, vision:330, range:270, damage:9, acc:.56,
- moraleRetreat:18, pinned:80, commandRadius:220
-};
-const FORM={
- line:{speed:.9, suppress:.95, vuln:.9, acc:1.08, spread:44},
- column:{speed:1.18, suppress:1.14, vuln:1.18, acc:.95, spread:22},
- wedge:{speed:1, suppress:1, vuln:1, acc:1, spread:34},
- spread:{speed:.82, suppress:.78, vuln:.78, acc:.98, spread:58}
-};
-const TERRAIN={
- open:{speed:1,cover:'none',supp:1.2,vision:1,recvAcc:1.06,dmg:1},
- forest:{speed:.82,cover:'light',supp:.85,vision:.82,recvAcc:.86,dmg:.92},
- road:{speed:1.25,cover:'none',supp:1.12,vision:1,recvAcc:1.04,dmg:1},
- urban:{speed:.9,cover:'medium',supp:.78,vision:.78,recvAcc:.78,dmg:.72},
- rocks:{speed:.72,cover:'heavy',supp:.62,vision:.9,recvAcc:.7,dmg:.55}
-};
-const world=new Container(); app.stage.addChild(world);
-const ground=new Graphics(); world.addChild(ground);
-const effects=new Container(); world.addChild(effects);
-const squadsLayer=new Container(); world.addChild(squadsLayer);
-const uiLayer=new Container(); world.addChild(uiLayer);
-
-let camera={x:0,y:0,z:1,min:.45,max:1.8};
-let pointer={down:false,drag:false,x:0,y:0,wx:0,wy:0,t:0,long:false};
-let keys={}; let selected=null; let orderMarkers=[]; let particles=[]; let lastTap=0;
-
-const terrains=[
- {type:'forest',x:210,y:180,w:480,h:310},{type:'forest',x:1480,y:180,w:520,h:330},
- {type:'road',x:0,y:690,w:2400,h:120},{type:'urban',x:950,y:485,w:360,h:270},
- {type:'rocks',x:540,y:980,w:430,h:250},{type:'rocks',x:1600,y:1010,w:420,h:250}
-];
-const covers=[
- {x:600,y:1040,w:360,h:180,type:'heavy'},{x:990,y:510,w:300,h:220,type:'medium'},
- {x:1540,y:220,w:350,h:230,type:'light'},{x:1660,y:1045,w:320,h:160,type:'heavy'}
-];
-const objectives=[
- {id:'Alpha',x:820,y:760,r:95,owner:'neutral',progress:0,bar:new Graphics(),label:null},
- {id:'Bravo',x:1560,y:760,r:95,owner:'neutral',progress:0,bar:new Graphics(),label:null}
-];
-
-function drawMap(){
- ground.clear().rect(0,0,MAP.w,MAP.h).fill(0x526246);
- terrains.forEach(t=>{
-  const c={forest:0x304a32,road:0x6d644f,urban:0x5c5f62,rocks:0x6b6a5f,open:0x526246}[t.type];
-  ground.rect(t.x,t.y,t.w,t.h).fill(c);
- });
- for(let i=0;i<70;i++){let x=(i*197)%MAP.w,y=(i*89+130)%MAP.h; ground.circle(x,y,12+((i*7)%13)).fill(0x253b28);}
- for(let i=0;i<34;i++){let x=(i*151+60)%MAP.w,y=(i*211+440)%MAP.h; ground.circle(x,y,14+((i*5)%12)).fill(0x77776c);}
- covers.forEach(c=>ground.roundRect(c.x,c.y,c.w,c.h,18).stroke({color:0xe8dfae,width:3,alpha:.65}).fill({color:0x3b4439,alpha:.35}));
- objectives.forEach(o=>{
-  const g=new Graphics(); world.addChild(g); o.g=g; world.addChild(o.bar);
-  o.label=new Text({text:o.id,style:{fontSize:18,fill:'#f2f4df',fontWeight:'bold'}}); o.label.anchor.set(.5); o.label.position.set(o.x,o.y-8); world.addChild(o.label);
- });
-}
-drawMap();
-
-function makeSquad(d){
- const g=new Container(); squadsLayer.addChild(g);
- const s=Object.assign({destinationX:d.x,destinationY:d.y,selected:false,health:100,maxHealth:100,morale:100,suppression:0,fatigue:0,visionRange:BAL.vision,attackRange:BAL.range,damage:BAL.damage,accuracy:BAL.acc,ammo:999,speed:BAL.speed,state:'idle',formation:'wedge',suppState:'normal',coverState:'none',terrain:'open',cool:0,target:null,commander:false,ai:'patrol'},d,{g});
- s.sel=new Graphics(); s.body=new Graphics(); s.bars=new Graphics(); s.txt=new Text({text:d.name,style:{fontSize:12,fill:'#ffffff'}}); s.txt.anchor.set(.5,1.9);
- g.addChild(s.sel,s.body,s.bars,s.txt); return s;
-}
-const squads=[
- makeSquad({id:'a1',name:'A-1 Rifle',faction:'ally',x:270,y:680}),
- makeSquad({id:'a2',name:'A-2 Fire',faction:'ally',x:250,y:780}),
- makeSquad({id:'a3',name:'A-3 Scout',faction:'ally',x:320,y:890,visionRange:380,accuracy:.62}),
- makeSquad({id:'a4',name:'A-4 Support',faction:'ally',x:210,y:1000,damage:11,speed:68}),
- makeSquad({id:'ac',name:'HQ Commander',faction:'ally',x:160,y:820,commander:true,health:80,maxHealth:80,damage:6}),
- makeSquad({id:'e1',name:'E-1 Rifle',faction:'enemy',x:2030,y:620}),
- makeSquad({id:'e2',name:'E-2 Fire',faction:'enemy',x:2100,y:760}),
- makeSquad({id:'e3',name:'E-3 Scout',faction:'enemy',x:1980,y:920,visionRange:380,accuracy:.62}),
- makeSquad({id:'e4',name:'E-4 Support',faction:'enemy',x:2140,y:1020,damage:11,speed:68}),
- makeSquad({id:'ec',name:'EN Commander',faction:'enemy',x:2220,y:820,commander:true,health:80,maxHealth:80,damage:6})
-];
-
-function dist(a,b,c,d){return Math.hypot(a-c,b-d)}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
-function screenToWorld(x,y){return {x:(x-world.x)/camera.z,y:(y-world.y)/camera.z}}
-function updateCamera(){world.scale.set(camera.z); world.position.set(-camera.x*camera.z+app.screen.width/2,-camera.y*camera.z+app.screen.height/2)}
-function clampCamera(){camera.x=clamp(camera.x,app.screen.width/(2*camera.z),MAP.w-app.screen.width/(2*camera.z));camera.y=clamp(camera.y,app.screen.height/(2*camera.z),MAP.h-app.screen.height/(2*camera.z))}
-function terrainAt(x,y){for(let i=terrains.length-1;i>=0;i--){let t=terrains[i]; if(x>=t.x&&x<=t.x+t.w&&y>=t.y&&y<=t.y+t.h)return t.type;} return 'open'}
-function coverAt(x,y){let best='none'; for(const c of covers){if(x>=c.x&&x<=c.x+c.w&&y>=c.y&&y<=c.y+c.h)best=c.type;} return best}
-function isVisibleToEnemy(s){return squads.some(o=>o.faction!==s.faction&&o.health>0&&dist(s.x,s.y,o.x,o.y)<o.visionRange*(TERRAIN[o.terrain]?.vision||1))}
-function commandBonus(s){return squads.some(o=>o.faction===s.faction&&o.commander&&o!==s&&o.health>0&&dist(s.x,s.y,o.x,o.y)<BAL.commandRadius)}
-function select(s){squads.forEach(q=>q.selected=false); selected=s; if(s){s.selected=true; updateHud();}}
-function setFormation(f){if(selected&&selected.faction==='ally'&&selected.health>0){selected.formation=f; selected.fatigue=clamp(selected.fatigue+4,0,100);}}
-function orderMove(x,y){if(!selected||selected.health<=0)return; selected.destinationX=clamp(x,20,MAP.w-20); selected.destinationY=clamp(y,20,MAP.h-20); selected.state='moving'; selected.fatigue=clamp(selected.fatigue+5,0,100); marker(x,y);}
-function marker(x,y){const g=new Graphics().circle(0,0,18).stroke({color:0x90d7ff,width:3}).moveTo(-24,0).lineTo(24,0).moveTo(0,-24).lineTo(0,24).stroke({color:0x90d7ff,width:2});g.position.set(x,y);uiLayer.addChild(g);orderMarkers.push({g,t:.7});}
-function particle(x,y,type){if(particles.length>120)return; const g=new Graphics(); let color=type==='smoke'?0xb8b8a8:type==='dust'?0xc5b183:0xffe1a0; g.circle(0,0,type==='smoke'?12:5).fill({color,alpha:.7}); g.position.set(x,y); effects.addChild(g); particles.push({g,t:type==='smoke'?1.0:.45,type});}
-function shoot(a,b,dt){
- a.cool-=dt; if(a.cool>0||a.ammo<=0)return; a.cool=.55+Math.random()*.35; a.ammo--;
- particle(b.x+(Math.random()-.5)*32,b.y+(Math.random()-.5)*32,'impact'); particle(a.x,a.y,'smoke');
- const form=FORM[a.formation], terr=TERRAIN[b.terrain]; const supMult=(a.suppState==='pinned'?.25:a.suppState==='suppressed'?.45:a.suppState==='pressured'?.75:1);
- const fatigueMult=1-a.fatigue/220; const cmd=commandBonus(a)?1.12:1;
- const chance=clamp(a.accuracy*form.acc*supMult*fatigueMult*cmd*(terr.recvAcc||1),.04,.9);
- b.suppression=clamp(b.suppression+8*FORM[b.formation].suppress*(TERRAIN[b.terrain].supp||1),0,100);
- b.morale=clamp(b.morale-2.8,0,100);
- if(Math.random()<chance){let cov={none:1,light:.82,medium:.62,heavy:.42}[b.coverState]||1; b.health=clamp(b.health-a.damage*cov*(terr.dmg||1)*FORM[b.formation].vuln,0,b.maxHealth); b.suppression=clamp(b.suppression+8,0,100); b.morale=clamp(b.morale-5,0,100);}
-}
-function updateSquadMeta(s,dt){
- s.terrain=terrainAt(s.x,s.y); s.coverState=coverAt(s.x,s.y); if(s.coverState==='none')s.coverState=TERRAIN[s.terrain].cover;
- s.suppression=clamp(s.suppression-(commandBonus(s)?11:7)*dt,0,100);
- if(s.suppression>80)s.suppState='pinned'; else if(s.suppression>55)s.suppState='suppressed'; else if(s.suppression>25)s.suppState='pressured'; else s.suppState='normal';
- if(s.state==='moving')s.fatigue=clamp(s.fatigue+(2+(s.suppression/40))*dt,0,100); else s.fatigue=clamp(s.fatigue-(s.coverState!=='none'?7:4)*dt,0,100);
- if(s.suppression<30)s.morale=clamp(s.morale+(commandBonus(s)?5:2)*dt,0,100);
- if(s.morale<BAL.moraleRetreat&&s.state!=='dead')s.state='retreating';
-}
-function movement(s,dt){
- if(s.health<=0){s.state='dead';return}
- if(s.suppState==='pinned'&&s.state==='moving'){s.state='idle';return}
- let tx=s.destinationX,ty=s.destinationY;
- if(s.state==='retreating'){tx=s.faction==='ally'?90:MAP.w-90; ty=s.y;}
- const d=dist(s.x,s.y,tx,ty); if(d>5&&(s.state==='moving'||s.state==='retreating')){
-  const sp=s.speed*FORM[s.formation].speed*(TERRAIN[s.terrain].speed||1)*(1-s.fatigue/190)*(s.suppState==='suppressed'?.58:s.suppState==='pressured'?.82:1);
-  s.x+=((tx-s.x)/d)*sp*dt; s.y+=((ty-s.y)/d)*sp*dt; if(Math.random()<.04)particle(s.x,s.y,'dust');
- } else if(s.state==='moving') s.state='idle';
-}
-function combat(s,dt){
- if(s.health<=0||s.state==='retreating')return;
- let enemies=squads.filter(o=>o.faction!==s.faction&&o.health>0&&dist(s.x,s.y,o.x,o.y)<s.visionRange*(TERRAIN[s.terrain].vision||1));
- enemies.sort((a,b)=>dist(s.x,s.y,a.x,a.y)-dist(s.x,s.y,b.x,b.y)); s.target=enemies[0]||null;
- if(s.target&&dist(s.x,s.y,s.target.x,s.target.y)<s.attackRange){s.state='engaging'; shoot(s,s.target,dt);}
- else if(s.state==='engaging')s.state='idle';
-}
-function ai(s,dt){
- if(s.faction!=='enemy'||s.health<=0)return;
- const visible=squads.filter(o=>o.faction==='ally'&&o.health>0&&dist(s.x,s.y,o.x,o.y)<s.visionRange*(TERRAIN[s.terrain].vision||1)).sort((a,b)=>dist(s.x,s.y,a.x,a.y)-dist(s.x,s.y,b.x,b.y))[0];
- if(s.morale<22){s.state='retreating'; return;}
- if(s.suppression>62&&s.coverState==='none'){let c=covers.reduce((best,c)=>dist(s.x,s.y,c.x+c.w/2,c.y+c.h/2)<best.d?{c,d:dist(s.x,s.y,c.x+c.w/2,c.y+c.h/2)}:best,{c:null,d:9999}).c; if(c){s.destinationX=c.x+c.w/2;s.destinationY=c.y+c.h/2;s.state='moving'; return;}}
- if(visible){let d=dist(s.x,s.y,visible.x,visible.y); if(d>s.attackRange*.82){let ang=Math.atan2(visible.y-s.y,visible.x-s.x)+(Math.random()-.5)*.55; s.destinationX=s.x+Math.cos(ang)*120; s.destinationY=s.y+Math.sin(ang)*120; s.state='moving';} return;}
- let obj=objectives.find(o=>o.owner!=='enemy')||objectives[0]; if(dist(s.x,s.y,obj.x,obj.y)>85){s.destinationX=obj.x+(Math.random()-.5)*120;s.destinationY=obj.y+(Math.random()-.5)*120;s.state='moving';}
-}
-function objectivesUpdate(dt){
- objectives.forEach(o=>{
-  let allies=squads.filter(s=>s.faction==='ally'&&s.health>0&&dist(s.x,s.y,o.x,o.y)<o.r);
-  let enemies=squads.filter(s=>s.faction==='enemy'&&s.health>0&&dist(s.x,s.y,o.x,o.y)<o.r);
-  let faction=null; if(allies.length&&!enemies.length)faction='ally'; if(enemies.length&&!allies.length)faction='enemy';
-  if(faction){let cmd=[...allies,...enemies].some(s=>s.commander); o.progress+=dt*(cmd?34:22)*(faction==='ally'?1:-1);}
-  else o.progress*=.985;
-  o.progress=clamp(o.progress,-100,100); if(o.progress>=100)o.owner='ally'; if(o.progress<=-100)o.owner='enemy';
- });
-}
-function render(){
- objectives.forEach(o=>{let color=o.owner==='ally'?0x4ea1ff:o.owner==='enemy'?0xff5b4e:0xf2e38a; o.g.clear().circle(o.x,o.y,o.r).stroke({color,width:4,alpha:.85}).fill({color,alpha:.13}); o.bar.clear().rect(o.x-55,o.y+20,110,8).fill(0x151515).rect(o.x-55,o.y+20,(o.progress+100)/200*110,8).fill(color);});
- squads.forEach(s=>{
-  const g=s.g; g.position.set(s.x,s.y); s.body.clear(); s.sel.clear(); s.bars.clear();
-  if(s.health<=0){s.body.circle(0,0,14).fill(0x1b1b1b).stroke({color:0x555555,width:2});return}
-  const ally=s.faction==='ally', color=ally?0x49a7ff:0xff5a45, edge=s.commander?0xfff08a:0xffffff;
-  if(s.selected)s.sel.circle(0,0,42).stroke({color:0x9fe8ff,width:4,alpha:.9});
-  if(s.coverState!=='none')s.sel.roundRect(-30,28,60,8,4).fill({color:0xf2df8a,alpha:{light:.35,medium:.55,heavy:.8}[s.coverState]});
-  const spread=FORM[s.formation].spread; const pts=s.formation==='line'?[[-spread,0],[0,0],[spread,0]]:s.formation==='column'?[[0,-spread*.55],[0,0],[0,spread*.55]]:s.formation==='spread'?[[-spread*.7,-10],[0,10],[spread*.7,-10]]:[[-spread*.55,12],[0,-16],[spread*.55,12]];
-  pts.forEach((p,i)=>s.body.circle(p[0],p[1],s.commander&&i===1?14:10).fill(color).stroke({color:edge,width:s.commander&&i===1?3:1,alpha:.9}));
-  s.body.circle(0,0,s.visionRange).stroke({color,alpha:s.selected?.14:.025,width:1});
-  s.bars.rect(-30,-42,60,6).fill(0x1a1d1a).rect(-30,-42,60*(s.health/s.maxHealth),6).fill(0x5be06b);
-  s.bars.rect(-30,-34,60,4).fill(0x1a1d1a).rect(-30,-34,60*(s.morale/100),4).fill(0xf3df59);
-  s.bars.rect(-30,-28,60,4).fill(0x1a1d1a).rect(-30,-28,60*(s.suppression/100),4).fill(0xff7a30);
-  s.txt.text=s.commander?'★ '+s.name:s.name;
-  s.alpha=s.faction==='enemy'&&!isVisibleToEnemy(s)?.28:1;
- });
-}
-function updateHud(){
- const el=document.getElementById('info');
- if(!selected||selected.health<=0){el.textContent='Sélectionne une escouade alliée.';return}
- el.innerHTML=`<b>${selected.name}</b><br>Santé ${selected.health.toFixed(0)}/${selected.maxHealth} · Moral ${selected.morale.toFixed(0)}<br>Suppression ${selected.suppression.toFixed(0)} (${selected.suppState}) · Fatigue ${selected.fatigue.toFixed(0)}<br>Formation ${selected.formation} · État ${selected.state}<br>Terrain ${selected.terrain} · Couverture ${selected.coverState} · Munitions ${selected.ammo}${commandBonus(selected)?'<br>Bonus commandant actif':''}`;
-}
-document.querySelectorAll('[data-formation]').forEach(b=>b.onclick=()=>setFormation(b.dataset.formation));
-document.getElementById('stop').onclick=()=>{if(selected){selected.destinationX=selected.x;selected.destinationY=selected.y;selected.state='idle';}};
-document.getElementById('retreat').onclick=()=>{if(selected)selected.state='retreating';};
-window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true; if(['1','2','3','4'].includes(e.key))setFormation(['line','column','wedge','spread'][+e.key-1]);});
-window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+const app=new PIXI.Application(); await app.init({canvas:document.getElementById('game'),resizeTo:window,background:'#141916',antialias:true});
+const world=new PIXI.Container(); app.stage.addChild(world); let cam={x:0,y:0,z:.75}; const squads=[],vehicles=[],effects=[],objectives=[]; let selected=null,drag=false,last=null,dragMoved=false;
+function terrainAt(x,y){for(let i=terrain.length-1;i>=0;i--){let r=terrain[i];if(x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h)return r.t}return'open'}
+function drawMap(){let g=new PIXI.Graphics();world.addChild(g);g.rect(0,0,W,H).fill(0x4f6949);terrain.forEach(r=>{let col={road:0x777166,forest:0x274d2b,rocks:0x65645f,urban:0x555b61}[r.t];g.rect(r.x,r.y,r.w,r.h).fill(col).stroke({color:0x222222,width:2,alpha:.25})}); for(let i=0;i<90;i++){let x=Math.random()*W,y=Math.random()*H,t=terrainAt(x,y); if(t==='forest'){g.circle(x,y,8+Math.random()*10).fill(0x183d20)} if(t==='rocks'){g.poly([x,y-8,x+13,y+2,x+4,y+13,x-12,y+6]).fill(0x898982)}}}
+function makeSquad(id,f,x,y,cmd=false){let s={kind:'squad',id,faction:f,x,y,destinationX:x,destinationY:y,selected:false,health:cmd?130:100,maxHealth:cmd?130:100,morale:100,suppression:0,fatigue:0,visionRange:cmd?360:320,attackRange:cmd?285:260,damage:cmd?7:8,accuracy:cmd?.62:.55,ammo:999,speed:cmd?72:82,state:'idle',formation:'wedge',cover:'none',terrain:'open',command:cmd,hidden:false,passengerOf:null,fireCD:0,g:new PIXI.Container()}; let g=s.g; world.addChild(g); let body=new PIXI.Graphics();body.label='body';g.addChild(body); let sel=new PIXI.Graphics();sel.label='sel';g.addChildAt(sel,0); let bars=new PIXI.Graphics();bars.label='bars';g.addChild(bars); s.draw=()=>{body.clear();sel.clear();bars.clear();let c=f==='ally'?0x39a5ff:0xe0523c;if(cmd)c=f==='ally'?0x8df57d:0xff9b40; let fw=F[s.formation].w; if(s.selected)sel.ellipse(0,0,fw,28).stroke({color:0xffff66,width:3}); body.circle(-fw/4,0,9).fill(c);body.circle(0,-7,9).fill(c);body.circle(fw/4,0,9).fill(c); if(cmd)body.star(0,-25,5,11,5).fill(0xfff06a); if(s.cover!=='none')body.rect(-9,15,18,8).fill(0xb8a06a); bars.rect(-34,-42,68,5).fill(0x222222);bars.rect(-34,-42,68*s.health/s.maxHealth,5).fill(0x58dd70);bars.rect(-34,-35,68,4).fill(0x222222);bars.rect(-34,-35,68*s.morale/100,4).fill(0x68aaf5);bars.rect(-34,-29,68,4).fill(0x222222);bars.rect(-34,-29,68*s.suppression/100,4).fill(0xffaa42);}; s.draw(); squads.push(s); return s}
+function makeVehicle(id,type,f,x,y){let c=VCFG[type], v={kind:'vehicle',id,type,name:c.name,faction:f,x,y,rotation:f==='ally'?0:Math.PI,destinationX:x,destinationY:y,selected:false,health:c.hp,maxHealth:c.hp,armorFront:c.af,armorSide:c.as,armorRear:c.ar,speed:c.speed,reverseSpeed:c.rev,acceleration:c.acc,turnRate:c.turnRate||c.turn,visionRange:c.vision,attackRange:c.range,damage:c.dmg,accuracy:c.accuracy,reloadTime:c.reload,ammo:c.ammo,fuel:c.fuel,transportCapacity:c.cap,passengers:[],state:'idle',vel:0,fireCD:0,hidden:false,g:new PIXI.Container()}; let g=v.g; world.addChild(g); let body=new PIXI.Graphics();g.addChild(body); let sel=new PIXI.Graphics();g.addChildAt(sel,0); let bars=new PIXI.Graphics();g.addChild(bars); v.draw=()=>{body.clear();sel.clear();bars.clear();let base=f==='ally'?0x2f9be6:0xd14938, dark=f==='ally'?0x1b577c:0x751e18;if(v.selected)sel.ellipse(0,0,50,32).stroke({color:0xffff66,width:3}); let len= type==='mbt'?70:type==='truck'||type==='ambulance'?66:56, wid= type==='mbt'?34:30; body.roundRect(-len/2,-wid/2,len,wid,5).fill(base).stroke({color:0x111111,width:2}); body.rect(-len/2+5,-wid/2+4,len-10,6).fill(dark); if(type==='mbt'||type==='ifv')body.rect(0,-4,len/2,8).fill(0x232323),body.circle(0,0,13).fill(dark); if(type==='ambulance'){body.rect(-8,-12,16,24).fill(0xffffff);body.rect(-3,-15,6,30).fill(0xff2222);body.rect(-15,-3,30,6).fill(0xff2222)} if(type==='truck')body.rect(-25,-12,28,24).fill(0x3b3b30); if(v.health<=0)body.alpha=.45;else body.alpha=1; bars.rect(-36,-32,72,6).fill(0x222);bars.rect(-36,-32,72*Math.max(0,v.health)/v.maxHealth,6).fill(0x58dd70);}; v.draw(); vehicles.push(v); return v}
+drawMap(); [['A1',220,360],['A2',260,460],['A3',210,560],['A4',330,520]].forEach(a=>makeSquad(a[0],'ally',a[1],a[2])); makeSquad('CMD-A','ally',150,450,true);
+[['E1',2020,1030],['E2',2100,1130],['E3',1900,1160],['E4',2030,1260]].forEach(a=>makeSquad(a[0],'enemy',a[1],a[2])); makeSquad('CMD-E','enemy',2180,1160,true);
+['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>makeVehicle('V-'+t,t,'ally',260,760+i*62));
+['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>makeVehicle('EV-'+t,t,'enemy',2000,640+i*70));
+function objective(id,x,y){let o={id,x,y,r:85,owner:'neutral',progress:0,g:new PIXI.Graphics()};world.addChild(o.g);objectives.push(o);return o}objective('OBJ ALPHA',1150,420);objective('OBJ BRAVO',1240,1180);
+function fx(x,y,type){if(effects.length>100)return;let g=new PIXI.Graphics();world.addChild(g);effects.push({x,y,t:0,life:type==='boom'?1:.45,type,g})}
+function updateFx(dt){for(let i=effects.length-1;i>=0;i--){let e=effects[i];e.t+=dt;e.g.clear();let a=1-e.t/e.life;if(e.type==='impact')e.g.circle(e.x,e.y,3+e.t*16).fill({color:0xffd27a,alpha:a});else if(e.type==='smoke')e.g.circle(e.x,e.y,8+e.t*22).fill({color:0x9b9b9b,alpha:a*.35});else e.g.circle(e.x,e.y,18+e.t*45).fill({color:0xff7b2e,alpha:a}); if(e.t>e.life){world.removeChild(e.g);effects.splice(i,1)}}}
+function all(){return squads.concat(vehicles)} function alive(u){return u.health>0 && u.state!=='destroyed' && !u.passengerOf}
+function selectableAt(p){let arr=all().filter(u=>u.faction==='ally'&&alive(u)); for(let i=arr.length-1;i>=0;i--) if(Math.hypot(arr[i].x-p.x,arr[i].y-p.y)<(arr[i].kind==='vehicle'?45:38))return arr[i]; return null}
+function screenToWorld(e){let r=app.canvas.getBoundingClientRect();return{x:(e.clientX-r.left)/cam.z+cam.x,y:(e.clientY-r.top)/cam.z+cam.y}}
+function setSelected(u){all().forEach(x=>x.selected=false); selected=u; if(u)u.selected=true; updateHud()}
+function order(p){if(!selected)return; selected.destinationX=clamp(p.x,20,W-20);selected.destinationY=clamp(p.y,20,H-20);selected.state= selected.kind==='vehicle'?'moving':'moving';fx(p.x,p.y,'impact'); if(selected.kind==='squad')selected.fatigue=clamp(selected.fatigue+5,0,100)}
 app.canvas.addEventListener('contextmenu',e=>e.preventDefault());
-app.canvas.addEventListener('pointerdown',e=>{const w=screenToWorld(e.clientX,e.clientY); pointer={down:true,drag:false,x:e.clientX,y:e.clientY,wx:w.x,wy:w.y,t:performance.now(),long:false};});
-app.canvas.addEventListener('pointermove',e=>{if(!pointer.down)return; let dx=e.clientX-pointer.x,dy=e.clientY-pointer.y; if(Math.hypot(dx,dy)>7)pointer.drag=true; if(pointer.drag){camera.x-=dx/camera.z;camera.y-=dy/camera.z;pointer.x=e.clientX;pointer.y=e.clientY;clampCamera();updateCamera();}});
-app.canvas.addEventListener('pointerup',e=>{
- const w=screenToWorld(e.clientX,e.clientY); const long=performance.now()-pointer.t>420; 
- if(!pointer.drag){let hit=squads.filter(s=>s.faction==='ally'&&s.health>0&&dist(w.x,w.y,s.x,s.y)<45).sort((a,b)=>dist(w.x,w.y,a.x,a.y)-dist(w.x,w.y,b.x,b.y))[0]; if(hit&&!long)select(hit); else if((e.button===2||long)&&selected)orderMove(w.x,w.y);}
- pointer.down=false;
-});
-app.canvas.addEventListener('wheel',e=>{e.preventDefault(); const old=camera.z; camera.z=clamp(camera.z*(e.deltaY>0?.9:1.1),camera.min,camera.max); clampCamera(); updateCamera();},{passive:false});
-let touchDist=0;
-app.canvas.addEventListener('touchmove',e=>{if(e.touches.length===2){e.preventDefault();let d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); if(touchDist){camera.z=clamp(camera.z*(d/touchDist),camera.min,camera.max);clampCamera();updateCamera();} touchDist=d;}},{passive:false});
-app.canvas.addEventListener('touchend',()=>touchDist=0);
-
-camera.x=MAP.w/2; camera.y=MAP.h/2; updateCamera();
-let acc=0;
-app.ticker.add(t=>{
- const dt=Math.min(t.deltaMS/1000,.05); acc+=dt;
- const camSp=520*dt/camera.z; if(keys.w||keys.arrowup)camera.y-=camSp;if(keys.s||keys.arrowdown)camera.y+=camSp;if(keys.a||keys.arrowleft)camera.x-=camSp;if(keys.d||keys.arrowright)camera.x+=camSp;clampCamera();updateCamera();
- squads.forEach(s=>updateSquadMeta(s,dt)); squads.forEach(s=>ai(s,dt)); squads.forEach(s=>movement(s,dt)); squads.forEach(s=>combat(s,dt)); objectivesUpdate(dt);
- orderMarkers.forEach(m=>{m.t-=dt;m.g.alpha=m.t/.7;m.g.scale.set(1+(1-m.t/.7)*.7)}); orderMarkers=orderMarkers.filter(m=>m.t>0||(m.g.destroy(),false));
- particles.forEach(p=>{p.t-=dt;p.g.alpha=Math.max(0,p.t);p.g.scale.x+=dt*.5;p.g.scale.y+=dt*.5}); particles=particles.filter(p=>p.t>0||(p.g.destroy(),false));
- render(); if(acc>.18){updateHud();acc=0;}
-});
+app.canvas.addEventListener('pointerdown',e=>{e.preventDefault();drag=true;dragMoved=false;last={x:e.clientX,y:e.clientY};});
+app.canvas.addEventListener('pointermove',e=>{if(!drag)return;let dx=e.clientX-last.x,dy=e.clientY-last.y;if(Math.hypot(dx,dy)>3)dragMoved=true;cam.x=clamp(cam.x-dx/cam.z,0,W-app.screen.width/cam.z);cam.y=clamp(cam.y-dy/cam.z,0,H-app.screen.height/cam.z);last={x:e.clientX,y:e.clientY}});
+app.canvas.addEventListener('pointerup',e=>{e.preventDefault();let p=screenToWorld(e);if(!dragMoved){let u=selectableAt(p); if(u)setSelected(u); else order(p)} drag=false});
+app.canvas.addEventListener('wheel',e=>{e.preventDefault();let old=cam.z;cam.z=clamp(cam.z*(e.deltaY<0?1.12:.88),.45,1.6);let p=screenToWorld(e);cam.x=clamp(p.x-(e.clientX/app.screen.width)*(app.screen.width/cam.z),0,W-app.screen.width/cam.z);cam.y=clamp(p.y-(e.clientY/app.screen.height)*(app.screen.height/cam.z),0,H-app.screen.height/cam.z)},{passive:false});
+window.addEventListener('keydown',e=>{if(selected?.kind==='squad'&&['1','2','3','4'].includes(e.key)){selected.formation=['line','column','wedge','spread'][+e.key-1];updateHud()} if(e.key==='s'&&selected){selected.destinationX=selected.x;selected.destinationY=selected.y;selected.state='idle'} if(e.key==='r'&&selected)retreat(selected)});
+function moveSquad(s,dt){if(!alive(s))return;s.terrain=terrainAt(s.x,s.y);s.cover=T[s.terrain].c;let d=Math.hypot(s.destinationX-s.x,s.destinationY-s.y);let supMult=s.suppression>80?0:s.suppression>55?.45:s.suppression>25?.75:1;let cmd=commandBonus(s);let sp=s.speed*F[s.formation].speed*T[s.terrain].s*supMult*(1-s.fatigue*.004)*(cmd?1.06:1);if(d>3&&s.state!=='pinned'){s.x+=(s.destinationX-s.x)/d*sp*dt;s.y+=(s.destinationY-s.y)/d*sp*dt;s.fatigue=clamp(s.fatigue+2*dt,0,100);s.state=s.suppression>80?'pinned':'moving'}else{s.fatigue=clamp(s.fatigue-(s.cover!=='none'?7:4)*dt,0,100); if(s.state!=='engaging'&&s.state!=='capturing')s.state='idle'}s.suppression=clamp(s.suppression-(cmd?10:6)*dt,0,100);s.morale=clamp(s.morale+(cmd?4:1)*dt-(s.suppression>55?3*dt:0),0,100);if(s.morale<18)retreat(s)}
+function moveVeh(v,dt){if(!alive(v))return;let d=Math.hypot(v.destinationX-v.x,v.destinationY-v.y), desired=d>8?ang(v,{x:v.destinationX,y:v.destinationY}):v.rotation;let da=Math.atan2(Math.sin(desired-v.rotation),Math.cos(desired-v.rotation));v.rotation+=clamp(da,-v.turnRate*dt,v.turnRate*dt);let tt=terrainAt(v.x,v.y), big=v.type==='mbt'||v.type==='ifv'||v.type==='apc';let tm={road:1.25,open:1,forest:big?.25:.45,rocks:big?.35:.55,urban:.65}[tt];let target=d>10?v.speed*tm:0;if(v.state==='disabled'||v.state==='destroyed')target=0;if(v.health<v.maxHealth*.45)target*=.65;v.vel += clamp(target-v.vel,-v.acceleration*dt,v.acceleration*dt);v.x+=Math.cos(v.rotation)*v.vel*dt;v.y+=Math.sin(v.rotation)*v.vel*dt;if(d<12)v.state='idle';else v.state='moving'; if(v.vel>30&&Math.random()<dt*2)fx(v.x-Math.cos(v.rotation)*28,v.y-Math.sin(v.rotation)*28,'smoke'); if(v.type==='ambulance')squads.filter(s=>s.faction===v.faction&&alive(s)&&dist(s,v)<VCFG.ambulance.heal).forEach(s=>{s.health=clamp(s.health+3*dt,0,s.maxHealth);s.morale=clamp(s.morale+5*dt,0,100)})}
+function commandBonus(u){return squads.some(c=>c.command&&c.faction===u.faction&&alive(c)&&c!==u&&dist(c,u)<220)}
+function armorDamage(v,from,dmg){let hit=Math.atan2(Math.sin(ang(v,from)-v.rotation),Math.cos(ang(v,from)-v.rotation));let a=Math.abs(hit)<Math.PI/4?v.armorFront:Math.abs(hit)>Math.PI*3/4?v.armorRear:v.armorSide;return Math.max(1,dmg-a)}
+function visibleEnemies(u){return all().filter(e=>e.faction!==u.faction&&alive(e)&&dist(u,e)<u.visionRange)}
+function combat(u,dt){if(!alive(u)||u.state==='retreating'||u.damage<=0)return;u.fireCD=Math.max(0,u.fireCD-dt);let es=visibleEnemies(u).sort((a,b)=>dist(u,a)-dist(u,b));let t=es.find(e=>dist(u,e)<u.attackRange);if(!t)return;u.state='engaging'; if(u.fireCD>0)return;u.fireCD=u.kind==='vehicle'?u.reloadTime:.8; let acc=u.accuracy*(u.kind==='squad'?F[u.formation].acc*(1-u.suppression*.006)*(1-u.fatigue*.003):1); if(commandBonus(u))acc*=1.08; if(Math.random()<acc){let dmg=u.damage;if(t.kind==='squad'){let terr=T[terrainAt(t.x,t.y)];dmg*=terr.d*F[t.formation]?.vuln||1;t.suppression=clamp(t.suppression+12*terr.sup,0,100);t.morale=clamp(t.morale-5,0,100)}else dmg=armorDamage(t,u,dmg);t.health-=dmg;fx(t.x+(Math.random()-.5)*25,t.y+(Math.random()-.5)*25,'impact'); if(t.health<=0){t.health=0;t.state=t.kind==='vehicle'?'destroyed':'dead';fx(t.x,t.y,'boom'); if(t.kind==='vehicle')t.passengers.forEach(p=>{p.passengerOf=null;p.x=t.x+Math.random()*50-25;p.y=t.y+Math.random()*50-25;p.health*=.65;p.g.visible=true});}}else{if(t.kind==='squad')t.suppression=clamp(t.suppression+5,0,100);fx(t.x+Math.random()*40-20,t.y+Math.random()*40-20,'smoke')} if(u.ammo>0)u.ammo--}
+function retreat(u){u.state='retreating';let dir=u.faction==='ally'? -1:1;u.destinationX=clamp(u.x+dir*220,20,W-20);u.destinationY=clamp(u.y+(Math.random()-.5)*160,20,H-20)}
+function ai(dt){all().filter(u=>u.faction==='enemy'&&alive(u)).forEach(u=>{let es=visibleEnemies(u); if(u.kind==='squad'){if(u.morale<20||u.suppression>80){retreat(u);return} if(es[0]){let t=es[0]; if(dist(u,t)>u.attackRange*.85){u.destinationX=t.x-120;u.destinationY=t.y+80} } else if(Math.random()<dt*.08){let o=objectives[Math.floor(Math.random()*objectives.length)];u.destinationX=o.x+Math.random()*100-50;u.destinationY=o.y+Math.random()*100-50}} else {if(u.health<u.maxHealth*.25){retreat(u);return} if(u.type==='ambulance'){let friend=all().filter(f=>f.faction==='enemy'&&alive(f)&&f.health<f.maxHealth).sort((a,b)=>a.health/a.maxHealth-b.health/b.maxHealth)[0]; if(friend){u.destinationX=friend.x-120;u.destinationY=friend.y}} else if(es[0]){let t=es[0],side=u.type==='humvee'||u.type==='ifv'?120:0;if(dist(u,t)>u.attackRange*.8){u.destinationX=t.x-side;u.destinationY=t.y+side}} else if(Math.random()<dt*.05){u.destinationX=1600+Math.random()*500;u.destinationY=500+Math.random()*600}}})}
+function objectivesUpdate(dt){objectives.forEach(o=>{let near=squads.filter(s=>alive(s)&&dist(s,o)<o.r&&!s.passengerOf);let a=near.filter(s=>s.faction==='ally').length,e=near.filter(s=>s.faction==='enemy').length;if(a!==e&&near.length){let side=a>e?'ally':'enemy';o.progress+=dt*(side==='ally'?1:-1)*(near.some(s=>s.command)?1.45:1); if(o.progress>4){o.owner='ally';o.progress=4} if(o.progress<-4){o.owner='enemy';o.progress=-4}}else o.progress*=.985;o.g.clear();let col=o.owner==='ally'?0x3399ff:o.owner==='enemy'?0xdd4433:0xd4d4d4;o.g.circle(o.x,o.y,o.r).fill({color:col,alpha:.12}).stroke({color:col,width:4});o.g.rect(o.x-50,o.y-6,100,12).fill(0x111);o.g.rect(o.x-50,o.y-6,50+o.progress/4*50,12).fill(col)})}
+function embark(){if(!selected)return;if(selected.kind==='squad'){let v=vehicles.find(v=>v.faction==='ally'&&alive(v)&&v.transportCapacity>v.passengers.length&&dist(v,selected)<80); if(v){v.passengers.push(selected);selected.passengerOf=v;selected.g.visible=false;setSelected(v)}}}
+function disembark(){if(selected?.kind!=='vehicle'||!selected.passengers.length)return;let p=selected.passengers.pop();p.passengerOf=null;p.x=selected.x+Math.random()*70-35;p.y=selected.y+Math.random()*70-35;p.destinationX=p.x;p.destinationY=p.y;p.g.visible=true;setSelected(p)}
+function updateHud(){let info=document.getElementById('info'), btn=document.getElementById('buttons');btn.innerHTML=''; if(!selected){info.innerHTML='<div class="title">Aucune sélection</div><div class="small">Sélectionne une escouade ou un véhicule allié.</div>';return} let u=selected; let bars=(n,val,cls='fill')=>`${n}<div class="bar"><div class="${cls}" style="width:${clamp(val,0,100)}%"></div></div>`; if(u.kind==='squad'){info.innerHTML=`<div class="title">${u.command?'Commandant ':'Escouade '}${u.id}</div><div class="small">${bars('Santé',u.health/u.maxHealth*100)}${bars('Moral',u.morale,'mor')}${bars('Suppression',u.suppression,'sup')}${bars('Fatigue',u.fatigue,'fat')}Formation: ${u.formation}<br/>État: ${u.state}<br/>Terrain: ${terrainAt(u.x,u.y)} / Couverture: ${u.cover}<br/>Munitions: ${u.ammo}</div>`; ['line','column','wedge','spread'].forEach(f=>{let b=document.createElement('button');b.textContent=f;b.onclick=()=>{u.formation=f;updateHud()};btn.appendChild(b)}); let e=document.createElement('button');e.textContent='Embark';e.onclick=embark;btn.appendChild(e)} else {info.innerHTML=`<div class="title">${u.name}</div><div class="small">${bars('Santé',u.health/u.maxHealth*100)}Blindage F/S/R: ${u.armorFront}/${u.armorSide}/${u.armorRear}<br/>État: ${u.state}<br/>Munitions: ${u.ammo} | Fuel: ${Math.round(u.fuel)}<br/>Passagers: ${u.passengers.length}/${u.transportCapacity}<br/>Arme: ${u.damage?u.damage+' dmg':'aucune'} | Vitesse: ${Math.round(u.vel)}</div>`; ['Stop','Reverse','Embark','Disembark'].forEach(name=>{let b=document.createElement('button');b.textContent=name;b.onclick=()=>{if(name==='Stop'){u.destinationX=u.x;u.destinationY=u.y} if(name==='Reverse'){u.destinationX=u.x-Math.cos(u.rotation)*120;u.destinationY=u.y-Math.sin(u.rotation)*120} if(name==='Embark')embark(); if(name==='Disembark')disembark();};btn.appendChild(b)})} let r=document.createElement('button');r.textContent='Repli';r.onclick=()=>retreat(u);btn.appendChild(r)}
+app.ticker.add(t=>{let dt=Math.min(.05,t.deltaMS/1000);all().forEach(u=>{if(u.passengerOf){u.x=u.passengerOf.x;u.y=u.passengerOf.y} });squads.forEach(s=>moveSquad(s,dt));vehicles.forEach(v=>moveVeh(v,dt));all().forEach(u=>combat(u,dt));ai(dt);objectivesUpdate(dt);updateFx(dt);world.x=-cam.x*cam.z;world.y=-cam.y*cam.z;world.scale.set(cam.z);all().forEach(u=>{u.g.position.set(u.x,u.y);u.g.rotation=u.kind==='vehicle'?u.rotation:0;u.hidden=u.faction==='enemy'&&!squads.concat(vehicles).some(a=>a.faction==='ally'&&alive(a)&&dist(a,u)<a.visionRange);u.g.alpha=u.hidden?.22:1;u.draw&&u.draw()}); if(selected)updateHud()});
+setSelected(null);
 })();
 </script>
 </body>
