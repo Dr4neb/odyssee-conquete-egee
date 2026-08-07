@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#10161c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Odyssée — Conquête de l'Égée v0.2.4</title>
+  <title>Odyssée — Conquête de l'Égée v0.2.8</title>
   <style>
     :root{
       --gold:#d7b568;
@@ -126,6 +126,19 @@
     }
     #stance{font-size:10px;color:#d8c17d}
     @media(max-width:720px){#legend,#battleLog{display:none}}
+
+    #rtsPanel{
+      position:fixed;left:50%;transform:translateX(-50%);bottom:max(126px,calc(env(safe-area-inset-bottom) + 126px));
+      z-index:19;width:min(760px,calc(100% - 16px));display:grid;grid-template-columns:repeat(11,1fr);gap:4px;
+      padding:6px;pointer-events:auto
+    }
+    #rtsPanel button{padding:7px 2px;font-size:10px;border-radius:8px}
+    #rtsPanel .wide{grid-column:span 2}
+    #rtsPanel button.filled{background:#574a28;color:#ffe6a0}
+    @media(max-width:720px){
+      #rtsPanel{bottom:max(190px,calc(env(safe-area-inset-bottom) + 190px));grid-template-columns:repeat(6,1fr)}
+      #rtsPanel .wide{grid-column:span 3}
+    }
   </style>
 </head>
 <body>
@@ -134,7 +147,7 @@
 <div id="top">
   <div id="brand" class="panel">
     <b>ODYSSÉE — CONQUÊTE DE L'ÉGÉE</b>
-    <span>Fondation v0.2.4 — Carte grecque</span>
+    <span>RTS mobile v0.2.8 — Conquête tactique</span>
   </div>
   <div id="res" class="panel">
     <span>🌾 <b id="food">150</b></span>
@@ -184,6 +197,16 @@
 
 <div id="toast"></div>
 
+
+<div id="rtsPanel" class="panel">
+  <button id="selectArmy" class="wide">Armée</button>
+  <button id="toggleBlood" class="wide">Sang ON</button>
+  <button id="toggleSound" class="wide">Son ON</button>
+  <button data-group="1">1</button><button data-group="2">2</button><button data-group="3">3</button>
+  <button data-group="4">4</button><button data-group="5">5</button><button data-group="6">6</button>
+  <button data-group="7">7</button><button data-group="8">8</button><button data-group="9">9</button>
+</div>
+
 <div id="bottom">
   <div id="unit" class="panel">
     <div id="unitCard">
@@ -224,14 +247,13 @@
 <div id="start">
   <div id="card" class="panel">
     <h1>Conquête de l'Égée</h1>
-    <h2>Batailles — terrain et commandants</h2>
+    <h2>Batailles RTS — sélection, formations et commandement</h2>
     <p>
-      Cette version réunit les étapes v0.1.3, v0.1.4 et v0.2.4 : formations plus lisibles,
-      six catégories d'unités, rôles tactiques distincts et véritables avantages ou pénalités
-      selon le terrain.
+      Version v0.2.8 : sélection RTS, ordres groupés, formations, mini-carte enrichie,
+      effets de bataille, sons procéduraux libres et optimisation mobile pour conserver une bataille fluide.
     </p>
     <button id="startBtn">Entrer sur le champ de bataille</button>
-    <div id="version">Version 0.1.1</div>
+    <div id="version">Version 0.2.8</div>
   </div>
 </div>
 
@@ -251,7 +273,8 @@ const ui = {
   formation:$("formation"), hold:$("hold"), rally:$("rally"),
   formationMenuBtn:$("formationMenuBtn"), formationMenu:$("formationMenu"),
   cameraBtn:$("cameraBtn"), helpBtn:$("helpBtn"), help:$("help"), toast:$("toast"),
-  start:$("start"), startBtn:$("startBtn"), objective:$("objective")
+  start:$("start"), startBtn:$("startBtn"), objective:$("objective"),
+  selectArmy:$("selectArmy"), toggleBlood:$("toggleBlood"), toggleSound:$("toggleSound"), rtsPanel:$("rtsPanel")
 };
 
 const WORLD={w:4200,h:2800};
@@ -260,9 +283,11 @@ const camera={
   vx:0,vy:0,dragging:false,rotation:0,targetRotation:0
 };
 const resources={food:150,wood:110,gold:85};
-let running=false,last=performance.now(),selected=null,drag=null,pinch=null,toastTimer=0,victory=null,lastTapTime=0;
+let running=false,last=performance.now(),selected=null,selectedUnits=[],drag=null,selectionBox=null,pinch=null,toastTimer=0,victory=null,lastTapTime=0,lastTappedUnit=null,aiTimer=0,bloodEnabled=true,soundEnabled=true;
 let audioCtx=null,masterGain=null,windGain=null;
 const particles=[];
+const projectiles=[];
+const controlGroups=Array.from({length:10},()=>[]);
 const birds=[];
 const battleMessages=[];
 for(let i=0;i<9;i++)birds.push({x:500+Math.random()*3200,y:480+Math.random()*1500,v:18+Math.random()*24,phase:Math.random()*6.28});
@@ -309,6 +334,7 @@ function logBattle(msg){
   ui.battleEntries.innerHTML=battleMessages.map(m=>"<div>"+m+"</div>").join("");
 }
 function spawnParticle(x,y,type,count=1){
+  if(particles.length>420)particles.splice(0,particles.length-420);
   for(let i=0;i<count;i++){
     particles.push({
       x,y,type,life:type==="smoke"?1.8:type==="dust"?1.1:.45,
@@ -331,6 +357,83 @@ function initAudio(){
   const filter=audioCtx.createBiquadFilter();filter.type="lowpass";filter.frequency.value=900;
   windGain=audioCtx.createGain();windGain.gain.value=.12;
   wind.connect(filter);filter.connect(windGain);windGain.connect(masterGain);wind.start();
+  const drone=audioCtx.createOscillator(),droneGain=audioCtx.createGain(),droneFilter=audioCtx.createBiquadFilter();
+  drone.type="sine";drone.frequency.value=146.83;
+  droneFilter.type="lowpass";droneFilter.frequency.value=420;
+  droneGain.gain.value=.025;
+  drone.connect(droneFilter);droneFilter.connect(droneGain);droneGain.connect(masterGain);drone.start();
+}
+
+function playTone(type){
+  if(!audioCtx||!masterGain||!soundEnabled)return;
+  const now=audioCtx.currentTime;
+  const osc=audioCtx.createOscillator(),gain=audioCtx.createGain(),filter=audioCtx.createBiquadFilter();
+  const map={
+    shield:[95,.09,"square"], spear:[180,.07,"sawtooth"], arrow:[520,.05,"triangle"],
+    horse:[70,.10,"sine"], cry:[260,.16,"sawtooth"], bird:[900,.07,"sine"], impact:[130,.06,"square"]
+  };
+  const m=map[type]||map.impact;
+  osc.type=m[2];osc.frequency.setValueAtTime(m[0]*(.85+Math.random()*.3),now);
+  filter.type="lowpass";filter.frequency.value=type==="arrow"?1800:700;
+  gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.16,now+.01);gain.gain.exponentialRampToValueAtTime(.001,now+m[1]);
+  osc.connect(filter);filter.connect(gain);gain.connect(masterGain);osc.start(now);osc.stop(now+m[1]+.03);
+}
+function spawnProjectile(a,t){
+  if(projectiles.length>180)projectiles.splice(0,projectiles.length-180);
+  const ranged=a.range>100;
+  projectiles.push({
+    x:a.x,y:a.y,tx:t.x,ty:t.y,life:ranged?.55:.32,maxLife:ranged?.55:.32,
+    type:a.shape==="bow"?"arrow":a.shape==="javelin"?"javelin":a.shape==="sling"?"stone":"impact",
+    color:a.team==="player"?"#ffe28a":"#ff9b8a"
+  });
+}
+function selectUnits(list,primary=null){
+  selectedUnits=[...new Set(list.filter(u=>u&&u.team==="player"&&u.count>0))];
+  selected=primary&&selectedUnits.includes(primary)?primary:(selectedUnits[0]||null);
+  updateGroupButtons();updateUI();
+}
+function visiblePlayerUnits(){
+  return units.filter(u=>{
+    if(u.team!=="player"||u.count<=0)return false;
+    const s=w2s(u.x,u.y);
+    return s.x>-80&&s.y>-80&&s.x<innerWidth+80&&s.y<innerHeight+80;
+  });
+}
+function selectSimilar(u){
+  const pool=visiblePlayerUnits().filter(v=>v.type===u.type||v.shape===u.shape);
+  selectUnits(pool,u);toast(pool.length+" unités similaires sélectionnées");
+}
+function selectArmy(){
+  const army=units.filter(u=>u.team==="player"&&u.count>0);
+  selectUnits(army,army[0]);toast("Armée sélectionnée");
+}
+function updateGroupButtons(){
+  document.querySelectorAll("#rtsPanel button[data-group]").forEach(btn=>{
+    const n=+btn.dataset.group;
+    btn.classList.toggle("filled",controlGroups[n].some(u=>u&&u.count>0));
+  });
+}
+function orderSelected(x,y){
+  const group=selectedUnits.length?selectedUnits:(selected?[selected]:[]);
+  if(!group.length)return;
+  const enemy=findUnit(x,y,"enemy");
+  const cols=Math.ceil(Math.sqrt(group.length));
+  group.forEach((u,i)=>{
+    selected=u;
+    if(enemy){order(enemy.x,enemy.y);return}
+    const row=Math.floor(i/cols),col=i%cols;
+    const ox=(col-(cols-1)/2)*95,oy=(row-Math.floor(group.length/cols)/2)*75;
+    order(x+ox,y+oy);
+  });
+  selected=group[0];updateUI();
+}
+function unitsInScreenRect(x1,y1,x2,y2){
+  const minX=Math.min(x1,x2),maxX=Math.max(x1,x2),minY=Math.min(y1,y2),maxY=Math.max(y1,y2);
+  return units.filter(u=>{
+    if(u.team!=="player"||u.count<=0)return false;
+    const s=w2s(u.x,u.y);
+    return s.x>=minX&&s.x<=maxX&&s.y>=minY&&s.y<=maxY;
+  });
 }
 
 const roads=[
@@ -626,8 +729,19 @@ function attackArcMultiplier(attacker,target){
 units.forEach(applyFormation);
 
 function updateUI(){
+  selectedUnits=selectedUnits.filter(u=>u&&u.count>0);
+  if(selected&&selected.count<=0)selected=null;
   ui.food.textContent=Math.floor(resources.food);ui.wood.textContent=Math.floor(resources.wood);ui.gold.textContent=Math.floor(resources.gold);
-  if(selected&&selected.count>0){
+  if(selectedUnits.length>1){
+    const total=selectedUnits.reduce((s,u)=>s+u.count,0), hp=selectedUnits.reduce((s,u)=>s+u.hp,0)/selectedUnits.length;
+    const morale=selectedUnits.reduce((s,u)=>s+u.morale,0)/selectedUnits.length, fatigue=selectedUnits.reduce((s,u)=>s+u.fatigue,0)/selectedUnits.length;
+    ui.name.textContent=selectedUnits.length+" unités sélectionnées";
+    ui.role.textContent="Groupe tactique · Effectif total "+Math.ceil(total)+" · Ordres groupés actifs";
+    ui.unitIcon.textContent="⚜️";ui.stance.textContent="Formation primaire : "+(selected?selected.formation:"mixte")+" · Terrain : "+(selected?selected.terrain:"—");
+    ui.count.textContent=Math.ceil(total);ui.hp.textContent=Math.ceil(hp)+"%";ui.morale.textContent=Math.ceil(morale)+"%";ui.fatigue.textContent=Math.ceil(fatigue)+"%";
+    ui.terrain.textContent=selected?selected.terrain:"Mixte";
+    ui.formation.classList.toggle("active",true);ui.hold.classList.toggle("active",selectedUnits.every(u=>u.hold));
+  }else if(selected&&selected.count>0){
     ui.name.textContent=selected.label;
     ui.role.textContent=selected.role+" · Vision "+selected.vision+" · Coût "+selected.cost;
     const icons={shield:"🛡️",javelin:"🗡️",bow:"🏹",sling:"🪨",horse:"🐎",spear:"🔱"};
@@ -684,6 +798,7 @@ function pointerDown(e){
   camera.vx=0;camera.vy=0;camera.dragging=true;
   if(!drag)drag={pts:new Map(),moved:false,last:null,lastMove:performance.now(),velX:0,velY:0};
   drag.pts.set(e.pointerId,{id:e.pointerId,x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now()});
+  if(drag.pts.size===1&&!selectedUnits.length)selectionBox=null;
   if(drag.pts.size===2){
     const a=[...drag.pts.values()];
     pinch={
@@ -704,7 +819,9 @@ function pointerMove(e){
   const dt=Math.max(8,now-drag.lastMove);
 
   if(a.length===1){
-    if(drag.last){
+    const start=a[0];
+    if(drag.moved&&performance.now()-start.t>180&&Math.abs(start.x-start.sx)>18&&Math.abs(start.y-start.sy)>18)selectionBox={x1:start.sx,y1:start.sy,x2:start.x,y2:start.y};
+    if(drag.last&&!selectionBox){
       const dx=a[0].x-drag.last.x,dy=a[0].y-drag.last.y;
       const c=Math.cos(-camera.rotation),s=Math.sin(-camera.rotation);
       const wx=(dx*c-dy*s)/camera.zoom;
@@ -737,17 +854,25 @@ function pointerUp(e){
 
   if(tap){
     const w=s2w(e.clientX,e.clientY),own=findUnit(w.x,w.y,"player");
-    if(now-lastTapTime<320){
+    if(now-lastTapTime<320&&own&&lastTappedUnit&&lastTappedUnit.type===own.type){
+      selectSimilar(own);
+    }else if(now-lastTapTime<320&&!own){
       camera.x=w.x;camera.y=w.y;camera.targetZoom=Math.max(.72,camera.targetZoom);
       camera.vx=0;camera.vy=0;toast("Caméra recentrée");
     }else if(own){
-      selected=own;toast(own.label+" sélectionnés");updateUI();
-    }else order(w.x,w.y);
+      selectUnits([own],own);toast(own.label+" sélectionnés");lastTappedUnit=own;
+    }else orderSelected(w.x,w.y);
     lastTapTime=now;
   }
 
   if(drag.pts.size===0){
-    if(drag.moved){
+    const hadSelectionBox=!!selectionBox;
+    if(selectionBox){
+      const list=unitsInScreenRect(selectionBox.x1,selectionBox.y1,selectionBox.x2,selectionBox.y2);
+      if(list.length){selectUnits(list,list[0]);toast(list.length+" unités sélectionnées");}
+      selectionBox=null;
+    }
+    if(drag.moved&&!hadSelectionBox){
       camera.vx=drag.velX*.6;
       camera.vy=drag.velY*.6;
     }
@@ -780,11 +905,11 @@ ui.formationMenuBtn.onclick=()=>{
 ui.formationMenu.querySelectorAll("button[data-form]").forEach(btn=>{
   btn.onclick=()=>{
     if(!selected)return;
-    setFormation(selected,btn.dataset.form);
+    (selectedUnits.length?selectedUnits:[selected]).forEach(u=>setFormation(u,btn.dataset.form));
     ui.formationMenu.classList.add("hidden");
   };
 });
-ui.hold.onclick=()=>{if(!selected)return;selected.hold=!selected.hold;selected.target=null;selected.tx=selected.x;selected.ty=selected.y;toast(selected.hold?"Position verrouillée":"Position libérée");logBattle(selected.label+(selected.hold?" tiennent leur position.":" reprennent leur progression."));updateUI()};
+ui.hold.onclick=()=>{const group=selectedUnits.length?selectedUnits:(selected?[selected]:[]);if(!group.length)return;const next=!group.every(u=>u.hold);group.forEach(u=>{u.hold=next;u.target=null;u.tx=u.x;u.ty=u.y});toast(next?"Position verrouillée":"Position libérée");logBattle(group.length+" unité(s) "+(next?"tiennent leur position.":"reprennent leur progression."));updateUI()};
 ui.rally.onclick=()=>{
   if(!selected)return;if(selected.rallyCd>0){toast("Ralliement indisponible");return}
   selected.morale=Math.min(selected.maxMorale,selected.morale+25);selected.rallyCd=12;toast("Le chef rallie ses hommes");logBattle(selected.label+" retrouvent leur courage.");updateUI()
@@ -803,8 +928,24 @@ ui.cameraBtn.onclick=()=>{
 ui.helpBtn.onclick=()=>ui.help.classList.toggle("hidden");
 ui.startBtn.onclick=()=>{
   ui.start.style.display="none";running=true;last=performance.now();
-  initAudio();toast("La Fondation commence");logBattle("Le vent se lève sur le champ de bataille.");
+  initAudio();audioCtx?.resume?.();toast("La Fondation commence");logBattle("Le vent se lève sur le champ de bataille.");
 };
+
+ui.selectArmy.onclick=selectArmy;
+ui.toggleBlood.onclick=()=>{bloodEnabled=!bloodEnabled;ui.toggleBlood.textContent=bloodEnabled?"Sang ON":"Sang OFF";toast(bloodEnabled?"Sang activé":"Sang désactivé")};
+ui.toggleSound.onclick=()=>{soundEnabled=!soundEnabled;ui.toggleSound.textContent=soundEnabled?"Son ON":"Son OFF";if(masterGain)masterGain.gain.value=soundEnabled?.18:0;toast(soundEnabled?"Sons activés":"Sons coupés")};
+document.querySelectorAll("#rtsPanel button[data-group]").forEach(btn=>{
+  btn.onclick=()=>{
+    const n=+btn.dataset.group;
+    if(selectedUnits.length){
+      controlGroups[n]=selectedUnits.slice();
+      updateGroupButtons();toast("Groupe "+n+" assigné");
+    }else if(controlGroups[n].some(u=>u&&u.count>0)){
+      selectUnits(controlGroups[n].filter(u=>u&&u.count>0));
+      toast("Groupe "+n+" rappelé");
+    }
+  };
+});
 
 
 function updateCamera(dt){
@@ -1112,6 +1253,10 @@ function updateUnit(u,dt){
             logBattle(u.label+" percent la ligne ennemie.");
           }
         }
+        spawnProjectile(u,u.target);
+        if(bloodEnabled&&u.range<90)spawnParticle(u.target.x,u.target.y,"blood",2);
+        playTone(u.range>100?(u.shape==="bow"?"arrow":"spear"):(u.shape==="horse"?"horse":"shield"));
+        if(Math.random()<.06)playTone("cry");
         spawnParticle(u.target.x,u.target.y,"spark",u.range>100?2:4);
         if(u.range<80)spawnParticle(u.target.x,u.target.y,"dust",3);
         if(Math.random()<.10)spawnParticle(u.target.x,u.target.y,"smoke",1);
@@ -1338,8 +1483,9 @@ function drawCommander(c){
 function drawUnit(u){
   if(u.count<=0)return;
   const s=w2s(u.x,u.y),z=camera.zoom;
+  const flagWave=Math.sin(performance.now()*.006+u.id)*5*z;
 
-  if(selected===u){
+  if(selected===u||selectedUnits.includes(u)){
     ctx.strokeStyle="#ffe28a";ctx.lineWidth=3;
     ctx.beginPath();ctx.arc(s.x,s.y,(u.radius+12)*z,0,Math.PI*2);ctx.stroke();
     ctx.save();ctx.translate(s.x,s.y);ctx.rotate(u.facing);
@@ -1419,7 +1565,7 @@ function drawUnit(u){
   ctx.fillRect(-1.2*z,-rows*sy/2-18*z,2.4*z,18*z);
   ctx.beginPath();
   ctx.moveTo(1*z,-rows*sy/2-18*z);
-  ctx.lineTo(13*z,-rows*sy/2-14*z);
+  ctx.lineTo(13*z,-rows*sy/2-14*z+flagWave);
   ctx.lineTo(1*z,-rows*sy/2-9*z);
   ctx.fill();
   ctx.restore();
@@ -1443,20 +1589,28 @@ function drawUnit(u){
 }
 
 function drawMini(){
-  if(innerWidth<720)return;
-  const w=170,h=113,x=innerWidth-w-12,y=innerHeight-h-122;
-  ctx.fillStyle="rgba(5,10,14,.76)";ctx.fillRect(x,y,w,h);ctx.strokeStyle="rgba(255,255,255,.2)";ctx.strokeRect(x,y,w,h);
+  const w=innerWidth<720?118:190,h=innerWidth<720?82:126,x=innerWidth-w-10,y=innerWidth<720?86:innerHeight-h-122;
+  ctx.fillStyle="rgba(5,10,14,.78)";ctx.fillRect(x,y,w,h);ctx.strokeStyle="rgba(255,255,255,.2)";ctx.strokeRect(x,y,w,h);
+  for(const r of roads){ctx.strokeStyle="rgba(215,181,104,.55)";ctx.lineWidth=2;ctx.beginPath();r.forEach((p,i)=>{const px=x+p.x/WORLD.w*w,py=y+p.y/WORLD.h*h;i?ctx.lineTo(px,py):ctx.moveTo(px,py)});ctx.stroke()}
+  ctx.strokeStyle="rgba(111,164,182,.8)";ctx.lineWidth=2;ctx.beginPath();river.forEach((p,i)=>{const px=x+p.x/WORLD.w*w,py=y+p.y/WORLD.h*h;i?ctx.lineTo(px,py):ctx.moveTo(px,py)});ctx.stroke()
   for(const p of points){ctx.fillStyle=p.owner==="player"?"#5bd380":p.owner==="enemy"?"#dc6767":"#d7b568";ctx.beginPath();ctx.arc(x+p.x/WORLD.w*w,y+p.y/WORLD.h*h,4,0,Math.PI*2);ctx.fill()}
   for(const u of units){if(u.count<=0)continue;ctx.fillStyle=u.team==="player"?"#66d58b":"#df6767";ctx.fillRect(x+u.x/WORLD.w*w-2,y+u.y/WORLD.h*h-2,4,4)}
+  for(const c of commanders){if(!c.alive)continue;ctx.fillStyle=c.team==="player"?"#ffe28a":"#ff7777";ctx.beginPath();ctx.arc(x+c.x/WORLD.w*w,y+c.y/WORLD.h*h,3,0,Math.PI*2);ctx.fill()}
   const vw=innerWidth/camera.zoom/WORLD.w*w,vh=innerHeight/camera.zoom/WORLD.h*h;ctx.strokeStyle="#fff";ctx.lineWidth=1.4;ctx.strokeRect(x+camera.x/WORLD.w*w-vw/2,y+camera.y/WORLD.h*h-vh/2,vw,vh);
 }
-
 
 function updateAtmosphere(dt){
   for(const b of birds){
     b.x+=b.v*dt;
     b.y+=Math.sin(performance.now()*.001+b.phase)*4*dt;
-    if(b.x>WORLD.w+100){b.x=-100;b.y=450+Math.random()*1500}
+    if(b.x>WORLD.w+100){b.x=-100;b.y=450+Math.random()*1500;if(Math.random()<.35)playTone("bird")}
+  }
+  for(let i=projectiles.length-1;i>=0;i--){
+    const pr=projectiles[i];pr.life-=dt;
+    const k=1-Math.max(0,pr.life/pr.maxLife);
+    pr.x=pr.x+(pr.tx-pr.x)*Math.min(1,dt*7);
+    pr.y=pr.y+(pr.ty-pr.y)*Math.min(1,dt*7);
+    if(pr.life<=0){spawnParticle(pr.tx,pr.ty,"dust",1);projectiles.splice(i,1)}
   }
   for(let i=particles.length-1;i>=0;i--){
     const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
@@ -1484,23 +1638,39 @@ function drawAtmosphere(){
     ctx.beginPath();ctx.arc(s.x-wing,s.y,wing,3.45,5.85);ctx.arc(s.x+wing,s.y,wing,3.58,6.0);ctx.stroke();
   }
 
-  // Dust, smoke and sparks
+  // Projectiles
+  for(const pr of projectiles){
+    const s=w2s(pr.x,pr.y),t=w2s(pr.tx,pr.ty),ang=Math.atan2(t.y-s.y,t.x-s.x);
+    ctx.save();ctx.translate(s.x,s.y);ctx.rotate(ang);ctx.strokeStyle=pr.color;ctx.lineWidth=pr.type==="stone"?3:2;
+    ctx.beginPath();ctx.moveTo(-10*camera.zoom,0);ctx.lineTo(10*camera.zoom,0);ctx.stroke();ctx.restore();
+  }
+
+  // Dust, smoke, blood and sparks
   for(const p of particles){
     const s=w2s(p.x,p.y),a=Math.max(0,p.life/p.maxLife);
     ctx.globalAlpha=a*.75;
     if(p.type==="smoke")ctx.fillStyle="rgba(80,86,82,.75)";
     else if(p.type==="dust")ctx.fillStyle="rgba(166,137,86,.8)";
+    else if(p.type==="blood")ctx.fillStyle="rgba(116,16,18,.78)";
     else ctx.fillStyle="rgba(255,207,88,.95)";
     ctx.beginPath();ctx.arc(s.x,s.y,p.size*camera.zoom*(1+(1-a)*.7),0,Math.PI*2);ctx.fill();
   }
   ctx.globalAlpha=1;
 }
 
+function drawSelectionBox(){
+  if(!selectionBox)return;
+  const x=Math.min(selectionBox.x1,selectionBox.x2),y=Math.min(selectionBox.y1,selectionBox.y2);
+  const w=Math.abs(selectionBox.x2-selectionBox.x1),h=Math.abs(selectionBox.y2-selectionBox.y1);
+  ctx.fillStyle="rgba(102,213,139,.12)";ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle="rgba(102,213,139,.85)";ctx.lineWidth=1.5;ctx.strokeRect(x,y,w,h);
+}
+
 function frame(now){
   const dt=Math.min(.033,(now-last)/1000);last=now;
   updateCamera(dt);updateAtmosphere(dt);
   if(running&&!victory){
-    enemyAI();
+    aiTimer-=dt;if(aiTimer<=0){enemyAI();aiTimer=.22;}
     commanders.forEach(c=>updateCommander(c,dt));
     units.forEach(u=>updateUnit(u,dt));
     resolveCollisions(dt);
@@ -1509,7 +1679,7 @@ function frame(now){
   drawTerrain();drawAdvancedTerrain();drawAtmosphere();
   villages.forEach(drawVillage);points.forEach(drawPoint);
   commanders.forEach(drawCommander);
-  units.slice().sort((a,b)=>a.y-b.y).forEach(drawUnit);drawMini();
+  units.slice().sort((a,b)=>a.y-b.y).forEach(drawUnit);drawSelectionBox();drawMini();
   if(victory){
     ctx.fillStyle="rgba(0,0,0,.5)";ctx.fillRect(0,0,innerWidth,innerHeight);
     ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font=`bold ${Math.min(64,innerWidth*.11)}px Arial`;ctx.fillText(victory,innerWidth/2,innerHeight/2);
