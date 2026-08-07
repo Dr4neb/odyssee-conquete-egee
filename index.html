@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>OPERATION OVERWATCH — v0.5.11 Roles/Audio/Movement Hotfix</title>
+  <title>OPERATION OVERWATCH — v0.5.12 Combat Targeting & Audio Hotfix</title>
   <style>
     :root {
       --bg:#071017;
@@ -589,7 +589,7 @@ const COLORS = {
 
 const UNIT_TYPES = {
   rifle: { label:'Fusiliers', kind:'infantry', cost:120, squad:4, hp:100, speed:40, radius:28, mass:1, range:240, vision:360, damage:5, reload:.44, ammo:260, optimal:180, weapon:'rifle' },
-  machinegun: { label:'Mitrailleuses', kind:'infantry', cost:210, squad:3, hp:92, speed:31, radius:31, mass:1.15, range:310, vision:365, damage:7.5, reload:.24, ammo:420, optimal:245, weapon:'lmg', suppression:3.2 },
+  machinegun: { label:'Mitrailleuses', kind:'infantry', cost:210, squad:3, hp:92, speed:31, radius:31, mass:1.15, range:330, vision:365, damage:5.8, reload:.17, ammo:560, optimal:260, weapon:'lmg', suppression:4.4 },
   at: { label:'Anti-véhicule', kind:'infantry', cost:220, squad:3, hp:88, speed:34, radius:30, mass:1.1, range:430, vision:380, damage:145, reload:3.8, ammo:90, rockets:3, optimal:350, weapon:'rocket', rifleRange:235, rifleDamage:4.5, rifleReload:.58, rifleOptimal:175 },
   command: { label:'Commandant', kind:'infantry', cost:180, squad:2, hp:75, speed:38, radius:24, mass:1, range:220, vision:430, damage:4, reload:.55, ammo:160, optimal:170, weapon:'rifle' },
   light: { label:'Humvee-like', kind:'vehicle', cost:260, hp:130, speed:60, reverse:28, accel:90, turn:2.2, radius:34, mass:4, range:280, vision:420, damage:8, reload:.22, ammo:340, fuel:100, optimal:230, weapon:'mg', armor:[8,4,2] },
@@ -736,21 +736,23 @@ class AudioManager {
       hover:     { key:'button_hover', category:'ui', volume:.18, cooldown:.10, spatial:false, rate:[.98,1.05] },
       menuOpen:  { key:'menu_open', category:'ui', volume:.30, cooldown:.16, spatial:false, rate:[.94,1.02] },
       menuBack:  { key:'menu_back', category:'ui', volume:.26, cooldown:.16, spatial:false, rate:[.94,1.02] },
-      order:     { key:'order_confirm', category:'ui', volume:.30, cooldown:.20, spatial:false, rate:[.72,.86] },
+      order:     { key:'order_confirm', category:'ui', volume:.38, cooldown:.08, spatial:false, rate:[.88,.98] },
 
-      rifle1:    { key:'real_rifle_single', category:'infantry', volume:.58, cooldown:.34, spatial:true, rate:[.93,1.04] },
-      rifle2:    { key:'real_rifle_single', category:'infantry', volume:.54, cooldown:.34, spatial:true, rate:[.96,1.08] },
-      burst:     { key:'real_rifle_burst', category:'infantry', volume:.64, cooldown:.42, spatial:true, rate:[.92,1.02] },
-      rifle:     { key:'real_rifle_burst', category:'infantry', volume:.60, cooldown:.38, spatial:true, rate:[.92,1.04] },
-      mg:        { key:'real_lmg_burst', category:'infantry', volume:.76, cooldown:.38, spatial:true, rate:[.90,1.02] },
-      lmg:       { key:'real_lmg_burst', category:'infantry', volume:.80, cooldown:.32, spatial:true, rate:[.88,.99] },
+      rifle1:    { key:'rifle_single_01', category:'infantry', volume:.70, cooldown:.28, spatial:true, rate:[.94,1.06] },
+      rifle2:    { key:'rifle_single_02', category:'infantry', volume:.68, cooldown:.28, spatial:true, rate:[.95,1.08] },
+      burst:     { key:'rifle_burst_01', category:'infantry', volume:.72, cooldown:.34, spatial:true, rate:[.94,1.04] },
+      rifle:     { key:'rifle_burst_01', category:'infantry', volume:.70, cooldown:.32, spatial:true, rate:[.94,1.04] },
+      mg:        { key:'lmg_minimi_burst_01', category:'infantry', volume:.88, cooldown:.22, spatial:true, rate:[.92,1.02] },
+      lmg:       { key:'lmg_minimi_burst_01', category:'infantry', volume:.94, cooldown:.18, spatial:true, rate:[.90,1.00] },
       infantryDown: { key:'infantry_down_01', category:'impact', volume:.58, cooldown:999, spatial:true, rate:[.94,1.04] },
       infantryDown2:{ key:'infantry_down_02', category:'impact', volume:.54, cooldown:999, spatial:true, rate:[.94,1.04] },
       squadEliminated:{ key:'infantry_squad_eliminated', category:'impact', volume:.62, cooldown:999, spatial:true, rate:[.94,1.02] },
 
-      vehicle_mg:{ key:'real_vehicle_mg', category:'vehicle', volume:.72, cooldown:.34, spatial:true, rate:[.88,1.02] },
-      autocannon:{ key:'real_autocannon', category:'vehicle', volume:.82, cooldown:.55, spatial:true, rate:[.84,.96] },
-      tank:      { key:'real_tank_cannon', category:'vehicle', volume:.96, cooldown:2.2, spatial:true, rate:[.90,1.00] },
+      vehicle_mg:{ key:'vehicle_mg_burst_01', category:'vehicle', volume:.82, cooldown:.22, spatial:true, rate:[.90,1.02] },
+      autocannon:{ key:'vehicle_autocannon_01', category:'vehicle', volume:.90, cooldown:.44, spatial:true, rate:[.88,.98] },
+      tank:      { key:'tank_cannon_fire_01', category:'vehicle', volume:1.00, cooldown:2.0, spatial:true, rate:[.92,1.00] },
+      engineLight:{ key:'vehicle_engine_light', category:'vehicle', volume:.18, cooldown:1.0, spatial:true, rate:[.88,1.04] },
+      engineHeavy:{ key:'vehicle_engine_heavy', category:'vehicle', volume:.22, cooldown:1.15, spatial:true, rate:[.78,.96] },
 
       rocket:    { key:'at_rocket_launch', category:'rocket', volume:.70, cooldown:.85, spatial:true, rate:[.94,1.03] },
       rocket_fly:{ key:'at_rocket_whoosh', category:'rocket', volume:.34, cooldown:.50, spatial:true, rate:[.96,1.08] },
@@ -800,32 +802,52 @@ class AudioManager {
         'https://opengameart.org/sites/default/files/equipment_clicks3.wav'
       ],
 
-      // Nouveaux samples de tir : on ne reprend plus les anciens sons intégrés pour les armes à feu.
-      real_rifle_single: [
-        'assets/audio/sfx/real_rifle_single.wav',
+      // Samples de tir séparés par arme. Les chemins locaux sont prioritaires, puis sources CC0/OGG libres, puis fallback WebAudio percutant.
+      rifle_single_01: [
+        'assets/audio/sfx/weapons/rifle_single_01.ogg',
+        'assets/audio/sfx/weapons/rifle_single_01.wav',
         'https://opengameart.org/sites/default/files/snd_gunshot1.wav'
       ],
-      real_rifle_burst: [
-        'assets/audio/sfx/real_rifle_burst.wav',
+      rifle_single_02: [
+        'assets/audio/sfx/weapons/rifle_single_02.ogg',
+        'assets/audio/sfx/weapons/rifle_single_02.wav',
         'https://opengameart.org/sites/default/files/snd_gunshot1.wav'
       ],
-      real_lmg_burst: [
-        'assets/audio/sfx/real_lmg_burst.wav',
+      rifle_burst_01: [
+        'assets/audio/sfx/weapons/rifle_burst_01.ogg',
+        'assets/audio/sfx/weapons/rifle_burst_01.wav',
         'https://opengameart.org/sites/default/files/snd_gunshot1.wav'
       ],
-      real_vehicle_mg: [
-        'assets/audio/sfx/real_vehicle_mg.wav',
-        'https://opengameart.org/sites/default/files/bangs.wav',
-        'https://opengameart.org/sites/default/files/snd_gunshot1.wav'
-      ],
-      real_autocannon: [
-        'assets/audio/sfx/real_autocannon.wav',
+      lmg_minimi_burst_01: [
+        'assets/audio/sfx/weapons/lmg_minimi_burst_01.ogg',
+        'assets/audio/sfx/weapons/lmg_minimi_burst_01.wav',
         'https://opengameart.org/sites/default/files/bangs.wav'
       ],
-      real_tank_cannon: [
-        'assets/audio/sfx/real_tank_cannon.wav',
+      vehicle_mg_burst_01: [
+        'assets/audio/sfx/weapons/vehicle_mg_burst_01.ogg',
+        'assets/audio/sfx/weapons/vehicle_mg_burst_01.wav',
+        'https://opengameart.org/sites/default/files/bangs.wav'
+      ],
+      vehicle_autocannon_01: [
+        'assets/audio/sfx/weapons/vehicle_autocannon_01.ogg',
+        'assets/audio/sfx/weapons/vehicle_autocannon_01.wav',
+        'https://opengameart.org/sites/default/files/cannon_hit_wall_0.ogg'
+      ],
+      tank_cannon_fire_01: [
+        'assets/audio/sfx/weapons/tank_cannon_fire_01.ogg',
+        'assets/audio/sfx/weapons/tank_cannon_fire_01.wav',
         'https://opengameart.org/sites/default/files/bangs.wav',
         'https://opengameart.org/sites/default/files/cannon_hit_wall_0.ogg'
+      ],
+      vehicle_engine_light: [
+        'assets/audio/sfx/vehicles/engine_light_loop.ogg',
+        'assets/audio/sfx/vehicles/engine_light_loop.wav',
+        'https://opengameart.org/sites/default/files/loop_1.wav'
+      ],
+      vehicle_engine_heavy: [
+        'assets/audio/sfx/vehicles/engine_heavy_loop.ogg',
+        'assets/audio/sfx/vehicles/engine_heavy_loop.wav',
+        'https://opengameart.org/sites/default/files/loop_0.wav'
       ],
       infantry_down_01: ['assets/audio/sfx/infantry_down_01.wav', 'https://opengameart.org/sites/default/files/snd_death1.wav'],
       infantry_down_02: ['assets/audio/sfx/infantry_down_02.wav', 'https://opengameart.org/sites/default/files/snd_death2.wav'],
@@ -972,6 +994,10 @@ class AudioManager {
 
     this.last.set(cdKey, now);
     const rate = rand(profile.rate[0], profile.rate[1]);
+    if(profile.key === 'order_confirm'){
+      this.orderThunk(finalVolume, profile.category);
+      return true;
+    }
     const sampleStarted = this.playSample(profile.key, finalVolume, rate, profile.category);
     if(!sampleStarted) this.fallback(name, finalVolume, profile.category);
     return true;
@@ -1035,13 +1061,18 @@ class AudioManager {
       return this.buttonClick(volume, category);
     }
     if(this.audioMode !== 'game') return false;
-    if(key==='tank_cannon_fire') return this.tankFallback(volume, category);
+    if(key==='tank_cannon_fire' || key==='tank_cannon_fire_01') return this.tankFallback(volume, category);
+    if(key==='vehicle_autocannon_01') return this.autocannonFallback(volume, category);
+    if(key==='vehicle_mg_burst_01') return this.vehicleMgFallback(volume, category);
+    if(key==='vehicle_engine_light' || key==='vehicle_engine_heavy') return this.engineFallback(volume, category, key==='vehicle_engine_heavy');
     if(key==='at_rocket_launch') return this.rocketLaunch(volume, category);
     if(key==='at_rocket_whoosh') return this.whoosh(volume*.75,.55,category);
     if(key==='vehicle_explosion_heavy' || key==='at_rocket_explosion') return this.explosionFallback(volume, category, true);
     if(key==='at_rocket_impact' || key==='tank_shell_impact') return this.explosionFallback(volume, category, false);
     if(key==='armor_impact_heavy' || key==='armor_ricochet') return this.armorFallback(volume, category);
     if(key.startsWith('infantry_down') || key==='infantry_squad_eliminated') return this.infantryDownFallback(volume, category);
+    if(key==='lmg_minimi_burst_01') return this.machinegunFallback(volume, category);
+    if(key==='rifle_single_01' || key==='rifle_single_02' || key==='rifle_burst_01') return this.rifleFallback(volume, category);
     if(key==='real_lmg_burst' || key==='real_vehicle_mg' || key==='real_autocannon') return this.machinegunFallback(volume, category);
     if(key==='real_tank_cannon') return this.tankFallback(volume, category);
     return this.rifleFallback(volume, category);
@@ -1057,6 +1088,10 @@ class AudioManager {
     }
     if(this.audioMode !== 'game') return false;
     if(name==='tank') return this.tankFallback(volume, category);
+    if(name==='autocannon') return this.autocannonFallback(volume, category);
+    if(name==='vehicle_mg') return this.vehicleMgFallback(volume, category);
+    if(name==='engineLight') return this.engineFallback(volume, category, false);
+    if(name==='engineHeavy') return this.engineFallback(volume, category, true);
     if(name==='rocket') return this.rocketLaunch(volume, category);
     if(name==='rocket_fly') return this.whoosh(volume*.7,.55, category);
     if(name==='rocket_impact' || name==='rocket_explosion' || name==='explosion') return this.explosionFallback(volume, category, true);
@@ -1078,18 +1113,53 @@ class AudioManager {
     setTimeout(release, Math.ceil(duration*1000)+80);
   }
 
-  buttonHover(volume, category='ui'){ if(this.ctx) this.thump(92,.026,volume*.12,category); }
-  menuOpenFallback(volume, category='ui'){ if(this.ctx){ this.thump(76,.05,volume*.18,category); this.noiseBurst(.018,360,volume*.035,category); } }
-  menuBackFallback(volume, category='ui'){ if(this.ctx) this.thump(64,.05,volume*.16,category); }
-  buttonClick(volume, category='ui'){ if(this.ctx){ this.thump(105,.032,volume*.20,category); this.noiseBurst(.018,620,volume*.055,category); } }
-  orderThunk(volume, category='ui'){ if(this.ctx){ this.thump(54,.085,volume*.32,category); this.noiseBurst(.03,240,volume*.10,category); } }
-  rifleFallback(volume, category='infantry'){ this.noiseBurst(.045,1450,volume*.45,category); this.thump(115,.045,volume*.22,category); }
-  machinegunFallback(volume, category='infantry'){ this.noiseBurst(.08,1180,volume*.58,category); this.thump(95,.05,volume*.22,category); }
-  tankFallback(volume, category='vehicle'){ this.thump(38,.40,volume*.95,category); this.noiseBurst(.22,330,volume*.62,category); }
+  buttonHover(volume, category='ui'){ if(this.ctx) this.thump(86,.024,volume*.10,category); }
+  menuOpenFallback(volume, category='ui'){ if(this.ctx){ this.thump(72,.05,volume*.16,category); this.noiseBurst(.018,320,volume*.028,category); } }
+  menuBackFallback(volume, category='ui'){ if(this.ctx) this.thump(58,.052,volume*.15,category); }
+  buttonClick(volume, category='ui'){ if(this.ctx){ this.thump(98,.032,volume*.18,category); this.noiseBurst(.014,540,volume*.035,category); } }
+  orderThunk(volume, category='ui'){
+    if(!this.ctx) return;
+    this.thump(48,.075,volume*.36,category);
+    setTimeout(()=>{ if(this.ctx) this.thump(72,.045,volume*.18,category); }, 42);
+    this.noiseBurst(.018,180,volume*.045,category);
+  }
+  rifleFallback(volume, category='infantry'){
+    this.noiseBurst(.030,2450,volume*.58,category);
+    this.noiseBurst(.055,760,volume*.24,category);
+    this.thump(118,.035,volume*.24,category);
+  }
+  machinegunFallback(volume, category='infantry'){
+    this.staggeredGunBursts(5, .052, volume, category, {noiseFreq:2050, lowFreq:96, noiseGain:.50, lowGain:.18, dur:.028});
+  }
+  vehicleMgFallback(volume, category='vehicle'){
+    this.staggeredGunBursts(6, .060, volume, category, {noiseFreq:1480, lowFreq:82, noiseGain:.46, lowGain:.24, dur:.034});
+  }
+  autocannonFallback(volume, category='vehicle'){
+    this.staggeredGunBursts(3, .115, volume, category, {noiseFreq:820, lowFreq:58, noiseGain:.58, lowGain:.42, dur:.070});
+  }
+  tankFallback(volume, category='vehicle'){
+    this.thump(34,.46,volume*.98,category);
+    this.noiseBurst(.18,260,volume*.78,category);
+    setTimeout(()=>this.noiseBurst(.14,125,volume*.32,category),70);
+  }
+  engineFallback(volume, category='vehicle', heavy=false){
+    this.thump(heavy?38:52, .18, volume*(heavy?.22:.16), category);
+    this.noiseBurst(.12, heavy?95:140, volume*(heavy?.08:.055), category);
+  }
   rocketLaunch(volume, category='rocket'){ this.thump(62,.18,volume*.68,category); this.noiseBurst(.20,580,volume*.55,category); this.whoosh(volume*.38,.45,category); }
   armorFallback(volume, category='impact'){ this.thump(155,.09,volume*.58,category); this.noiseBurst(.055,980,volume*.35,category); }
   infantryDownFallback(volume, category='impact'){ this.thump(88,.18,volume*.45,category); this.noiseBurst(.07,520,volume*.12,category); }
   explosionFallback(volume, category='explosion', heavy=false){ this.thump(heavy?31:46,heavy?.62:.42,volume*.92,category); this.noiseBurst(heavy?.55:.34,heavy?230:340,volume*.78,category); }
+
+  staggeredGunBursts(count, interval, volume, category, cfg){
+    for(let i=0;i<count;i++){
+      setTimeout(()=>{
+        if(this.muted || this.audioMode !== 'game') return;
+        this.noiseBurst(cfg.dur || .035, cfg.noiseFreq || 1500, volume*(cfg.noiseGain || .45), category);
+        this.thump(cfg.lowFreq || 90, .035, volume*(cfg.lowGain || .2), category);
+      }, Math.round(i*interval*1000));
+    }
+  }
 
   noiseBurst(duration, freq, volume, category='impact'){
     if(!this.ctx) return;
@@ -1431,8 +1501,8 @@ const PERFORMANCE_DEFAULTS = {
 };
 
 const UPDATE_RATES = {
-  ai: .46,
-  combat: .22,
+  ai: .38,
+  combat: .10,
   objectives: .32,
   support: .70,
   enemyReinforce: 1.25,
@@ -2463,28 +2533,28 @@ function clearUnitDestination(ent){
 
 function getObstacleAvoidance(ent){
   let ax = 0, az = 0;
-  const detection = OBSTACLE_CONFIG.detectionDistance + ent.radius*.35;
-  for(const c of queryCollidersNear(ent.x, ent.z, detection + ent.radius + 90)){
+  const detection = Math.max(48, OBSTACLE_CONFIG.detectionDistance*.78 + ent.radius*.22);
+  for(const c of queryCollidersNear(ent.x, ent.z, detection + ent.radius + 60)){
     if(!isHardObstacleCollider(c)) continue;
-    const margin = ent.radius*.58 + (ent.cfg.kind==='vehicle'?18:9);
+    const margin = ent.radius*.42 + (ent.cfg.kind==='vehicle'?14:7);
     const closest = closestPointOnCollider(ent.x, ent.z, c, margin);
     let dx = ent.x - closest.x, dz = ent.z - closest.z;
     let d = Math.hypot(dx,dz);
-    if(pointInsideCollider(ent.x,ent.z,c,margin*.72)){
+    if(pointInsideCollider(ent.x,ent.z,c,margin*.78)){
       const local = worldToColliderLocal(ent.x,ent.z,c);
       const sx = Math.sign(local.x || .01), sz = Math.sign(local.z || .01);
-      const exitX = colliderLocalToWorld(sx*(c.w/2+(c.padding||0)+margin+10), local.z, c);
-      const exitZ = colliderLocalToWorld(local.x, sz*(c.l/2+(c.padding||0)+margin+10), c);
+      const exitX = colliderLocalToWorld(sx*(c.w/2+(c.padding||0)+margin+14), local.z, c);
+      const exitZ = colliderLocalToWorld(local.x, sz*(c.l/2+(c.padding||0)+margin+14), c);
       const distX = Math.hypot(exitX.x-ent.x, exitX.z-ent.z);
       const distZ = Math.hypot(exitZ.x-ent.x, exitZ.z-ent.z);
       const exit = distX < distZ ? exitX : exitZ;
-      dx = ent.x - exit.x; dz = ent.z - exit.z; d = Math.max(.001, Math.hypot(dx,dz));
-      ax -= dx/d * 1.15;
-      az -= dz/d * 1.15;
+      dx = exit.x - ent.x; dz = exit.z - ent.z; d = Math.max(.001, Math.hypot(dx,dz));
+      ax += dx/d * .85;
+      az += dz/d * .85;
       continue;
     }
     if(d < detection){
-      const strength = (1 - d/detection) * OBSTACLE_CONFIG.pushStrength;
+      const strength = Math.pow(1 - d/detection, 1.7) * OBSTACLE_CONFIG.pushStrength*.72;
       if(d < .001){
         dx = ent.aiSeed>.5 ? 1 : -1;
         dz = ent.aiSeed>.5 ? -1 : 1;
@@ -2495,7 +2565,7 @@ function getObstacleAvoidance(ent){
     }
   }
   const len = Math.hypot(ax,az);
-  if(len > .85){ ax/=len/.85; az/=len/.85; }
+  if(len > .55){ ax/=len/.55; az/=len/.55; }
   return {x:ax,z:az};
 }
 function updateStuckState(ent,dt){
@@ -3249,45 +3319,45 @@ function findNearestEnemy(ent, maxRange){
 }
 
 function acquireTarget(ent){
-  const awareness = Math.max(ent.cfg.vision || 0, (ent.cfg.range || 0) + 260);
+  if(!ent || ent.dead) return null;
+  const awareness = Math.max(ent.cfg.vision || 0, (ent.cfg.range || 0) + 220);
   const current = ent.attackTarget && !ent.attackTarget.dead ? ent.attackTarget : null;
-  if(current && dist2(ent,current) <= awareness){
-    // Un AT ne reste pas focalisé sur de l'infanterie si un véhicule devient visible.
-    if(!(ent.type==='at' && ent.rockets>0 && current.cfg.kind!=='vehicle')) return current;
+
+  // Garde la cible actuelle si elle reste valable, mais l'AT priorise toujours un véhicule visible.
+  if(current && current.faction !== ent.faction && dist2(ent,current) <= awareness){
+    if(!(ent.type === 'at' && ent.rockets > 0 && current.cfg.kind !== 'vehicle')){
+      const p = getWeaponProfile(ent,current);
+      if(p) return current;
+    }
   }
-  let best=null, bestScore=Infinity;
-  const nearby = queryEntitiesNear(ent.x, ent.z, awareness, other=>!other.dead && other.faction!==ent.faction);
+
+  let best = null;
+  let bestScore = Infinity;
+  const nearby = queryEntitiesNear(ent.x, ent.z, awareness, other => !other.dead && other.faction !== ent.faction);
   for(const other of nearby){
     if(ent.faction === 'ally' && other.faction === 'enemy' && other.visibleToPlayer === false) continue;
-    const d=dist2(ent,other);
-    if(d>awareness) continue;
-    const profile = getWeaponProfile(ent, other);
-    if(!profile) continue;
+    const p = getWeaponProfile(ent, other);
+    if(!p || p.weapon === 'none') continue;
+    const d = dist2(ent, other);
+    if(d > awareness) continue;
+
     let score = d;
-    if(ent.type==='machinegun'){
-    return {
-      weapon:'lmg',
-      range:ent.cfg.range,
-      damage: target.cfg.kind === 'infantry' ? ent.cfg.damage : ent.cfg.damage*.28,
-      reload: ent.commandBoost>0 ? ent.cfg.reload*.88 : ent.cfg.reload,
-      optimal:ent.cfg.optimal || 245,
-      ammoKey:'ammo',
-      muzzleSize:10,
-      hitChance: target.cfg.kind === 'infantry' ? .64 : .28
-    };
-  }
-  if(ent.type==='at'){
-      if(other.cfg.kind==='vehicle' && ent.rockets>0) score -= 360;
-      if(other.cfg.kind==='infantry') score += 35;
-      if(ent.rockets<=0 && other.cfg.kind==='vehicle') score += 500;
+    if(d <= p.range) score -= 130;
+    if(other.attackTarget === ent) score -= 95;
+    if(ent.type === 'machinegun' && other.cfg.kind === 'infantry') score -= 170;
+    if(ent.type === 'at'){
+      if(other.cfg.kind === 'vehicle' && ent.rockets > 0) score -= 420;
+      if(other.cfg.kind === 'infantry') score += 45;
+      if(ent.rockets <= 0 && other.cfg.kind === 'vehicle') score += 380;
     }
-    if(other.attackTarget===ent) score -= 120;
-    if(d <= profile.range) score -= 90;
-    if(score < bestScore){ bestScore=score; best=other; }
+    if(ent.cfg.kind === 'vehicle' && other.cfg.kind === 'infantry' && ent.type === 'mbt') score += 80;
+    if(score < bestScore){
+      bestScore = score;
+      best = other;
+    }
   }
   return best;
 }
-
 
 function getWeaponProfile(ent,target){
   if(!ent || !target || ent.dead || target.dead) return null;
@@ -3381,22 +3451,22 @@ function fireAt(ent,target){
 
   ent.ammo = Math.max(0, ent.ammo - 1);
   if(profile.weapon==='rifle') {
-    audio.playRandom(['rifle1','rifle2','burst'],muzzle,.88,.05,{cooldownKey:ent.id+'_infantry_fire', cooldown:.35});
+    audio.playRandom(['rifle1','rifle2','burst'],muzzle,1,.03,{cooldownKey:ent.id+'_infantry_fire', cooldown:.30});
   }
   if(profile.weapon==='lmg') {
-    audio.play('lmg',muzzle,1,.06,{cooldownKey:ent.id+'_lmg_fire', cooldown:.30});
-    if(target.cfg.kind==='infantry') target.suppressedTimer = Math.max(target.suppressedTimer || 0, 2.2);
+    audio.play('lmg',muzzle,1,.03,{cooldownKey:ent.id+'_lmg_fire', cooldown:.16});
+    if(target.cfg.kind==='infantry') target.suppressedTimer = Math.max(target.suppressedTimer || 0, 2.8);
   }
   if(profile.weapon==='mg') {
-    audio.play('vehicle_mg',muzzle,.90,.06,{cooldownKey:ent.id+'_vehicle_mg', cooldown:.30});
+    audio.play('vehicle_mg',muzzle,1,.03,{cooldownKey:ent.id+'_vehicle_mg', cooldown:.18});
   }
   if(profile.weapon==='autocannon') {
-    audio.play('autocannon',muzzle,.92,.12,{cooldownKey:ent.id+'_autocannon', cooldown:profile.reload*.75});
-    triggerScreenShake(muzzle.x,muzzle.z,.32);
+    audio.play('autocannon',muzzle,1,.08,{cooldownKey:ent.id+'_autocannon', cooldown:Math.max(.28, profile.reload*.55)});
+    triggerScreenShake(muzzle.x,muzzle.z,.34);
   }
   if(profile.weapon==='tank') {
-    audio.play('tank',muzzle,1,.20,{cooldownKey:ent.id+'_main_cannon', cooldown:profile.reload*.88});
-    triggerScreenShake(muzzle.x,muzzle.z,.76);
+    audio.play('tank',muzzle,1,.14,{cooldownKey:ent.id+'_main_cannon', cooldown:profile.reload*.82});
+    triggerScreenShake(muzzle.x,muzzle.z,.78);
   }
   createTracer(muzzle,{x:target.x,y:target.cfg.kind==='vehicle'?24:18,z:target.z}, profile.weapon==='tank'?0xffcc6b:0xffe8a0);
   if(Math.random()<profile.hitChance) applyDamage(target, profile.damage, ent, profile.weapon);
@@ -3408,14 +3478,17 @@ function maintainEngagementDistance(ent,target){
   const optimal = profile.optimal || profile.range*.7;
   const dx=ent.x-target.x, dz=ent.z-target.z;
   const len=Math.max(.001,Math.hypot(dx,dz));
-  const tooClose = d < optimal*.62;
-  const tooFar = d > Math.min(profile.range*.92, optimal*1.28);
+  const tooClose = d < optimal*.52;
+  const tooFar = d > Math.min(profile.range*.88, optimal*1.22);
+
+  // Les unités n'essaient plus de micro-corriger leur position pendant le tir : ça évite les cercles et vibrations.
   if(tooClose || tooFar){
-    const goalDistance = tooClose ? optimal*1.05 : optimal;
-    setUnitDestination(ent, {x: target.x + dx/len*goalDistance, z: target.z + dz/len*goalDistance}, {minChange:95, repathCooldown:1.15});
-  } else if(ent.attackTarget === target) {
-    clearUnitDestination(ent);
-    if(ent.cfg.kind==='vehicle') ent.speedNow = Math.min(ent.speedNow || 0, ent.cfg.speed*.12);
+    const goalDistance = tooClose ? optimal*1.08 : optimal;
+    const goal = {x: target.x + dx/len*goalDistance, z: target.z + dz/len*goalDistance};
+    setUnitDestination(ent, goal, {minChange: ent.cfg.kind==='vehicle'?150:105, repathCooldown:1.35});
+  } else {
+    if(ent.dest && ent.attackTarget === target) clearUnitDestination(ent);
+    if(ent.cfg.kind==='vehicle') ent.speedNow = Math.min(ent.speedNow || 0, ent.cfg.speed*.10);
   }
 }
 
@@ -3423,57 +3496,74 @@ function updateCombat(ent,dt){
   ent.reload=Math.max(0,ent.reload-dt);
   if(gamePhase!=='running' || ent.dead) return;
   const target = acquireTarget(ent);
-  if(!target) { ent.attackTarget=null; return; }
+  if(!target || target.dead || target.faction === ent.faction) { ent.attackTarget=null; return; }
+  const profile = getWeaponProfile(ent,target);
+  if(!profile || profile.weapon==='none') return;
+
   ent.attackTarget = target;
-  if(ent.cfg.weapon==='none') return;
   maintainEngagementDistance(ent,target);
+
   const targetYaw = Math.atan2(target.x-ent.x,target.z-ent.z);
+  const diff = normalizeAngle(targetYaw-ent.yaw);
   if(ent.cfg.kind==='vehicle'){
-    const diff = normalizeAngle(targetYaw-ent.yaw);
-    if(Math.abs(diff)>.035){
-      ent.yaw += clamp(diff, -ent.cfg.turn*dt*1.35, ent.cfg.turn*dt*1.35);
-      ent.group.rotation.y = ent.yaw;
-    }
+    const maxTurn = ent.cfg.turn * dt * 1.65;
+    ent.yaw += clamp(diff, -maxTurn, maxTurn);
+    if(Math.abs(diff) < .018) ent.yaw = targetYaw;
   } else {
-    ent.yaw = targetYaw;
-    ent.group.rotation.y = ent.yaw;
+    ent.yaw += normalizeAngle(targetYaw-ent.yaw) * clamp(dt*9,0,1);
   }
+  ent.group.rotation.y = ent.yaw;
+
   if(canFire(ent,target)) fireAt(ent,target);
 }
 
 function updateMovement(ent,dt){
   if(ent.dead || gamePhase==='countdown' || gamePhase==='paused' || gamePhase==='menu') return;
   ent.repathTimer = Math.max(0, (ent.repathTimer || 0) - dt);
-  if(ent.cfg.kind==='vehicle' && ent.fuel>0 && ent.dest) ent.fuel=Math.max(0, ent.fuel-dt*.45);
-  if(!ent.dest) { 
-    if(ent.cfg.kind==='vehicle') ent.speedNow = Math.max(0, ent.speedNow - ent.cfg.accel*dt*1.6);
-    ent.state = ent.attackTarget?'engaging':'idle';
-    return; 
+
+  if(ent.cfg.kind==='vehicle' && ent.fuel>0 && ent.dest){
+    ent.fuel=Math.max(0, ent.fuel-dt*.45);
   }
-  let dx=ent.dest.x-ent.x, dz=ent.dest.z-ent.z;
-  let d=Math.hypot(dx,dz);
-  const arrival = ent.cfg.kind==='vehicle'?36:22;
-  const slow = ent.cfg.kind==='vehicle'?145:62;
-  if(d<=arrival){
-    if(ent.path && ent.path.length){
-      ent.dest = ent.path.shift();
-      ent.state='moving';
-      return;
-    }
-    ent.x=ent.dest.x; ent.z=ent.dest.z; clearUnitDestination(ent); ent.speedNow=0; ent.state='idle';
-    ent.group.position.set(ent.x,0,ent.z);
+
+  if(!ent.dest) {
+    if(ent.cfg.kind==='vehicle') ent.speedNow = Math.max(0, (ent.speedNow || 0) - ent.cfg.accel*dt*1.8);
+    else ent.speedNow = 0;
+    ent.state = ent.attackTarget?'engaging':'idle';
     return;
   }
 
-  // Si un obstacle vient d'apparaître sur la ligne directe, on crée un waypoint de contournement.
+  let dx=ent.dest.x-ent.x, dz=ent.dest.z-ent.z;
+  let d=Math.hypot(dx,dz);
+  const arrival = ent.cfg.kind==='vehicle'?42:24;
+  const slow = ent.cfg.kind==='vehicle'?165:72;
+
+  const finishWaypoint = ()=>{
+    if(ent.path && ent.path.length){
+      ent.dest = ent.path.shift();
+      ent.state='moving';
+      return false;
+    }
+    ent.x=ent.dest.x; ent.z=ent.dest.z;
+    clearUnitDestination(ent);
+    ent.speedNow=0;
+    ent.state='idle';
+    ent.group.position.set(ent.x,0,ent.z);
+    return true;
+  };
+
+  if(d<=arrival){
+    finishWaypoint();
+    return;
+  }
+
   if(ent.repathTimer<=0 && ent.finalDest){
     const blocker = getFirstBlockingCollider({x:ent.x,z:ent.z}, ent.dest, ent, true);
     if(blocker){
       const waypoint = findBestCornerAroundBuilding(ent, blocker, ent.finalDest);
-      if(waypoint && Math.hypot(waypoint.x-ent.x, waypoint.z-ent.z)>12){
+      if(waypoint && Math.hypot(waypoint.x-ent.x, waypoint.z-ent.z)>18){
         ent.path = [ent.finalDest];
         ent.dest = waypoint;
-        ent.repathTimer = .8;
+        ent.repathTimer = 1.05;
         dx=ent.dest.x-ent.x; dz=ent.dest.z-ent.z; d=Math.hypot(dx,dz);
       }
     }
@@ -3481,57 +3571,86 @@ function updateMovement(ent,dt){
 
   const directX = dx/Math.max(.001,d), directZ = dz/Math.max(.001,d);
   const avoid = getObstacleAvoidance(ent);
-  ent.avoidX = lerp(ent.avoidX || 0, avoid.x, clamp(dt*4.5,0,1));
-  ent.avoidZ = lerp(ent.avoidZ || 0, avoid.z, clamp(dt*4.5,0,1));
-  let moveX = directX + ent.avoidX*.42;
-  let moveZ = directZ + ent.avoidZ*.42;
+  const avoidWeight = ent.cfg.kind==='vehicle' ? .16 : .20;
+  ent.avoidX = lerp(ent.avoidX || 0, avoid.x, clamp(dt*2.2,0,1));
+  ent.avoidZ = lerp(ent.avoidZ || 0, avoid.z, clamp(dt*2.2,0,1));
+
+  let moveX = directX + ent.avoidX*avoidWeight;
+  let moveZ = directZ + ent.avoidZ*avoidWeight;
   const moveLen = Math.max(.001, Math.hypot(moveX,moveZ));
   moveX /= moveLen; moveZ /= moveLen;
+
   const targetYaw = Math.atan2(moveX,moveZ);
   const diff = normalizeAngle(targetYaw-ent.yaw);
-  const turnRate = ent.cfg.kind==='vehicle' ? ent.cfg.turn*.92 : 3.2;
-  ent.yaw += clamp(diff, -turnRate*dt, turnRate*dt);
-  const align = Math.max(ent.cfg.kind==='vehicle' ? .58 : .56, 1 - Math.abs(diff)/Math.PI);
-  let targetSpeed = ent.cfg.speed * align;
-  if(ent.suppressedTimer>0){ ent.suppressedTimer=Math.max(0,ent.suppressedTimer-dt); targetSpeed *= ent.cfg.kind==='infantry' ? .72 : .90; }
-  if(ent.cfg.kind==='vehicle' && ent.fuel<=0) targetSpeed *= .15;
-  if(d<slow) targetSpeed *= clamp(d/slow,.36,1);
-  if(ent.cfg.kind==='vehicle') ent.speedNow = lerp(ent.speedNow,targetSpeed,clamp(dt*3.1,0,1));
-  else ent.speedNow = targetSpeed;
+  const absDiff = Math.abs(diff);
 
-  const step = ent.speedNow * dt;
+  if(ent.cfg.kind==='vehicle'){
+    const maxTurn = ent.cfg.turn*dt;
+    ent.yaw += clamp(diff, -maxTurn, maxTurn);
+    if(absDiff < .012) ent.yaw = targetYaw;
+  } else {
+    ent.yaw += normalizeAngle(targetYaw-ent.yaw) * clamp(dt*7.5,0,1);
+  }
+
+  let targetSpeed = ent.cfg.speed;
+  if(ent.cfg.kind==='vehicle'){
+    if(absDiff > 1.35) targetSpeed *= .05;
+    else if(absDiff > .85) targetSpeed *= .18;
+    else if(absDiff > .45) targetSpeed *= .48;
+    else targetSpeed *= clamp(1 - absDiff*.20,.72,1);
+  } else {
+    targetSpeed *= clamp(1 - absDiff*.10,.82,1);
+  }
+
+  if(ent.suppressedTimer>0){
+    ent.suppressedTimer=Math.max(0,ent.suppressedTimer-dt);
+    targetSpeed *= ent.cfg.kind==='infantry' ? .72 : .90;
+  }
+  if(ent.cfg.kind==='vehicle' && ent.fuel<=0) targetSpeed *= .15;
+  if(d<slow) targetSpeed *= clamp((d-arrival)/Math.max(1, slow-arrival), .16, 1);
+
+  const accelBlend = ent.cfg.kind==='vehicle' ? clamp(dt*2.6,0,1) : clamp(dt*5.5,0,1);
+  ent.speedNow = lerp(ent.speedNow || 0, targetSpeed, accelBlend);
+
+  let step = ent.speedNow * dt;
+  if(step >= Math.max(0, d-arrival*.55)){
+    finishWaypoint();
+    return;
+  }
+
   const nx = ent.x + Math.sin(ent.yaw)*step;
   const nz = ent.z + Math.cos(ent.yaw)*step;
 
   if(!collidesWithStatic(nx,nz,ent.radius,ent)){
     ent.x=nx; ent.z=nz;
   } else {
-    // Glissement réaliste : on teste les axes séparés, puis une légère dérive latérale.
     const canX = !collidesWithStatic(nx,ent.z,ent.radius,ent);
     const canZ = !collidesWithStatic(ent.x,nz,ent.radius,ent);
     if(canX && !canZ){ ent.x=nx; }
     else if(canZ && !canX){ ent.z=nz; }
     else if(canX && canZ){ ent.x=nx; ent.z=nz; }
-    else {
-      const side = ent.aiSeed>.5?1:-1;
-      const sx = Math.cos(ent.yaw)*side*step*.65;
-      const sz = -Math.sin(ent.yaw)*side*step*.65;
-      if(!collidesWithStatic(ent.x+sx, ent.z+sz, ent.radius,ent)){
-        ent.x += sx; ent.z += sz;
-      } else if(ent.repathTimer<=0 && ent.finalDest){
-        ent.stuckBoost = clamp((ent.stuckBoost || 0) + 12, 0, 80);
-        ent.path = buildPathAroundObstacles(ent, ent.finalDest);
-        ent.dest = ent.path.shift() || ent.finalDest;
-        ent.repathTimer = .9;
-      }
+    else if(ent.repathTimer<=0 && ent.finalDest){
+      ent.speedNow *= .35;
+      ent.stuckBoost = clamp((ent.stuckBoost || 0) + 18, 0, 95);
+      ent.path = buildPathAroundObstacles(ent, ent.finalDest);
+      ent.dest = ent.path.shift() || ent.finalDest;
+      ent.repathTimer = 1.05;
+    } else {
+      ent.speedNow *= .65;
     }
   }
+
   ent.group.position.set(ent.x,0,ent.z);
   ent.group.rotation.y=ent.yaw;
   ent.state='moving';
+
+  if(ent.cfg.kind==='vehicle' && ent.speedNow > ent.cfg.speed*.32 && gamePhase==='running'){
+    audio.play(ent.type==='mbt' || ent.type==='ifv' || ent.type==='apc' ? 'engineHeavy' : 'engineLight',
+      {x:ent.x,z:ent.z}, 1, .20, {cooldownKey:ent.id+'_engine', cooldown:1.15});
+  }
+
   updateStuckState(ent,dt);
 }
-
 
 function isSoftPropCollider(c){
   const t = c?.type || '';
@@ -3576,7 +3695,7 @@ function solveCollisions(){
       const d=Math.hypot(dx,dz) || .001;
       const min=a.radius+b.radius;
       if(d<min){
-        const overlap=(min-d)*0.24;
+        const overlap=(min-d)*0.11;
         const nx=dx/d, nz=dz/d;
         const total=a.mass+b.mass;
         const pa=overlap*(b.mass/total), pb=overlap*(a.mass/total);
