@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.10 — Realistic Combat Audio</title>
+<title>OPERATION OVERWATCH v0.4.11 — Audio Timing & AT Rockets</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -480,7 +480,7 @@ const defaults={audio:{masterVolume:1,musicVolume:.7,sfxVolume:.8,muted:false},g
 let stored={};try{stored=JSON.parse(localStorage.getItem(LS)||'{}')||{}}catch(e){stored={};try{localStorage.removeItem(LS)}catch(_){}} 
 let settings=merge(defaults,stored), optionsReturn='mainMenu';
 let dpr=1, started=false, paused=false, portraitDismissed=false, minimized=false, detailOpen=false, selected=null, lastPlayTap=-9999;
-let camera={x:0,y:170,z:.72}, last=0, units=[], effects=[], mines=[], obstacles=[], buildings=[], props=[];
+let camera={x:0,y:170,z:.72}, last=0, units=[], effects=[], pendingImpacts=[], mines=[], obstacles=[], buildings=[], props=[];
 let terrain=[], objectives=[];
 let pointer={down:false,id:null,x:0,y:0,lx:0,ly:0,moved:false}, touches=new Map(), pinchStart=0, pinchZoom=.72;
 let aiClock=0,fpsClock=0,fpsCount=0,fpsValue=60, shake=0;
@@ -588,8 +588,12 @@ const AUDIO_SAMPLE_URLS={
 
   // OpenGameArt / Thimras : Cannon fire + hit, CC0.
   tank:['assets/audio/sfx/cannon_fire.ogg', 'https://opengameart.org/sites/default/files/cannon_fire_0.ogg'],
-  at_launch:['assets/audio/sfx/at_launch_heavy.ogg', 'https://opengameart.org/sites/default/files/cannon_fire_0.ogg'],
   armor:['assets/audio/sfx/cannon_hit.ogg', 'https://opengameart.org/sites/default/files/cannon_hit_0.ogg'],
+
+  // OpenGameArt / mikeask : Missile launch, CC0. Local file takes priority when present.
+  // Freesound / klangfabrik RPG launcher CC0 is documented for the project pipeline but needs user login to download.
+  at_launch:['assets/audio/sfx/rpg_launch.ogg','assets/audio/sfx/missile.wav','https://opengameart.org/sites/default/files/missile.wav'],
+  rocket_whizz:['assets/audio/sfx/rocket_whizz.ogg','https://opengameart.org/sites/default/files/missile.wav'],
 
   // OpenGameArt / EZduzziteh : explosions CC0.
   explosion:['assets/audio/sfx/explosion1.ogg', 'https://opengameart.org/sites/default/files/explosion1_0.ogg'],
@@ -809,10 +813,16 @@ function createAudio(){
       case 'mg':
         burst(4,42,()=>{noise(.042,v*.39,2100,'bandpass',1.5); osc(95,.025,'square',v*.07,.5)}); break;
       case 'at_launch':
-        // Départ roquette : pop sec, souffle grave, sifflement court.
-        noise(.16,v*.64,760,'bandpass',1.1); noise(.34,v*.34,190,'lowpass',.65); osc(520,.22,'sawtooth',v*.11,1.8); break;
+        // Fallback RPG réaliste : claquement initial + souffle de tube + sifflement qui part.
+        noise(.075,v*.90,1850,'bandpass',1.6);
+        noise(.22,v*.62,260,'lowpass',.7);
+        noise(.42,v*.40,820,'bandpass',1.0);
+        osc(620,.34,'sawtooth',v*.13,1.65);
+        break;
       case 'rocket_whizz':
-        osc(830,.28,'sawtooth',v*.16,1.45); noise(.22,v*.20,1300,'bandpass',1.6); break;
+        osc(920,.36,'sawtooth',v*.18,1.38);
+        noise(.34,v*.26,1650,'bandpass',1.8);
+        break;
       case 'autocannon':
         burst(2,82,()=>{noise(.105,v*.58,900,'bandpass',1.1); osc(80,.06,'sawtooth',v*.14,.5)}); break;
       case 'tank':
@@ -1093,7 +1103,7 @@ function createUnitByKey(key,faction,x,y){
 function initGame(){
   const map=setupMap();
   camera={x:Math.max(0,map.allySpawn.x-260),y:Math.max(0,map.allySpawn.y-innerHeight/(2*(innerWidth<700?.56:.72))),z:innerWidth<700?.54:.68};
-  selected=null;units=[];effects=[];shake=0;detailOpen=false;minimized=false;
+  selected=null;units=[];effects=[];pendingImpacts=[];shake=0;detailOpen=false;minimized=false;
   prepCountdown=5;matchTimeLeft=MATCH_DURATION;gameOver=false;reinforcementPoints=260;nextSquadId=50;nextVehicleId=50;allySpawnIndex=0;aiClock=0;
   const chosen=deploymentCount()>0?deployment:DEFAULT_DEPLOYMENT;
   let sq=0,veh=0;
@@ -1285,7 +1295,7 @@ function update(dt){
     if(u.kind==='squad')moveSquad(u,dt);else moveVeh(u,dt);
   }
   resolveCollisions(dt);
-  vision();combat(dt);ai(dt);objectivesUpdate(dt);logistics(dt);updateEffects(dt);shake=Math.max(0,shake-dt*1.8);clampCam();fps(dt);updateStrategicHud();
+  vision();combat(dt);ai(dt);objectivesUpdate(dt);logistics(dt);updatePendingImpacts(dt);updateEffects(dt);shake=Math.max(0,shake-dt*1.8);clampCam();fps(dt);updateStrategicHud();
 }
 
 function updateAttackIntent(u){
@@ -1404,7 +1414,7 @@ function combat(dt){
 
     const ang=Math.atan2(target.y-u.y,target.x-u.x);
     if(u.kind==='vehicle'){
-      // Véhicules v0.4.5 : tir strictement frontal, plus de tir latéral "au hasard".
+      // Véhicules : tir strictement dans l'axe avant. Le son ne part que quand l'arme tire vraiment.
       const diff=normAng(ang-u.rot), ad=Math.abs(diff), arc=u.type==='mbt'?.08:u.type==='ifv'?.12:.16;
       if(ad>arc){
         u.rot+=Math.sign(diff)*Math.min(ad,(u.turn||1.8)*dt*(u.type==='mbt'?.62:.9));
@@ -1416,72 +1426,141 @@ function combat(dt){
       u.face=ang;
     }
 
-    const muzzleX=u.kind==='vehicle'?u.x+Math.cos(u.rot)*42:u.x+Math.cos(ang)*18;
-    const muzzleY=u.kind==='vehicle'?u.y+Math.sin(u.rot)*42:u.y+Math.sin(ang)*18;
+    const muzzleDist=u.kind==='vehicle'?({mbt:66,ifv:58,apc:46,humvee:39}[u.type]||42):22;
     const shotAng=u.kind==='vehicle'?u.rot:ang;
+    const muzzleX=u.x+Math.cos(shotAng)*muzzleDist;
+    const muzzleY=u.y+Math.sin(shotAng)*muzzleDist;
     const isRocketShot=u.kind==='squad'&&u.type==='anti_vehicle';
-    spawn('muzzle',muzzleX,muzzleY,{rot:shotAng,heavy:u.kind==='vehicle'&&u.type==='mbt'});
-    if(isRocketShot){
-      spawn('rocket',muzzleX,muzzleY,{tx:target.x,ty:target.y,rot:shotAng});
-      spawn('smoke',muzzleX,muzzleY);
-      if(target.kind==='vehicle')markVehicleThreat(target,u,'rocket_launch');
-    }else{
-      spawn('tracer',muzzleX,muzzleY,{tx:target.x+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),ty:target.y+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),heavy:u.kind==='vehicle'&&u.type==='mbt'});
-    }
-    playWeaponSound(u);
 
-    let acc=(u.acc||.55)*(u.supp>70?.35:u.supp>40?.65:1)*(u.fatigue>70?.75:1);
-    if(u.state==='moving')acc*=.86;
-    if(Math.random()<acc){
-      let dmg=u.dmg;
-      if(target.kind==='vehicle'&&isRocketShot){
-        target.rocketHits=(target.rocketHits||0)+1;
-        markVehicleThreat(target,u,'rocket_hit');
-        dmg*=2.15;
-      }
-      if(target.kind==='vehicle')dmg=armorDamage(target,u,dmg);
-      else{
-        if(u.kind==='vehicle'){
-          dmg*=({mbt:1.95,ifv:1.55,apc:1.22,humvee:1.08}[u.type]||1);
-          if(['mbt','ifv'].includes(u.type))target.supp=clamp((target.supp||0)+18,0,100);
-        }
-        dmg*=({none:1,light:.82,medium:.65,heavy:.48}[target.cover]||1);
-      }
-      target.hp-=Math.max(1,dmg);
-      if(target.kind==='vehicle'&&isRocketShot&&target.rocketHits>=((ROCKET_KILL_HITS[target.type]||3))){
-        target.hp=-1;
-      }
-      target.underFire=2;target.supp=clamp((target.supp||0)+14,0,100);target.morale=clamp((target.morale||100)-5,0,100);
-      const hitType=target.kind==='vehicle'?'armor':'impact';
-      spawn(hitType,target.x+rand(-10,10),target.y+rand(-10,10));
-      if(target.kind==='squad'){
-        spawn(dmg>22?'bloodBurst':'blood',target.x+rand(-13,13),target.y+rand(-13,13),{rot:ang,heavy:dmg>22});
-        audio.play('flesh',{x:target.x,y:target.y,volume:.30,cooldownKey:target.id+'_flesh',cooldown:.18});
-      }
-      audio.play(hitType,{x:target.x,y:target.y,volume:target.kind==='vehicle'?.58:.42,cooldownKey:target.id+'_impact',cooldown:.12});
-      if(target.hp<=0)destroy(target);
+    spawn('muzzle',muzzleX,muzzleY,{rot:shotAng,heavy:u.kind==='vehicle'&&u.type==='mbt'});
+    playWeaponSound(u,muzzleX,muzzleY,shotAng,target);
+
+    const acc=shotAccuracy(u);
+    if(isRocketShot){
+      const travel=clamp(distXY(muzzleX,muzzleY,target.x,target.y)/620,.24,.78);
+      const tx=target.x, ty=target.y;
+      spawn('rocket',muzzleX,muzzleY,{tx,ty,rot:shotAng,life:travel,max:travel});
+      spawn('smoke',muzzleX,muzzleY);
+      audio.play('rocket_whizz',{x:(muzzleX+tx)/2,y:(muzzleY+ty)/2,volume:.42,cooldownKey:u.id+'_whizz',cooldown:.55});
+      if(target.kind==='vehicle')markVehicleThreat(target,u,'rocket_launch');
+
+      pendingImpacts.push({
+        type:'rocket',
+        sourceId:u.id,
+        sourceKind:u.kind,
+        sourceType:u.type,
+        sourceFaction:u.faction,
+        sx:muzzleX,sy:muzzleY,
+        targetId:target.id,
+        x:tx,y:ty,
+        t:travel,
+        willHit:Math.random()<acc,
+        dmg:u.dmg,
+        ang:shotAng
+      });
     }else{
-      target.supp=clamp((target.supp||0)+5,0,100);
-      spawn('impact',target.x+(Math.random()-.5)*58,target.y+(Math.random()-.5)*58);
-      audio.play('impact',{x:target.x,y:target.y,volume:.26,cooldownKey:target.id+'_miss',cooldown:.18});
+      spawn('tracer',muzzleX,muzzleY,{
+        tx:target.x+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),
+        ty:target.y+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),
+        heavy:u.kind==='vehicle'&&u.type==='mbt'
+      });
+      if(Math.random()<acc){
+        applyShotDamage(u,target,ang,false,u.dmg,target.x+rand(-10,10),target.y+rand(-10,10));
+      }else{
+        missImpact(target,u,target.x+(Math.random()-.5)*58,target.y+(Math.random()-.5)*58);
+      }
     }
+
     u.ammo--;u.cd=u.kind==='vehicle'?u.reload:(u.reload||.85);u.state='engaging';
     if(u.kind==='vehicle'){u.recoil=1;if(u.dmg>25)spawn('smoke',muzzleX,muzzleY)}
   }
 }
-function playWeaponSound(u){
+
+function shotAccuracy(u){
+  let acc=(u.acc||.55)*(u.supp>70?.35:u.supp>40?.65:1)*(u.fatigue>70?.75:1);
+  if(u.state==='moving')acc*=.86;
+  return clamp(acc,.04,.92);
+}
+
+function updatePendingImpacts(dt){
+  if(!pendingImpacts.length)return;
+  for(const p of pendingImpacts)p.t-=dt;
+  const ready=pendingImpacts.filter(p=>p.t<=0);
+  pendingImpacts=pendingImpacts.filter(p=>p.t>0);
+  for(const p of ready)resolvePendingImpact(p);
+}
+
+function resolvePendingImpact(p){
+  const target=units.find(u=>u.id===p.targetId&&u.hp>0&&!u.embarked);
+  const ix=target?target.x:p.x, iy=target?target.y:p.y;
+  if(p.type==='rocket'){
+    // Son d'impact/explosion au moment où la roquette atteint la cible, pas au lancement.
+    spawn('boom',ix,iy,{heavy:target&&target.kind==='vehicle'});
+    spawn('smoke',ix,iy);
+    audio.play('explosion',{x:ix,y:iy,volume:target&&target.kind==='vehicle'?.72:.55,light:!(target&&target.kind==='vehicle'),cooldownKey:'rocket_impact_'+Math.round(ix)+'_'+Math.round(iy),cooldown:.08});
+    if(!target)return;
+    const attacker={id:p.sourceId,kind:p.sourceKind,type:p.sourceType,faction:p.sourceFaction,x:p.sx,y:p.sy,dmg:p.dmg};
+    if(p.willHit){
+      applyShotDamage(attacker,target,p.ang,true,p.dmg,ix,iy);
+    }else{
+      missImpact(target,attacker,ix+rand(-34,34),iy+rand(-34,34));
+    }
+  }
+}
+
+function applyShotDamage(att,target,ang,isRocketShot,baseDamage,impactX,impactY){
+  let dmg=baseDamage;
+  if(target.kind==='vehicle'&&isRocketShot){
+    target.rocketHits=(target.rocketHits||0)+1;
+    markVehicleThreat(target,att,'rocket_hit');
+    dmg*=2.15;
+  }
+  if(target.kind==='vehicle')dmg=armorDamage(target,att,dmg);
+  else{
+    if(att.kind==='vehicle'){
+      dmg*=({mbt:1.95,ifv:1.55,apc:1.22,humvee:1.08}[att.type]||1);
+      if(['mbt','ifv'].includes(att.type))target.supp=clamp((target.supp||0)+18,0,100);
+    }
+    dmg*=({none:1,light:.82,medium:.65,heavy:.48}[target.cover]||1);
+  }
+
+  target.hp-=Math.max(1,dmg);
+  if(target.kind==='vehicle'&&isRocketShot&&target.rocketHits>=((ROCKET_KILL_HITS[target.type]||3))){
+    target.hp=-1;
+  }
+  target.underFire=2;
+  target.supp=clamp((target.supp||0)+14,0,100);
+  target.morale=clamp((target.morale||100)-5,0,100);
+
+  const hitType=target.kind==='vehicle'?'armor':'impact';
+  spawn(hitType,impactX,impactY);
+  if(target.kind==='squad'){
+    spawn(dmg>22?'bloodBurst':'blood',target.x+rand(-13,13),target.y+rand(-13,13),{rot:ang,heavy:dmg>22});
+    audio.play('flesh',{x:target.x,y:target.y,volume:.30,cooldownKey:target.id+'_flesh',cooldown:.18});
+  }
+  audio.play(hitType,{x:impactX,y:impactY,volume:target.kind==='vehicle'?.58:.42,cooldownKey:target.id+'_impact',cooldown:.12});
+  if(target.hp<=0)destroy(target);
+}
+
+function missImpact(target,att,x,y){
+  target.supp=clamp((target.supp||0)+5,0,100);
+  spawn('impact',x,y);
+  audio.play('impact',{x,y,volume:.26,cooldownKey:(target.id||'miss')+'_miss',cooldown:.18});
+}
+
+function playWeaponSound(u,x,y,ang,target){
+  // Tous les sons partent depuis le muzzle exact, au même tick que le flash/projection.
   if(u.kind==='squad'){
     if(u.type==='anti_vehicle'){
-      audio.play('at_launch',{x:u.x,y:u.y,volume:.78,cooldownKey:u.id+'_rocket',cooldown:1.2});
-      setTimeout(()=>audio.play('rocket_whizz',{x:u.x,y:u.y,volume:.34,cooldownKey:u.id+'_whizz',cooldown:.7}),90);
+      audio.play('at_launch',{x,y,volume:.92,cooldownKey:u.id+'_rocket',cooldown:1.05,rate:.96+Math.random()*.08});
     }else{
-      audio.play(u.cmd?'rifle':'rifle',{x:u.x,y:u.y,volume:u.cmd ? .46 : .55,cooldownKey:u.id+'_rifle',cooldown:.25});
+      audio.play('rifle',{x,y,volume:u.cmd ? .48 : .58,cooldownKey:u.id+'_rifle',cooldown:.24,rate:.95+Math.random()*.10});
     }
     return;
   }
-  if(u.type==='mbt')audio.play('tank',{x:u.x,y:u.y,volume:.95,cooldownKey:u.id+'_tank',cooldown:u.reload*.75});
-  else if(u.type==='ifv')audio.play('autocannon',{x:u.x,y:u.y,volume:.72,cooldownKey:u.id+'_auto',cooldown:.45});
-  else audio.play('mg',{x:u.x,y:u.y,volume:.58,cooldownKey:u.id+'_mg',cooldown:.35});
+  if(u.type==='mbt')audio.play('tank',{x,y,volume:1,cooldownKey:u.id+'_tank',cooldown:u.reload*.72,rate:.96});
+  else if(u.type==='ifv')audio.play('autocannon',{x,y,volume:.76,cooldownKey:u.id+'_auto',cooldown:.42,rate:.98});
+  else audio.play('mg',{x,y,volume:.62,cooldownKey:u.id+'_mg',cooldown:.32,rate:.98+Math.random()*.06});
 }
 
 function markVehicleThreat(v,attacker,reason='rocket'){
