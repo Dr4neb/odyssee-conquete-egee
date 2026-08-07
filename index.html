@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.3a — Assets Kenney intégrés</title>
+<title>OPERATION OVERWATCH v0.4.4 — Setup, cartes et match 5 minutes</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -144,6 +144,58 @@ h2{font-size:26px;margin:0 0 10px}
   .deploy-summary{margin-top:8px;padding-top:8px}
 }
 
+
+/* v0.4.4 — setup flow, timer and reinforcements */
+.setup-card{width:min(900px,100%);padding:18px}
+.setup-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:12px 0}
+.setup-section{border:1px solid rgba(190,220,230,.15);background:rgba(255,255,255,.045);border-radius:14px;padding:12px}
+.setup-section h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#dce8e4}
+.setup-section select{width:100%;background:#0d171b;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px}
+.map-list{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.map-card{min-height:112px;text-align:left;border-radius:14px;padding:12px;background:rgba(255,255,255,.045)}
+.map-card.active{border-color:rgba(111,199,234,.72);box-shadow:0 0 0 2px rgba(111,199,234,.12) inset}
+.map-card b{display:block;font-size:14px;margin-bottom:4px}
+.map-card small{display:block;color:var(--mut);line-height:1.3}
+.setup-actions{position:sticky;bottom:0;display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);background:linear-gradient(180deg,rgba(5,10,13,0),rgba(5,10,13,.96) 28%)}
+.setup-actions .primary{min-width:180px}
+#matchTimer{
+  position:absolute;top:calc(9px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);
+  background:rgba(4,9,12,.70);border:1px solid rgba(190,220,230,.16);border-radius:999px;padding:7px 13px;
+  font-weight:950;font-size:13px;letter-spacing:.08em;pointer-events:none;backdrop-filter:blur(8px);color:#f1f7f4;text-shadow:0 2px 10px #000
+}
+#countdownBanner{
+  position:absolute;top:18%;left:50%;transform:translateX(-50%);display:none;pointer-events:none;text-align:center;
+  background:rgba(4,9,12,.72);border:1px solid rgba(220,235,230,.18);border-radius:18px;padding:14px 24px;box-shadow:0 20px 60px #000a;backdrop-filter:blur(8px)
+}
+#countdownBanner b{display:block;font-size:clamp(42px,10vw,92px);line-height:.95;color:#fff}
+#countdownBanner span{display:block;text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--mut);font-weight:900;margin-top:5px}
+#reinforceBar{
+  position:absolute;right:calc(8px + env(safe-area-inset-right,0px));top:calc(55px + env(safe-area-inset-top,0px));
+  width:min(315px,calc(100vw - 16px));pointer-events:auto;background:rgba(4,9,12,.72);border:1px solid rgba(190,220,230,.16);border-radius:13px;padding:8px;box-shadow:0 12px 36px #0008;backdrop-filter:blur(8px)
+}
+#reinforceBar .rTop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:900}
+#reinforcePoints{font-size:16px;color:#f5f8ef}
+#reinforceBar .rControls{display:grid;grid-template-columns:1fr auto;gap:6px}
+#reinforceSelect{min-width:0;background:#0d171b;color:var(--txt);border:1px solid var(--line);border-radius:9px;padding:8px;font-size:12px}
+#reinforceButton{min-height:36px;border-radius:9px;font-size:12px}
+@media (max-width:760px){.setup-grid,.map-list{grid-template-columns:1fr}.setup-actions{flex-direction:column;align-items:stretch}.setup-actions .primary{width:100%;min-width:0}}
+@media (orientation:landscape) and (max-height:560px){
+  .setup-card{width:min(940px,100%);padding:12px}
+  .setup-grid{grid-template-columns:1fr 1.2fr;margin:8px 0}
+  .map-list{grid-template-columns:repeat(2,1fr)}
+  .map-card{min-height:86px;padding:9px}
+  .setup-section{padding:9px}
+  #matchTimer{top:8px;font-size:11px;padding:6px 10px}
+  #reinforceBar{top:48px;width:260px;padding:7px}
+  #reinforceBar .rTop{margin-bottom:4px}
+  #reinforceSelect{padding:6px;font-size:11px}
+  #reinforceButton{min-height:32px;padding:5px 8px}
+}
+@media (orientation:portrait) and (max-width:560px){
+  #reinforceBar{top:58px;left:8px;right:8px;width:auto}
+  #matchTimer{top:10px}
+}
+
 </style>
 </head>
 <body>
@@ -154,7 +206,7 @@ h2{font-size:26px;margin:0 0 10px}
     <div class="brand">
       <p class="eyebrow">RTS tactique mobile</p>
       <h1>OPERATION<br>OVERWATCH</h1>
-      <p class="sub">v0.4.3 — Déploiement par points : choisissez votre force avant la bataille.</p>
+      <p class="sub">v0.4.4 — Choix faction, carte, déploiement et match 5 minutes.</p>
     </div>
     <div class="menu">
       <button id="playNow" class="primary" onclick="OW.openDeployment(event)" ontouchend="OW.openDeployment(event)" onpointerup="OW.openDeployment(event)">▶ JOUER</button>
@@ -164,10 +216,53 @@ h2{font-size:26px;margin:0 0 10px}
       <button onclick="OW.fullscreen()">Plein écran</button>
       <button class="ghost" onclick="OW.toast('Merci d’avoir joué à OPERATION OVERWATCH.')">Quitter / Retour</button>
     </div>
-    <p class="hint">Mobile : jouez en paysage, tap sur une unité puis tap au sol. L’audio se débloque après JOUER.</p>
+    <p class="hint">Flux : Jouer → faction → carte → déploiement → compte à rebours. Mobile : paysage recommandé.</p>
   </div>
 </div>
 
+
+
+<div id="setupMenu" class="screen" style="display:none">
+  <div class="card setup-card">
+    <div class="deploy-head">
+      <div>
+        <p class="eyebrow">Préparation mission</p>
+        <h2>Faction et carte</h2>
+        <p class="sub">Pour l’instant il n’y a qu’une faction jouable et un adversaire, mais le flux est prêt pour les prochains camps.</p>
+      </div>
+      <div class="budgetBox">
+        <span>Étape</span>
+        <b>1/2</b>
+        <small>Configuration</small>
+      </div>
+    </div>
+    <div class="setup-grid">
+      <div class="setup-section">
+        <h3>Faction jouée</h3>
+        <select id="playerFactionSelect" onchange="OW.setFactionChoice()">
+          <option value="coalition">Coalition Overwatch</option>
+        </select>
+        <p class="sub">Infanterie mécanisée moderne, véhicules polyvalents.</p>
+      </div>
+      <div class="setup-section">
+        <h3>Faction ennemie</h3>
+        <select id="enemyFactionSelect" onchange="OW.setFactionChoice()">
+          <option value="redcell">Red Cell</option>
+        </select>
+        <p class="sub">Force ennemie prototype avec IA offensive étagée.</p>
+      </div>
+    </div>
+    <div class="setup-section">
+      <h3>Choisir la carte</h3>
+      <div id="mapList" class="map-list"></div>
+    </div>
+    <div class="setup-actions">
+      <button class="ghost" onclick="OW.show('mainMenu')">Retour</button>
+      <span class="sub" id="setupSummary">Coalition Overwatch vs Red Cell · Colline Route 7</span>
+      <button class="primary" onclick="OW.confirmSetup()">Jouer</button>
+    </div>
+  </div>
+</div>
 
 <div id="deployMenu" class="screen" style="display:none">
   <div class="card deploy-card">
@@ -192,7 +287,7 @@ h2{font-size:26px;margin:0 0 10px}
         <button onclick="OW.deployRecommended()">Composition conseillée</button>
         <button onclick="OW.deployClear()">Vider</button>
         <button class="primary" id="deployLaunch" onclick="OW.startDeployment(event)">Lancer la partie</button>
-        <button class="ghost" onclick="OW.show('mainMenu')">Retour</button>
+        <button class="ghost" onclick="OW.show('setupMenu')">Retour</button>
       </div>
     </div>
   </div>
@@ -251,7 +346,7 @@ h2{font-size:26px;margin:0 0 10px}
 <div id="hud">
   <div id="topbar">
     <div class="chips">
-      <span class="chip">OW v0.4.3</span>
+      <span class="chip">OW v0.4.4</span>
       <span id="modeChip" class="chip">Prêt</span>
       <span id="fps" class="chip" style="display:none">60 FPS</span>
     </div>
@@ -259,6 +354,15 @@ h2{font-size:26px;margin:0 0 10px}
       <button class="iconbtn" title="Options" onclick="OW.showOptions('game')">⚙</button>
       <button class="iconbtn" title="Plein écran" onclick="OW.fullscreen()">⛶</button>
       <button class="iconbtn" title="Pause" onclick="OW.pause()">Ⅱ</button>
+    </div>
+  </div>
+  <div id="matchTimer">05:00</div>
+  <div id="countdownBanner"><b>5</b><span>Déploiement verrouillé</span></div>
+  <div id="reinforceBar">
+    <div class="rTop"><span>Renforts</span><b id="reinforcePoints">0 pts</b></div>
+    <div class="rControls">
+      <select id="reinforceSelect"></select>
+      <button id="reinforceButton" onclick="OW.spawnReinforcement()">Spawn</button>
     </div>
   </div>
   <div id="panel" style="display:none">
@@ -271,18 +375,21 @@ h2{font-size:26px;margin:0 0 10px}
 <script>
 window.OW=(()=>{
 'use strict';
-const W=2600,H=1600, ARRIVE=22,SLOW=95,EPS=.08;
+const W=3400,H=2200, ARRIVE=24,SLOW=110,EPS=.08;
 const LS='operationOverwatchSettings';
 const $=id=>document.getElementById(id);
 const canvas=$('game'), ctx=canvas.getContext('2d',{alpha:false});
-const screens=['mainMenu','deployMenu','optionsMenu','creditsMenu','pauseMenu'];
+const screens=['mainMenu','setupMenu','deployMenu','optionsMenu','creditsMenu','pauseMenu'];
 const defaults={audio:{masterVolume:1,musicVolume:.7,sfxVolume:.8,muted:false},graphics:{quality:'medium',effects:'normal',showFPS:false,showDebug:false,uiScale:1},gameplay:{cameraSpeed:1,zoomSensitivity:1,showVisionRanges:false,showAttackRanges:false},controls:{inputMode:'auto',invertZoom:false,confirmImportantOrders:false,touchButtonScale:1}};
 let stored={};try{stored=JSON.parse(localStorage.getItem(LS)||'{}')||{}}catch(e){stored={};try{localStorage.removeItem(LS)}catch(_){}} 
 let settings=merge(defaults,stored), optionsReturn='mainMenu';
 let dpr=1, started=false, paused=false, portraitDismissed=false, minimized=false, detailOpen=false, selected=null, lastPlayTap=-9999;
 let camera={x:0,y:170,z:.72}, last=0, units=[], effects=[], mines=[], obstacles=[], buildings=[];
+let terrain=[], objectives=[];
 let pointer={down:false,id:null,x:0,y:0,lx:0,ly:0,moved:false}, touches=new Map(), pinchStart=0, pinchZoom=.72;
 let aiClock=0,fpsClock=0,fpsCount=0,fpsValue=60, shake=0;
+let setup={playerFaction:'coalition',enemyFaction:'redcell',map:'route7'};
+let prepCountdown=0, matchTimeLeft=300, gameOver=false, reinforcementPoints=0, nextSquadId=50, nextVehicleId=50, allySpawnIndex=0, reinforcementIncome=2.2;
 
 // v0.4.3a Asset Pass: real Kenney PNGs loaded from documented CC0 packs.
 // In standalone index.html the assets are loaded from a raw mirror so the game is immediately visible.
@@ -362,15 +469,71 @@ function drawImageCentered(img,x,y,w,h,rot=0,tint=null,alpha=1){
 }
 
 
-const terrain=[
-  {t:'open',x:0,y:0,w:W,h:H},
-  {t:'road',x:0,y:690,w:2600,h:130},
-  {t:'forest',x:220,y:160,w:520,h:420},
-  {t:'rocks',x:1580,y:260,w:420,h:330},
-  {t:'urban',x:1180,y:980,w:520,h:340},
-  {t:'forest',x:2040,y:240,w:300,h:280}
-];
-const objectives=[{name:'Alpha',letter:'A',x:1180,y:720,r:92,owner:'neutral',p:0},{name:'Bravo',letter:'B',x:1980,y:1050,r:92,owner:'neutral',p:0},{name:'Charlie',letter:'C',x:1515,y:425,r:86,owner:'neutral',p:0}];
+const MATCH_DURATION=300;
+const MAPS={
+  route7:{
+    name:'Colline Route 7',
+    desc:'Grande carte ouverte, route centrale et objectifs très espacés.',
+    allySpawn:{x:245,y:1060}, enemySpawn:{x:3140,y:1060},
+    terrain:[
+      {t:'open',x:0,y:0,w:W,h:H},
+      {t:'road',x:0,y:1030,w:3400,h:150},
+      {t:'forest',x:260,y:230,w:690,h:520},
+      {t:'rocks',x:1840,y:230,w:520,h:370},
+      {t:'urban',x:1460,y:1450,w:620,h:360},
+      {t:'forest',x:2600,y:360,w:480,h:360},
+      {t:'rocks',x:2460,y:1450,w:420,h:330}
+    ],
+    objectives:[
+      {name:'Alpha',letter:'A',x:1180,y:970,r:96,owner:'neutral',p:0},
+      {name:'Bravo',letter:'B',x:2260,y:1380,r:96,owner:'neutral',p:0},
+      {name:'Charlie',letter:'C',x:2760,y:650,r:92,owner:'neutral',p:0}
+    ],
+    obstacles:[
+      {x:1020,y:930,hp:90,type:'sandbags'},{x:1680,y:1180,hp:90,type:'barrier'},{x:2360,y:1280,hp:90,type:'concrete'},
+      {x:740,y:1240,hp:90,type:'sandbags'},{x:2860,y:780,hp:90,type:'barrier'}
+    ],
+    buildings:[
+      {x:1510,y:1560,w:140,h:92,rot:-0.04,type:'house',state:'normal'},
+      {x:1720,y:1605,w:170,h:112,rot:0.02,type:'hangar',state:'normal'},
+      {x:1900,y:1470,w:120,h:90,rot:0.03,type:'ruin',state:'damaged'},
+      {x:1260,y:790,w:126,h:88,rot:0,type:'outpost',state:'normal'},
+      {x:2480,y:650,w:138,h:86,rot:.02,type:'outpost',state:'normal'}
+    ],
+    mines:[{x:930,y:1110,faction:'ally',used:false},{x:2560,y:960,faction:'enemy',used:false},{x:2060,y:1490,faction:'ally',used:false}]
+  },
+  duskline:{
+    name:'Faubourg Delta',
+    desc:'Bord urbain, plus de couverture et axes de contournement.',
+    allySpawn:{x:280,y:1580}, enemySpawn:{x:3120,y:520},
+    terrain:[
+      {t:'open',x:0,y:0,w:W,h:H},
+      {t:'road',x:0,y:1580,w:3400,h:130},
+      {t:'road',x:2140,y:0,w:135,h:2200},
+      {t:'forest',x:350,y:300,w:620,h:450},
+      {t:'urban',x:1460,y:980,w:780,h:480},
+      {t:'rocks',x:1040,y:1260,w:450,h:360},
+      {t:'forest',x:2520,y:1280,w:520,h:420}
+    ],
+    objectives:[
+      {name:'Alpha',letter:'A',x:1080,y:1500,r:94,owner:'neutral',p:0},
+      {name:'Bravo',letter:'B',x:1850,y:1160,r:96,owner:'neutral',p:0},
+      {name:'Charlie',letter:'C',x:2680,y:760,r:94,owner:'neutral',p:0}
+    ],
+    obstacles:[
+      {x:1280,y:1410,hp:90,type:'concrete'},{x:1760,y:1080,hp:90,type:'sandbags'},{x:2360,y:940,hp:90,type:'barrier'},
+      {x:2090,y:1535,hp:90,type:'concrete'},{x:940,y:710,hp:90,type:'sandbags'}
+    ],
+    buildings:[
+      {x:1560,y:1040,w:145,h:92,rot:-0.02,type:'house',state:'normal'},
+      {x:1810,y:1120,w:190,h:118,rot:0.02,type:'hangar',state:'normal'},
+      {x:2040,y:1280,w:125,h:90,rot:0.01,type:'ruin',state:'damaged'},
+      {x:2260,y:1085,w:135,h:88,rot:0,type:'outpost',state:'normal'},
+      {x:720,y:560,w:140,h:92,rot:.04,type:'house',state:'normal'}
+    ],
+    mines:[{x:1120,y:1360,faction:'ally',used:false},{x:2480,y:870,faction:'enemy',used:false},{x:1810,y:1380,faction:'enemy',used:false}]
+  }
+};
 const V={
   humvee:{hp:120,af:8,as:5,ar:3,spd:150,rev:70,acc:220,turn:3.2,vis:360,range:260,dmg:10,accu:.55,rel:.6,ammo:300,fuel:100,cap:1},
   apc:{hp:220,af:18,as:12,ar:8,spd:110,rev:50,acc:140,turn:2.4,vis:320,range:260,dmg:14,accu:.50,rel:.8,ammo:400,fuel:100,cap:2},
@@ -465,13 +628,36 @@ function save(){try{localStorage.setItem(LS,JSON.stringify(settings))}catch(e){}
 function show(id){screens.forEach(s=>$(s).style.display=s===id?'flex':'none')}
 function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',1500)}
 
+function renderSetup(){
+  const list=$('mapList'); if(!list)return;
+  list.innerHTML=Object.entries(MAPS).map(([key,m])=>`<button class="map-card ${setup.map===key?'active':''}" onclick="OW.selectMap('${key}')">
+    <b>${m.name}</b><small>${m.desc}</small>
+  </button>`).join('');
+  const pf=$('playerFactionSelect'), ef=$('enemyFactionSelect');
+  if(pf)pf.value=setup.playerFaction; if(ef)ef.value=setup.enemyFaction;
+  const summary=$('setupSummary'), map=MAPS[setup.map];
+  if(summary)summary.textContent=`Coalition Overwatch vs Red Cell · ${map?map.name:'Carte prototype'}`;
+}
+function setFactionChoice(){
+  const pf=$('playerFactionSelect'), ef=$('enemyFactionSelect');
+  setup.playerFaction=pf?pf.value:'coalition';
+  setup.enemyFaction=ef?ef.value:'redcell';
+  renderSetup();
+}
+function selectMap(key){if(MAPS[key]){setup.map=key;audio.play('ui_click',{volume:.25,cooldownKey:'ui',cooldown:.06});renderSetup()}}
+function confirmSetup(){
+  audio.unlock();audio.play('ui_click',{volume:.34,cooldownKey:'ui',cooldown:.08});
+  show('deployMenu');renderDeployment();
+}
+
 function deploymentSpent(){return DEPLOYABLE.reduce((sum,d)=>sum+(deployment[d.key]||0)*d.cost,0)}
 function deploymentCount(){return DEPLOYABLE.reduce((sum,d)=>sum+(deployment[d.key]||0),0)}
 function deploymentRemaining(){return DEPLOYMENT_BUDGET-deploymentSpent()}
 function openDeployment(ev){
   if(ev){ev.preventDefault?.();ev.stopPropagation?.();}
   audio.unlock();audio.play('ui_click',{volume:.35,cooldownKey:'ui',cooldown:.08});
-  show('deployMenu');renderDeployment();
+  renderSetup();
+  show('setupMenu');
 }
 function deployAdd(key){
   const d=DEPLOYABLE.find(x=>x.key===key);if(!d)return;
@@ -569,45 +755,117 @@ function play(ev){
   audio.play('ui_click',{volume:.4,cooldownKey:'ui',cooldown:.08});
   show(null);
   $('hud').style.display='block';
-  $('modeChip').textContent=`Combat actif · ${deploymentSpent()} pts`;
+  const map=MAPS[setup.map]||MAPS.route7;
+  $('modeChip').textContent=`${map.name} · Déploiement`;
   initGame();
   started=true;paused=false;portraitDismissed=false;minimized=false;detailOpen=false;
   last=performance.now();
   orient();
   requestAnimationFrame(loop);
-  toast(`Partie lancée · ${deploymentCount()} unités · ${deploymentSpent()} pts`);
+  toast(`Déploiement verrouillé · début dans 5 secondes`);
 }
 
+function cloneList(list){return (list||[]).map(o=>Object.assign({},o))}
+function setupMap(){
+  const map=MAPS[setup.map]||MAPS.route7;
+  terrain=cloneList(map.terrain);
+  objectives=cloneList(map.objectives);
+  obstacles=cloneList(map.obstacles);
+  buildings=cloneList(map.buildings);
+  mines=cloneList(map.mines);
+  return map;
+}
+function spawnAround(base,i,kind='squad',side='ally'){
+  const col=i%4, row=Math.floor(i/4);
+  const sx=side==='ally'?1:-1;
+  const x=base.x + sx*(kind==='vehicle'?130:70) + sx*col*(kind==='vehicle'?98:72);
+  const y=base.y + (kind==='vehicle'?180:0) + (row-1.5)*(kind==='vehicle'?86:76);
+  return {x:clamp(x,55,W-55),y:clamp(y,55,H-55)};
+}
+function createUnitByKey(key,faction,x,y){
+  if(['rifle','anti_vehicle','command'].includes(key)){
+    nextSquadId++;
+    return squad(nextSquadId,faction,x,y,key==='command',key);
+  }
+  nextVehicleId++;
+  return vehicle((faction==='ally'?'A':'E')+nextVehicleId,key,faction,x,y);
+}
 function initGame(){
-  camera={x:0,y:170,z:innerWidth<700?.56:.72};
-  selected=null;units=[];effects=[];mines=[];obstacles=[];buildings=[];shake=0;detailOpen=false;minimized=false;
+  const map=setupMap();
+  camera={x:Math.max(0,map.allySpawn.x-260),y:Math.max(0,map.allySpawn.y-innerHeight/(2*(innerWidth<700?.56:.72))),z:innerWidth<700?.54:.68};
+  selected=null;units=[];effects=[];shake=0;detailOpen=false;minimized=false;
+  prepCountdown=5;matchTimeLeft=MATCH_DURATION;gameOver=false;reinforcementPoints=260;nextSquadId=50;nextVehicleId=50;allySpawnIndex=0;aiClock=0;
   const chosen=deploymentCount()>0?deployment:DEFAULT_DEPLOYMENT;
   let sq=0,veh=0;
   for(const type of ['command','rifle','anti_vehicle']){
     for(let n=0;n<(chosen[type]||0);n++){
-      const x=245+(sq%2)*76, y=335+Math.floor(sq/2)*88;
-      units.push(squad(sq+1,'ally',x,y,false,type));sq++;
+      const p=spawnAround(map.allySpawn,sq,'squad','ally');
+      units.push(squad(sq+1,'ally',p.x,p.y,type==='command',type));sq++;
     }
   }
   for(const type of ['humvee','apc','ifv','mbt','truck','ambulance','support']){
     for(let n=0;n<(chosen[type]||0);n++){
-      const x=300+(veh%5)*94, y=910+Math.floor(veh/5)*86;
-      units.push(vehicle('A'+(veh+1),type,'ally',x,y));veh++;
+      const p=spawnAround(map.allySpawn,veh,'vehicle','ally');
+      units.push(vehicle('A'+(veh+1),type,'ally',p.x,p.y));veh++;
     }
   }
-  for(let i=0;i<4;i++)units.push(squad(i+1,'enemy',1960,360+i*105,i===0));
-  ['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>units.push(vehicle('E'+i,t,'enemy',2100-i*92,950+(i%2)*90)));
-  obstacles.push({x:920,y:640,hp:90,type:'sandbags'},{x:1450,y:880,hp:90,type:'barrier'},{x:640,y:970,hp:90,type:'concrete'});
-  buildings.push(
-    {x:1260,y:1085,w:140,h:92,rot:-0.04,type:'house',state:'normal'},
-    {x:1460,y:1135,w:170,h:112,rot:0.02,type:'hangar',state:'normal'},
-    {x:1590,y:995,w:120,h:90,rot:0.03,type:'ruin',state:'damaged'},
-    {x:1030,y:535,w:126,h:88,rot:0,type:'outpost',state:'normal'}
-  );
-  mines.push({x:1030,y:735,faction:'ally',used:false},{x:1750,y:790,faction:'enemy',used:false},{x:1510,y:1120,faction:'ally',used:false});
+
+  const enemySquads=['command','rifle','rifle','anti_vehicle','rifle'];
+  enemySquads.forEach((type,i)=>{
+    const p=spawnAround(map.enemySpawn,i,'squad','enemy');
+    const u=squad(i+1,'enemy',p.x,p.y,type==='command',type);assignEnemyAi(u,i);units.push(u);
+  });
+  ['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>{
+    const p=spawnAround(map.enemySpawn,i,'vehicle','enemy');
+    const u=vehicle('E'+i,t,'enemy',p.x,p.y);assignEnemyAi(u,i+5);units.push(u);
+  });
+
   selected=units.find(u=>u.faction==='ally')||null;if(selected){selected.selected=true;updatePanel(true)}
-  clampCam();
+  renderReinforcementOptions();updateStrategicHud();clampCam();
 }
+function assignEnemyAi(u,i){
+  u.aiDelay=2.4+i*0.95+rand(0,.85);
+  u.aiLane=i%Math.max(1,objectives.length);
+  u.aiNext=0;
+  u.aiMode='staged';
+}
+function renderReinforcementOptions(){
+  const s=$('reinforceSelect'); if(!s)return;
+  s.innerHTML=DEPLOYABLE.map(d=>`<option value="${d.key}">${d.label} · ${d.cost} pts</option>`).join('');
+}
+function updateStrategicHud(){
+  const pts=$('reinforcePoints'), timer=$('matchTimer'), banner=$('countdownBanner');
+  if(pts)pts.textContent=`${Math.floor(reinforcementPoints)} pts`;
+  const b=$('reinforceButton'), sel=$('reinforceSelect');
+  if(b&&sel){const d=DEPLOYABLE.find(x=>x.key===sel.value);b.disabled=gameOver||prepCountdown>0||!d||reinforcementPoints<d.cost}
+  if(timer){
+    if(prepCountdown>0)timer.textContent=`DÉBUT ${Math.ceil(prepCountdown)}`;
+    else if(gameOver)timer.textContent='TERMINÉ';
+    else timer.textContent=formatTime(matchTimeLeft);
+  }
+  const chip=$('modeChip'), map=MAPS[setup.map]||MAPS.route7;
+  if(chip&&started){
+    chip.textContent=gameOver?`Terminé · ${map.name}`:(prepCountdown>0?`Déploiement verrouillé · ${map.name}`:`Combat actif · ${map.name}`);
+  }
+  if(banner){
+    banner.style.display=started&&prepCountdown>0?'block':'none';
+    const n=banner.querySelector('b'); if(n)n.textContent=Math.ceil(prepCountdown);
+  }
+}
+function formatTime(t){t=Math.max(0,Math.ceil(t));return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`}
+function spawnReinforcement(){
+  if(!started||paused||gameOver||prepCountdown>0){toast('Renforts indisponibles pour le moment');return}
+  const key=$('reinforceSelect')?.value||'rifle';
+  const d=DEPLOYABLE.find(x=>x.key===key); if(!d)return;
+  if(reinforcementPoints<d.cost){toast('Pas assez de points de renfort');return}
+  const map=MAPS[setup.map]||MAPS.route7;
+  const p=spawnAround(map.allySpawn,allySpawnIndex++,d.kind,'ally');
+  const u=createUnitByKey(key,'ally',p.x,p.y);
+  units.push(u);reinforcementPoints-=d.cost;
+  spawn('order',p.x,p.y);audio.play('order',{x:p.x,y:p.y,volume:.42,cooldownKey:'reinforce',cooldown:.12});
+  toast(`Renfort arrivé : ${d.label}`);updateStrategicHud();
+}
+
 function squad(id,f,x,y,cmd=false,role=null){
   const isCmd=cmd||role==='command', av=role==='anti_vehicle'||(!isCmd&&id===4), rifle=role==='rifle'||(!isCmd&&!av);
   const label=isCmd?'Commandant':av?'Anti-véhicule':'Fusiliers';
@@ -624,13 +882,25 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 function update(dt){
+  if(gameOver){updateEffects(dt);updateStrategicHud();fps(dt);return}
+  if(prepCountdown>0){
+    prepCountdown=Math.max(0,prepCountdown-dt);
+    updateEffects(dt);shake=Math.max(0,shake-dt*1.8);updateStrategicHud();fps(dt);
+    if(prepCountdown===0)toast('Combat autorisé');
+    return;
+  }
+  matchTimeLeft=Math.max(0,matchTimeLeft-dt);
+  reinforcementPoints=clamp(reinforcementPoints+reinforcementIncome*dt,0,9999);
+  if(matchTimeLeft<=0){gameOver=true;paused=false;toast('Temps écoulé · partie terminée')}
   for(const u of units){
     if(u.hp<=0)continue;
     u.terrain=terrainAt(u.x,u.y);u.cover=coverAt(u.x,u.y);u.cd=Math.max(0,(u.cd||0)-dt);u.underFire=Math.max(0,(u.underFire||0)-dt);u.recoil=Math.max(0,(u.recoil||0)-dt*3.2);
     if(u.kind==='squad')moveSquad(u,dt);else moveVeh(u,dt);
   }
-  vision();combat();ai(dt);objectivesUpdate(dt);logistics(dt);updateEffects(dt);shake=Math.max(0,shake-dt*1.8);clampCam();fps(dt);
+  resolveCollisions(dt);
+  vision();combat(dt);ai(dt);objectivesUpdate(dt);logistics(dt);updateEffects(dt);shake=Math.max(0,shake-dt*1.8);clampCam();fps(dt);updateStrategicHud();
 }
+
 function moveSquad(u,dt){
   if(u.embarked||u.state==='dead')return;
   const d=distXY(u.x,u.y,u.dx,u.dy);
@@ -659,22 +929,54 @@ function moveVeh(v,dt){
   if(v.stuckTimer>2.5){v.vel=0;v.state='idle';v.stuckTimer=0}
   if(settings.graphics.effects==='normal'&&Math.random()<.05)spawn('dust',v.x-Math.cos(v.rot)*28,v.y-Math.sin(v.rot)*28);
 }
+function unitRadius(u){return u.kind==='vehicle'?({mbt:58,ifv:52,apc:50,truck:52,ambulance:48,humvee:44,support:50}[u.type]||46):34}
+function resolveCollisions(dt){
+  const active=units.filter(u=>u.hp>0&&!u.embarked&&u.state!=='destroyed');
+  for(let i=0;i<active.length;i++){
+    for(let j=i+1;j<active.length;j++){
+      const a=active[i],b=active[j], min=unitRadius(a)+unitRadius(b), dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||.001;
+      if(d>=min)continue;
+      const push=(min-d)*.52, nx=dx/d, ny=dy/d;
+      const aLocked=a.crit==='disabled'||a.state==='idle'&&distXY(a.x,a.y,a.dx,a.dy)<8;
+      const bLocked=b.crit==='disabled'||b.state==='idle'&&distXY(b.x,b.y,b.dx,b.dy)<8;
+      const aw=a.kind==='vehicle'?1.35:1, bw=b.kind==='vehicle'?1.35:1;
+      let ap=push*(bLocked?1:bw/(aw+bw)), bp=push*(aLocked?1:aw/(aw+bw));
+      if(!aLocked){a.x-=nx*ap;a.y-=ny*ap}
+      if(!bLocked){b.x+=nx*bp;b.y+=ny*bp}
+      a.x=clamp(a.x,22,W-22);a.y=clamp(a.y,22,H-22);b.x=clamp(b.x,22,W-22);b.y=clamp(b.y,22,H-22);
+    }
+  }
+}
 function vision(){
   for(const e of units.filter(u=>u.faction==='enemy')){
     e.hidden=!units.some(a=>a.faction==='ally'&&a.hp>0&&!a.embarked&&dist(a,e)<a.vision);
   }
 }
 function visibleEnemies(u){return units.filter(e=>e.faction!==u.faction&&e.hp>0&&!e.hidden&&!e.embarked&&dist(u,e)<u.vision)}
-function combat(){
+function combat(dt){
+  if(prepCountdown>0||gameOver)return;
   for(const u of units){
     if(u.hp<=0||u.hold||u.ammo<=0||u.state==='retreating'||u.embarked||u.range<=0)continue;
     const target=visibleEnemies(u).filter(e=>dist(u,e)<=u.range).sort((a,b)=>dist(u,a)-dist(u,b))[0];
     if(!target||u.cd>0)continue;
 
-    const ang=Math.atan2(target.y-u.y,target.x-u.x);if(u.kind==='squad')u.face=ang;
+    const ang=Math.atan2(target.y-u.y,target.x-u.x);
+    if(u.kind==='vehicle'){
+      // Véhicules v0.4.4 : le tir part de l’avant. Ils doivent d’abord aligner le châssis.
+      const diff=normAng(ang-u.rot), ad=Math.abs(diff), arc=u.type==='mbt'?.16:u.type==='ifv'?.22:.28;
+      if(ad>arc){
+        u.rot+=Math.sign(diff)*Math.min(ad,(u.turn||1.8)*dt*(u.type==='mbt'?.72:1));
+        u.state='engaging';
+        continue;
+      }
+    }else{
+      u.face=ang;
+    }
+
     const muzzleX=u.kind==='vehicle'?u.x+Math.cos(u.rot)*42:u.x+Math.cos(ang)*18;
     const muzzleY=u.kind==='vehicle'?u.y+Math.sin(u.rot)*42:u.y+Math.sin(ang)*18;
-    spawn('muzzle',muzzleX,muzzleY,{rot:u.kind==='vehicle'?u.rot:ang,heavy:u.kind==='vehicle'&&u.type==='mbt'});
+    const shotAng=u.kind==='vehicle'?u.rot:ang;
+    spawn('muzzle',muzzleX,muzzleY,{rot:shotAng,heavy:u.kind==='vehicle'&&u.type==='mbt'});
     spawn('tracer',muzzleX,muzzleY,{tx:target.x+rand(-10,10),ty:target.y+rand(-10,10),heavy:u.kind==='vehicle'&&u.type==='mbt'});
     playWeaponSound(u);
 
@@ -725,12 +1027,37 @@ function destroy(u){
 }
 
 function ai(dt){
+  if(prepCountdown>0||gameOver)return;
   aiClock+=dt;if(aiClock<.45)return;aiClock=0;
   for(const u of units.filter(x=>x.faction==='enemy'&&x.hp>0&&!x.embarked)){
-    const foes=visibleEnemies(u);
-    if((u.hp/u.max<.25)||(u.morale&&u.morale<20)){u.dx=clamp(u.x+220,20,W-20);u.dy=u.y;u.state='retreating';continue}
-    if(foes[0]){const f=foes[0],d=dist(u,f);if(d>u.range*.85){u.dx=f.x+rand(-120,120);u.dy=f.y+rand(-120,120)}continue}
-    const o=objectives.find(o=>o.owner!=='enemy')||objectives[0];u.dx=o.x+rand(-80,80);u.dy=o.y+rand(-80,80);
+    u.aiDelay=(u.aiDelay||0)-.45;
+    if(u.aiDelay>0)continue;
+
+    const foes=visibleEnemies(u).sort((a,b)=>dist(u,a)-dist(u,b));
+    if((u.hp/u.max<.25)||(u.morale&&u.morale<20)){
+      const map=MAPS[setup.map]||MAPS.route7;
+      u.dx=clamp(map.enemySpawn.x+rand(-180,180),20,W-20);u.dy=clamp(map.enemySpawn.y+rand(-220,220),20,H-20);u.state='retreating';continue
+    }
+    if(foes[0]){
+      const f=foes[0],d=dist(u,f);
+      if(d>u.range*.82){
+        const side=(u.aiLane%2?1:-1), flank=90+u.aiLane*28;
+        u.dx=clamp(f.x-Math.cos(Math.atan2(f.y-u.y,f.x-u.x))*u.range*.62 + side*rand(40,flank),20,W-20);
+        u.dy=clamp(f.y-Math.sin(Math.atan2(f.y-u.y,f.x-u.x))*u.range*.62 + side*rand(-flank,flank),20,H-20);
+      }
+      continue
+    }
+    const pool=objectives.length?objectives:[{x:W*.5,y:H*.5}];
+    const baseIndex=u.aiLane%pool.length;
+    let o=pool[(baseIndex+Math.floor((performance.now()/1000+u.aiLane*7)/55))%pool.length];
+    if(o.owner==='enemy'&&Math.random()<.45)o=pool[(baseIndex+1)%pool.length]||o;
+    const nearDest=distXY(u.x,u.y,u.dx,u.dy)<70;
+    if(nearDest||Math.random()<.20){
+      const angle=(u.aiLane*2.1+rand(-.55,.55)), spread=80+u.aiLane*18;
+      u.dx=clamp(o.x+Math.cos(angle)*spread+rand(-45,45),20,W-20);
+      u.dy=clamp(o.y+Math.sin(angle)*spread+rand(-45,45),20,H-20);
+      u.aiDelay=rand(.35,1.2); // l’IA évite d’envoyer tout le monde simultanément
+    }
   }
 }
 function objectivesUpdate(dt){
@@ -1335,7 +1662,7 @@ function tap(sx,sy){
   if(selected){order(p.x,p.y);return}
 }
 function select(u){audio.play('ui_click',{x:u.x,y:u.y,volume:.25,cooldownKey:'select',cooldown:.08});units.forEach(x=>x.selected=false);selected=u;u.selected=true;minimized=false;detailOpen=false;updatePanel(true)}
-function order(x,y){if(!selected)return;selected.dx=clamp(x,20,W-20);selected.dy=clamp(y,20,H-20);if(selected.kind==='vehicle')selected.stuckTimer=0;selected.state='moving';spawn('order',selected.dx,selected.dy);audio.play('order',{x:selected.x,y:selected.y,volume:.45,cooldownKey:'order',cooldown:.12});toast('Ordre donné')}
+function order(x,y){if(!selected)return;if(prepCountdown>0){toast('Déploiement verrouillé · attends le départ');return}if(gameOver){toast('Partie terminée');return}selected.dx=clamp(x,20,W-20);selected.dy=clamp(y,20,H-20);if(selected.kind==='vehicle')selected.stuckTimer=0;selected.state='moving';spawn('order',selected.dx,selected.dy);audio.play('order',{x:selected.x,y:selected.y,volume:.45,cooldownKey:'order',cooldown:.12});toast('Ordre donné')}
 function pick(x,y){let best=null,bd=99999;for(const u of units){if(u.hp<=0||u.hidden||u.embarked)continue;const r=u.kind==='vehicle'?42:32,d=distXY(x,y,u.x,u.y);if(d<r&&d<bd){best=u;bd=d}}return best}
 function screenToWorld(x,y){return{x:x/camera.z+camera.x,y:y/camera.z+camera.y}}
 function zoomAt(next,cx=innerWidth/2,cy=innerHeight/2){const before=screenToWorld(cx,cy);camera.z=clamp(next,.35,1.75);const after=screenToWorld(cx,cy);camera.x+=before.x-after.x;camera.y+=before.y-after.y;clampCam()}
@@ -1358,7 +1685,7 @@ addEventListener('resize',()=>{resize();orient()});addEventListener('orientation
 document.addEventListener('gesturestart',e=>e.preventDefault?.(),{passive:false});
 document.addEventListener('touchmove',e=>{if(started)e.preventDefault()},{passive:false});
 
-return{play,openDeployment,startDeployment,deployAdd,deployRemove,deployClear,deployRecommended,show,toast,fullscreen,showOptions,closeOptions,get optionsReturn(){return optionsReturn},pause,resume,toMenu,dismissPortrait,togglePanel,toggleDetails,stop,retreat,formation,hold,reverse,embark,disembark};
+return{play,openDeployment,setFactionChoice,selectMap,confirmSetup,startDeployment,deployAdd,deployRemove,deployClear,deployRecommended,spawnReinforcement,show,toast,fullscreen,showOptions,closeOptions,get optionsReturn(){return optionsReturn},pause,resume,toMenu,dismissPortrait,togglePanel,toggleDetails,stop,retreat,formation,hold,reverse,embark,disembark};
 })();
 </script>
 </body>
