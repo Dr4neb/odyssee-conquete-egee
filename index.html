@@ -1,153 +1,293 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Mission Codex — Operation Overwatch v0.1 Standalone</title>
-<style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;font-family:Arial,sans-serif;color:#eee;touch-action:none}
-#hud{position:fixed;left:10px;top:10px;background:#0009;padding:10px 12px;border:1px solid #ffffff22;border-radius:8px;font-size:13px;line-height:1.4;z-index:2;max-width:360px}
-#err{position:fixed;inset:auto 10px 10px 10px;background:#5b1111;color:white;padding:10px;border-radius:8px;display:none;z-index:3}
-canvas{display:block}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>OPERATION OVERWATCH v0.1 - Standalone</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#e8eadf;font-family:Arial,Helvetica,sans-serif;touch-action:none}
+    #game{position:fixed;inset:0}
+    #hud{position:fixed;left:12px;top:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px 12px;line-height:1.35;font-size:13px;max-width:360px;pointer-events:none}
+    #title{font-weight:700;color:#d7f5ff;margin-bottom:4px}
+    #hint{opacity:.85}
+    #status{position:fixed;right:12px;top:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px 12px;font-size:13px;pointer-events:none}
+    #err{display:none;position:fixed;inset:12px;background:#190606;color:#ffd8d8;border:1px solid #943939;border-radius:10px;padding:14px;white-space:pre-wrap;z-index:5}
+  </style>
 </head>
 <body>
-<div id="hud"><b>Operation Overwatch v0.1</b><br>
-Desktop: clic gauche sélection, glisser multi-sélection, clic droit déplacer, molette zoom, WASD/clic milieu caméra.<br>
-Mobile: toucher une escouade, toucher la carte pour déplacer, pincer pour zoomer, glisser fond pour caméra.</div>
-<div id="err"></div>
-<script type="module">
-import * as PIXI from 'https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.mjs';
+  <div id="game"></div>
+  <div id="hud">
+    <div id="title">OPERATION OVERWATCH v0.1</div>
+    <div id="hint">
+      Desktop: clic gauche sélectionner, clic droit déplacer, WASD/clic-milieu déplacer caméra, molette zoom.<br>
+      Mobile: tap sélectionner, appui long donner ordre, glisser à deux doigts caméra, pinch zoom.
+    </div>
+  </div>
+  <div id="status">Chargement...</div>
+  <div id="err"></div>
 
-const errBox=document.getElementById('err');
-window.addEventListener('error',e=>{errBox.style.display='block';errBox.textContent='Erreur: '+e.message});
-const app=new PIXI.Application();
-await app.init({resizeTo:window,background:'#1e2a1a',antialias:true,powerPreference:'high-performance'});
-document.body.appendChild(app.canvas);
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
+  <script>
+  (() => {
+    const errBox = document.getElementById('err');
+    window.addEventListener('error', e => {
+      errBox.style.display = 'block';
+      errBox.textContent = 'Erreur JavaScript:\\n' + (e.message || e.error || e);
+    });
 
-const WORLD={w:2600,h:1800};
-const factions={ally:0x62a8ff,enemy:0xff6b5c,neutral:0xd8d8d8};
-const root=new PIXI.Container(); app.stage.addChild(root);
-const mapLayer=new PIXI.Container(), coverLayer=new PIXI.Container(), objLayer=new PIXI.Container(), unitLayer=new PIXI.Container(), fxLayer=new PIXI.Container();
-root.addChild(mapLayer,coverLayer,objLayer,unitLayer,fxLayer);
+    if (!window.PIXI) {
+      errBox.style.display = 'block';
+      errBox.textContent = 'PixiJS n’a pas pu être chargé. Connexion internet requise pour cette version index.html autonome.';
+      return;
+    }
 
-const camera={x:WORLD.w/2,y:WORLD.h/2,z:0.55};
-const keys={}; const squads=[]; let selected=[]; let drag=null; let lastTap=null; let pinching=null;
+    const { Application, Container, Graphics, Text } = PIXI;
+    const W = 2400, H = 1500;
+    const TEAM = { allied: 0x3ba7ff, enemy: 0xff5a4d, neutral: 0xd7d0a8 };
+    const status = document.getElementById('status');
 
-const covers=[
- {x:520,y:430,w:320,h:150,type:'trees',bonus:.45},{x:1320,y:770,w:420,h:170,type:'rocks',bonus:.55},{x:1940,y:1220,w:350,h:160,type:'trees',bonus:.45}
-];
-const objectives=[{id:'Alpha',x:850,y:930,r:120,owner:null,progress:0,g:new PIXI.Graphics()},{id:'Bravo',x:1770,y:600,r:120,owner:null,progress:0,g:new PIXI.Graphics()}];
+    const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+    const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+    const rand = (a,b)=>a+Math.random()*(b-a);
 
-function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
-function screenToWorld(x,y){return {x:(x-app.screen.width/2)/camera.z+camera.x,y:(y-app.screen.height/2)/camera.z+camera.y}}
-function updateCam(){root.scale.set(camera.z); root.position.set(app.screen.width/2-camera.x*camera.z,app.screen.height/2-camera.y*camera.z)}
-function squad(id,faction,x,y){const g=new PIXI.Graphics(); unitLayer.addChild(g); return {id,faction,position:{x,y},destination:null,members:6,health:100,morale:100,suppression:0,visionRange:430,attackRange:310,damage:9,accuracy:.62,ammo:220,fatigue:0,coverState:'open',selected:false,fireCd:0,retreat:0,g};}
-for(let i=0;i<4;i++)squads.push(squad('A'+(i+1),'ally',260,420+i*170));
-for(let i=0;i<4;i++)squads.push(squad('E'+(i+1),'enemy',2180,430+i*240));
+    class Camera {
+      constructor(stage) {
+        this.stage = stage; this.x = 0; this.y = 0; this.zoom = 0.72;
+        this.keys = new Set();
+        addEventListener('keydown', e=>this.keys.add(e.key.toLowerCase()));
+        addEventListener('keyup', e=>this.keys.delete(e.key.toLowerCase()));
+      }
+      update(dt) {
+        const s = 720 * dt / this.zoom;
+        if (this.keys.has('a') || this.keys.has('arrowleft')) this.x -= s;
+        if (this.keys.has('d') || this.keys.has('arrowright')) this.x += s;
+        if (this.keys.has('w') || this.keys.has('arrowup')) this.y -= s;
+        if (this.keys.has('s') || this.keys.has('arrowdown')) this.y += s;
+        this.apply();
+      }
+      screenToWorld(px,py){ return { x:(px - innerWidth/2)/this.zoom + this.x, y:(py - innerHeight/2)/this.zoom + this.y }; }
+      apply(){
+        const vw = innerWidth / this.zoom, vh = innerHeight / this.zoom;
+        this.x = clamp(this.x, vw/2, W-vw/2); this.y = clamp(this.y, vh/2, H-vh/2);
+        this.zoom = clamp(this.zoom, .38, 1.7);
+        this.stage.scale.set(this.zoom);
+        this.stage.position.set(innerWidth/2 - this.x*this.zoom, innerHeight/2 - this.y*this.zoom);
+      }
+    }
 
-function drawMap(){
- const g=new PIXI.Graphics(); mapLayer.addChild(g);
- g.rect(0,0,WORLD.w,WORLD.h).fill(0x30452b);
- for(let i=0;i<70;i++){const x=(i*193)%WORLD.w,y=(i*317)%WORLD.h; g.circle(x,y,18+(i%5)*6).fill(i%2?0x24401f:0x425d35)}
- g.poly([0,880,650,800,1220,860,1830,760,WORLD.w,830,WORLD.w,960,1830,900,1220,990,650,930,0,1010]).fill(0x635f4b);
- g.poly([1110,0,1190,0,1440,WORLD.h,1320,WORLD.h]).fill(0x585441);
- for(const c of covers){g.roundRect(c.x-c.w/2,c.y-c.h/2,c.w,c.h,22).fill(c.type==='trees'?0x1e5a26:0x55534b)}
- for(let i=0;i<34;i++){g.circle(360+(i*71)%1900,260+(i*131)%1240,8+i%7).fill(0x2b251f)}
- for(const o of objectives){objLayer.addChild(o.g)}
-}
-drawMap();
+    class Squad {
+      constructor(data) {
+        Object.assign(this, data);
+        this.destinationX = data.x; this.destinationY = data.y;
+        this.selected = false; this.visible = true; this.target = null;
+        this.fireCd = rand(.2,1.2); this.state = 'idle'; this.dead = false;
+        this.g = new Container();
+        this.body = new Graphics(); this.ui = new Graphics(); this.text = new Text({text:this.id,style:{fill:'#fff',fontSize:12}});
+        this.text.anchor.set(.5); this.text.y = -42;
+        this.g.addChild(this.body,this.ui,this.text);
+        this.drawBody();
+      }
+      drawBody(){
+        const c = this.faction === 'allied' ? TEAM.allied : TEAM.enemy;
+        this.body.clear();
+        this.body.circle(0,0,18).fill(c).stroke({color:0x101010,width:3});
+        this.body.circle(-7,-5,5).fill(0xffffff);
+        this.body.circle(7,-5,5).fill(0xffffff);
+        this.body.rect(-18,14,36,9).fill(0x252525).stroke({color:0x000000,width:1});
+      }
+      updateUi(){
+        this.g.position.set(this.x,this.y);
+        this.g.alpha = this.visible || this.faction === 'allied' ? 1 : .12;
+        this.g.visible = !this.dead;
+        this.ui.clear();
+        if (this.selected) this.ui.circle(0,0,28).stroke({color:0xffff88,width:3});
+        this.ui.rect(-22,26,44,6).fill(0x310d0d);
+        this.ui.rect(-22,26,44*(this.health/this.maxHealth),6).fill(0x55d96f);
+        this.ui.rect(-22,34,44,4).fill(0x241b44);
+        this.ui.rect(-22,34,44*(this.morale/100),4).fill(0x9ec5ff);
+        if (this.suppression > 30) this.ui.circle(20,-20,5).fill(0xffee66);
+      }
+    }
 
-function drawObjective(o){
- o.g.clear();
- const col=o.owner?factions[o.owner]:factions.neutral;
- o.g.circle(o.x,o.y,o.r).stroke({color:col,width:5,alpha:.9}).fill({color:col,alpha:.10});
- o.g.rect(o.x-55,o.y-o.r-26,110,18).stroke({color:0x000000,width:2}).fill(0x111111);
- o.g.rect(o.x-53,o.y-o.r-24,106*clamp(Math.abs(o.progress)/100,0,1),14).fill(col);
- const t=new PIXI.Text({text:o.id,style:{fontSize:18,fill:0xffffff,fontWeight:'bold'}}); t.anchor.set(.5); t.position.set(o.x,o.y); o.g.addChild(t);
-}
-function drawSquad(s){
- const g=s.g; g.clear(); g.position.set(s.position.x,s.position.y);
- const col=factions[s.faction];
- if(s.selected)g.circle(0,0,36).stroke({color:0xffff66,width:4});
- g.circle(0,0,s.visionRange).fill({color:col,alpha:s.faction==='ally'?0.035:0});
- g.roundRect(-28,-20,56,40,8).fill(col).stroke({color:0x101010,width:3});
- for(let i=0;i<s.members;i++)g.circle(-18+i*7,-2+(i%2)*12,4).fill(0x111111);
- g.rect(-32,-35,64,7).fill(0x350000); g.rect(-32,-35,64*(s.health/100),7).fill(0x42d66b);
- g.rect(-32,-26,64,5).fill(0x222); g.rect(-32,-26,64*(s.morale/100),5).fill(0xffd75f);
- if(s.destination){g.moveTo(0,0).lineTo(s.destination.x-s.position.x,s.destination.y-s.position.y).stroke({color:col,width:2,alpha:.35});}
-}
+    class Objective {
+      constructor(id,x,y){this.id=id;this.x=x;this.y=y;this.r=82;this.owner='neutral';this.progress=0;this.capturing=null;this.g=new Graphics();}
+      draw(){
+        const col = this.owner==='allied'?TEAM.allied:this.owner==='enemy'?TEAM.enemy:TEAM.neutral;
+        this.g.clear();
+        this.g.circle(this.x,this.y,this.r).fill({color:col,alpha:.16}).stroke({color:col,width:4,alpha:.9});
+        this.g.rect(this.x-45,this.y-7,90,14).fill(0x111111).stroke({color:0xffffff,width:1,alpha:.3});
+        this.g.rect(this.x-45,this.y-7,90*(this.progress/100),14).fill(col);
+      }
+    }
 
-function coverAt(p){return covers.find(c=>Math.abs(p.x-c.x)<c.w/2&&Math.abs(p.y-c.y)<c.h/2)}
-function enemiesOf(s){return squads.filter(o=>o.faction!==s.faction&&o.health>0)}
-function visibleEnemies(s){return enemiesOf(s).filter(o=>dist(s.position,o.position)<=s.visionRange)}
+    async function boot(){
+      const app = new Application();
+      await app.init({resizeTo: window, background:'#182018', antialias:true, preference:'webgl'});
+      document.getElementById('game').appendChild(app.canvas);
+      app.canvas.addEventListener('contextmenu', e=>e.preventDefault());
 
-function select(s,add=false){if(!add){selected.forEach(x=>x.selected=false);selected=[]} if(s&&!selected.includes(s)){s.selected=true;selected.push(s)}}
-function orderMove(p){selected.forEach((s,i)=>s.destination={x:p.x+(i%2)*56,y:p.y+Math.floor(i/2)*56})}
-function squadAt(p){return squads.find(s=>s.faction==='ally'&&s.health>0&&dist(s.position,p)<42)}
+      const world = new Container(); app.stage.addChild(world);
+      const camera = new Camera(world);
 
-app.canvas.addEventListener('contextmenu',e=>e.preventDefault());
-app.canvas.addEventListener('pointerdown',e=>{
- app.canvas.setPointerCapture(e.pointerId); const p=screenToWorld(e.clientX,e.clientY);
- if(e.button===2){orderMove(p);return}
- drag={id:e.pointerId,start:{x:e.clientX,y:e.clientY},last:{x:e.clientX,y:e.clientY},world:p,moved:false};
-});
-app.canvas.addEventListener('pointermove',e=>{
- if(!drag||drag.id!==e.pointerId)return;
- const dx=e.clientX-drag.last.x,dy=e.clientY-drag.last.y; drag.last={x:e.clientX,y:e.clientY};
- if(Math.abs(e.clientX-drag.start.x)+Math.abs(e.clientY-drag.start.y)>8)drag.moved=true;
- if(drag.moved && !squadAt(drag.world)){camera.x-=dx/camera.z;camera.y-=dy/camera.z}
-});
-app.canvas.addEventListener('pointerup',e=>{
- const p=screenToWorld(e.clientX,e.clientY);
- if(drag&&!drag.moved){const s=squadAt(p); s?select(s,e.shiftKey):orderMove(p)}
- drag=null;
-});
-app.canvas.addEventListener('wheel',e=>{e.preventDefault(); const before=screenToWorld(e.clientX,e.clientY); camera.z=clamp(camera.z*(e.deltaY<0?1.1:.9),.35,1.7); const after=screenToWorld(e.clientX,e.clientY); camera.x+=before.x-after.x; camera.y+=before.y-after.y},{passive:false});
-window.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true); window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+      const terrain = new Graphics(); world.addChild(terrain);
+      terrain.rect(0,0,W,H).fill(0x24311e);
+      terrain.rect(0,650,W,130).fill(0x474238);
+      terrain.rect(1000,0,130,H).fill(0x474238);
+      for(let i=0;i<60;i++){const x=rand(80,W-80),y=rand(80,H-80);terrain.circle(x,y,rand(10,22)).fill(0x193f1d);}
+      for(let i=0;i<28;i++){const x=rand(80,W-80),y=rand(80,H-80);terrain.circle(x,y,rand(10,18)).fill(0x77766c);}
+      const coverZones=[
+        {x:520,y:430,w:260,h:110},{x:1390,y:400,w:300,h:110},{x:1220,y:985,w:330,h:120}
+      ];
+      coverZones.forEach(z=>terrain.rect(z.x,z.y,z.w,z.h).fill({color:0x5f6845,alpha:.65}).stroke({color:0xb4bf82,width:2,alpha:.8}));
 
-function stepMovement(s,dt){
- const c=coverAt(s.position); s.coverState=c?c.type:'open';
- if(s.morale<18&&s.retreat<=0){const dir=s.faction==='ally'?-1:1;s.destination={x:clamp(s.position.x+dir*180,80,WORLD.w-80),y:clamp(s.position.y+80-Math.random()*160,80,WORLD.h-80)};s.retreat=3}
- if(!s.destination)return;
- const d=dist(s.position,s.destination); if(d<5){s.destination=null;return}
- const speed=(s.morale<18?38:78)*(1-s.fatigue*.35); s.position.x+=(s.destination.x-s.position.x)/d*speed*dt; s.position.y+=(s.destination.y-s.position.y)/d*speed*dt; s.fatigue=clamp(s.fatigue+dt*.015,0,1)
-}
-function stepAI(s,dt){
- if(s.faction!=='enemy'||s.health<=0)return;
- const vis=visibleEnemies(s).sort((a,b)=>dist(s.position,a.position)-dist(s.position,b.position))[0];
- if(vis){ if(dist(s.position,vis.position)>s.attackRange*.85)s.destination={x:vis.position.x-120,y:vis.position.y}; return; }
- const target=objectives[s.id.endsWith('1')||s.id.endsWith('2')?0:1]; if(!s.destination||Math.random()<dt*.12)s.destination={x:target.x-80+Math.random()*160,y:target.y-80+Math.random()*160};
-}
-function stepCombat(s,dt){
- if(s.health<=0)return; s.fireCd-=dt; s.suppression=clamp(s.suppression-dt*4,0,100); s.retreat-=dt;
- const target=visibleEnemies(s).filter(o=>dist(s.position,o.position)<=s.attackRange).sort((a,b)=>dist(s.position,a.position)-dist(s.position,b.position))[0];
- if(!target||s.fireCd>0||s.ammo<=0)return;
- s.fireCd=.55+Math.random()*.45; s.ammo--;
- const acc=clamp(s.accuracy*(1-s.suppression/140)*(s.morale/100),.05,.9);
- const hit=Math.random()<acc; const cov=coverAt(target.position); const reduction=cov?cov.bonus:0;
- target.suppression=clamp(target.suppression+9,0,100); target.morale=clamp(target.morale-(hit?6:2),0,100);
- if(hit){target.health=clamp(target.health-s.damage*(1-reduction),0,100); target.members=Math.max(0,Math.ceil(target.health/17));}
- const line=new PIXI.Graphics(); fxLayer.addChild(line); line.moveTo(s.position.x,s.position.y).lineTo(target.position.x,target.position.y).stroke({color:0xfff0aa,width:2,alpha:.9}); setTimeout(()=>line.destroy(),70);
-}
-function stepObjectives(dt){
- for(const o of objectives){
-  const inA=squads.some(s=>s.faction==='ally'&&s.health>0&&dist(s.position,o)<o.r);
-  const inE=squads.some(s=>s.faction==='enemy'&&s.health>0&&dist(s.position,o)<o.r);
-  if(inA&&!inE)o.progress=clamp(o.progress+dt*22,-100,100);
-  else if(inE&&!inA)o.progress=clamp(o.progress-dt*22,-100,100);
-  if(o.progress>=100)o.owner='ally'; if(o.progress<=-100)o.owner='enemy';
-  drawObjective(o);
- }
-}
-app.ticker.add(t=>{
- const dt=Math.min(t.deltaMS/1000,.05);
- const camSpeed=600*dt/camera.z; if(keys.w||keys.arrowup)camera.y-=camSpeed;if(keys.s||keys.arrowdown)camera.y+=camSpeed;if(keys.a||keys.arrowleft)camera.x-=camSpeed;if(keys.d||keys.arrowright)camera.x+=camSpeed;
- for(const s of squads){stepAI(s,dt);stepMovement(s,dt);stepCombat(s,dt);drawSquad(s)}
- stepObjectives(dt); camera.x=clamp(camera.x,app.screen.width/(2*camera.z),WORLD.w-app.screen.width/(2*camera.z)); camera.y=clamp(camera.y,app.screen.height/(2*camera.z),WORLD.h-app.screen.height/(2*camera.z)); updateCam();
-});
-updateCam();
-</script>
+      const objectives=[new Objective('ALPHA',840,610),new Objective('BRAVO',1550,875)];
+      objectives.forEach(o=>{world.addChild(o.g);o.draw();});
+
+      const squadLayer=new Container(); world.addChild(squadLayer);
+      const make=(id,f,x,y)=>new Squad({id,faction:f,x,y,health:100,maxHealth:100,morale:100,suppression:0,visionRange:330,attackRange:245,damage:13,accuracy:.68,ammo:999,fatigue:0,speed: f==='allied'?115:100,state:'idle'});
+      const squads=[
+        make('A1','allied',260,350),make('A2','allied',310,500),make('A3','allied',260,710),make('A4','allied',330,870),
+        make('E1','enemy',2050,330),make('E2','enemy',2120,500),make('E3','enemy',2010,870),make('E4','enemy',2140,1040)
+      ];
+      squads.forEach(s=>squadLayer.addChild(s.g));
+
+      const fx = new Graphics(); world.addChild(fx);
+      let orderMarks=[];
+      let pointerDown=null, longTimer=null, draggingCam=false, lastPinch=0;
+
+      function issueOrder(p){
+        const selected=squads.filter(s=>s.selected&&!s.dead);
+        selected.forEach((s,i)=>{s.destinationX=p.x+(i%2)*42;s.destinationY=p.y+Math.floor(i/2)*42;s.state='moving';});
+        orderMarks.push({x:p.x,y:p.y,t:.65});
+      }
+      function selectAt(p, additive=false){
+        if(!additive)squads.forEach(s=>s.selected=false);
+        let hit=squads.filter(s=>s.faction==='allied'&&!s.dead&&dist(s,p)<32).sort((a,b)=>dist(a,p)-dist(b,p))[0];
+        if(hit)hit.selected=true;
+      }
+
+      app.canvas.addEventListener('wheel',e=>{e.preventDefault();const before=camera.screenToWorld(e.clientX,e.clientY);camera.zoom*=e.deltaY>0?.9:1.1;camera.apply();const after=camera.screenToWorld(e.clientX,e.clientY);camera.x+=before.x-after.x;camera.y+=before.y-after.y;camera.apply();},{passive:false});
+      app.canvas.addEventListener('pointerdown',e=>{
+        app.canvas.setPointerCapture(e.pointerId);
+        pointerDown={id:e.pointerId,x:e.clientX,y:e.clientY,wx:camera.x,wy:camera.y,t:performance.now(),button:e.button};
+        draggingCam=e.button===1;
+        clearTimeout(longTimer);
+        longTimer=setTimeout(()=>{ if(pointerDown){issueOrder(camera.screenToWorld(pointerDown.x,pointerDown.y)); pointerDown=null;} },520);
+      });
+      app.canvas.addEventListener('pointermove',e=>{
+        if(!pointerDown)return;
+        const dx=e.clientX-pointerDown.x, dy=e.clientY-pointerDown.y;
+        if(Math.hypot(dx,dy)>8) clearTimeout(longTimer);
+        if(draggingCam || e.buttons===4 || (e.pointerType==='touch' && e.isPrimary===false)){
+          camera.x=pointerDown.wx-dx/camera.zoom; camera.y=pointerDown.wy-dy/camera.zoom; camera.apply();
+        }
+      });
+      app.canvas.addEventListener('pointerup',e=>{
+        clearTimeout(longTimer);
+        if(!pointerDown)return;
+        const moved=Math.hypot(e.clientX-pointerDown.x,e.clientY-pointerDown.y)>10;
+        const p=camera.screenToWorld(e.clientX,e.clientY);
+        if(!moved){
+          if(e.button===2) issueOrder(p); else selectAt(p,e.shiftKey);
+        }
+        pointerDown=null; draggingCam=false;
+      });
+      app.canvas.addEventListener('contextmenu',e=>{e.preventDefault();issueOrder(camera.screenToWorld(e.clientX,e.clientY));});
+
+      const touches=new Map();
+      app.canvas.addEventListener('pointerdown', e=>{ if(e.pointerType==='touch')touches.set(e.pointerId,{x:e.clientX,y:e.clientY});});
+      app.canvas.addEventListener('pointermove', e=>{
+        if(e.pointerType!=='touch'||!touches.has(e.pointerId))return;
+        touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+        if(touches.size===2){
+          const a=[...touches.values()][0], b=[...touches.values()][1];
+          const d=Math.hypot(a.x-b.x,a.y-b.y);
+          if(lastPinch){camera.zoom*=d/lastPinch;camera.apply();}
+          lastPinch=d;
+        }
+      });
+      app.canvas.addEventListener('pointerup', e=>{touches.delete(e.pointerId); if(touches.size<2)lastPinch=0;});
+
+      function inCover(s){return coverZones.some(z=>s.x>z.x&&s.x<z.x+z.w&&s.y>z.y&&s.y<z.y+z.h);}
+      function moveToward(s,x,y,dt,mult=1){
+        const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy);
+        if(d<4){s.state=s.state==='moving'?'idle':s.state;return;}
+        const step=Math.min(d,s.speed*mult*dt*(s.morale<25?.55:1));
+        s.x+=dx/d*step;s.y+=dy/d*step;
+        s.x=clamp(s.x,30,W-30);s.y=clamp(s.y,30,H-30);
+      }
+      function visibleEnemiesFor(s){return squads.filter(o=>o.faction!==s.faction&&!o.dead&&dist(s,o)<=s.visionRange);}
+      function nearestEnemy(s){return visibleEnemiesFor(s).sort((a,b)=>dist(s,a)-dist(s,b))[0];}
+      function damage(att,tar){
+        if(att.fireCd>0||att.dead||tar.dead||att.state==='retreating')return;
+        att.fireCd=.65+Math.random()*.65;
+        const range=dist(att,tar), cover=inCover(tar), sup=clamp(att.suppression/120,0,.55);
+        const chance=clamp(att.accuracy - range/850 - sup, .08, .88);
+        tar.suppression=clamp(tar.suppression+12,0,100);
+        tar.morale=clamp(tar.morale-(cover?3:7),0,100);
+        if(Math.random()<chance){
+          tar.health-=att.damage*(cover?.55:1)*rand(.75,1.25);
+          if(tar.health<=0){tar.health=0;tar.dead=true;tar.state='dead';tar.selected=false;}
+        }
+      }
+
+      let aiT=0;
+      app.ticker.add(t=>{
+        const dt=Math.min(t.deltaMS/1000,.05);
+        camera.update(dt);
+        aiT-=dt;
+        squads.forEach(s=>{
+          if(s.dead)return;
+          s.fireCd-=dt; s.suppression=clamp(s.suppression-dt*6,0,100);
+          if(s.suppression>70)s.state='suppressed';
+          if(s.morale<12 && s.state!=='retreating'){s.state='retreating';s.destinationX=s.faction==='allied'?80:W-80;s.destinationY=s.y+rand(-80,80);}
+          if(s.state==='moving'||s.state==='retreating'||s.state==='suppressed') moveToward(s,s.destinationX,s.destinationY,dt,s.state==='suppressed'?.55:1);
+        });
+        if(aiT<=0){
+          aiT=.35;
+          squads.filter(s=>s.faction==='enemy'&&!s.dead).forEach(e=>{
+            const t=nearestEnemy(e);
+            if(t){e.target=t;if(dist(e,t)>e.attackRange*.82){e.destinationX=t.x+rand(-80,80);e.destinationY=t.y+rand(-80,80);e.state='moving';}}
+            else if(Math.random()<.25){e.destinationX=e.x+rand(-110,110);e.destinationY=e.y+rand(-90,90);e.state='moving';}
+          });
+        }
+        squads.forEach(s=>{
+          if(s.dead)return;
+          const target=nearestEnemy(s);
+          s.target=target||null;
+          if(target && dist(s,target)<=s.attackRange && s.state!=='retreating'){s.state='engaging'; damage(s,target);}
+        });
+        squads.forEach(e=>{ if(e.faction==='enemy') e.visible=squads.some(a=>a.faction==='allied'&&!a.dead&&dist(a,e)<=a.visionRange); });
+
+        objectives.forEach(o=>{
+          const inside=squads.filter(s=>!s.dead&&dist(s,o)<o.r);
+          const allied=inside.some(s=>s.faction==='allied'), enemy=inside.some(s=>s.faction==='enemy');
+          if(allied!==enemy){
+            const f=allied?'allied':'enemy';
+            o.capturing=f; o.progress=clamp(o.progress+dt*18,0,100);
+            inside.forEach(s=>s.state='capturing');
+            if(o.progress>=100)o.owner=f;
+          } else if(inside.length===0){o.progress=clamp(o.progress-dt*8,0,100);}
+          o.draw();
+        });
+
+        fx.clear();
+        orderMarks=orderMarks.filter(m=>{m.t-=dt;fx.circle(m.x,m.y,22*(m.t+.25)).stroke({color:0xffff99,width:3,alpha:clamp(m.t,0,1)});return m.t>0;});
+        squads.forEach(s=>{
+          s.updateUi();
+          if(s.target&&!s.dead&&!s.target.dead&&dist(s,s.target)<=s.attackRange){
+            fx.moveTo(s.x,s.y).lineTo(s.target.x,s.target.y).stroke({color:0xffdd77,width:2,alpha:.18});
+          }
+        });
+        const aliveA=squads.filter(s=>s.faction==='allied'&&!s.dead).length, aliveE=squads.filter(s=>s.faction==='enemy'&&!s.dead).length;
+        const sel=squads.filter(s=>s.selected).map(s=>s.id).join(', ')||'aucune';
+        status.innerHTML=`Alliés: ${aliveA}/4<br>Ennemis: ${aliveE}/4<br>Sélection: ${sel}<br>Objectifs: ${objectives.map(o=>o.id+': '+o.owner).join(' | ')}`;
+      });
+
+      camera.x=900; camera.y=650; camera.apply();
+    }
+    boot();
+  })();
+  </script>
 </body>
 </html>
