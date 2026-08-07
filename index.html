@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.6 — Renforts, collisions et accueil refait</title>
+<title>OPERATION OVERWATCH v0.4.7 — AT, audio et IA réactionnelle</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -416,7 +416,7 @@ h2{font-size:26px;margin:0 0 10px}
 <div id="hud">
   <div id="topbar">
     <div class="chips">
-      <span class="chip">OW v0.4.6</span>
+      <span class="chip">OW v0.4.7</span>
       <span id="modeChip" class="chip">Prêt</span>
       <span id="fps" class="chip" style="display:none">60 FPS</span>
     </div>
@@ -566,6 +566,17 @@ function drawImageCentered(img,x,y,w,h,rot=0,tint=null,alpha=1){
 
 
 const MATCH_DURATION=300;
+const ROCKET_KILL_HITS={mbt:3,ifv:2,apc:2,humvee:1,truck:1,ambulance:1,support:1};
+const AT_THREAT_DURATION=6.5;
+const AI_REACTION_MODES=['reverse_smoke','hard_flank_left','hard_flank_right','hull_down','break_contact','zigzag_retreat','bait_and_hold','screen_infantry','wide_arc','objective_cover'];
+const SAMPLE_ROOT='https://raw.githubusercontent.com/ETdoFresh/kenney.nl/master/';
+const AUDIO_SAMPLE_URLS={
+  ui_click:SAMPLE_ROOT+'kenney_interfacesounds/Audio/click_001.ogg',
+  order:SAMPLE_ROOT+'kenney_interfacesounds/Audio/confirmation_001.ogg',
+  impact:SAMPLE_ROOT+'kenney_impactsounds/Audio/impactGeneric_light_000.ogg',
+  armor:SAMPLE_ROOT+'kenney_impactsounds/Audio/impactMetal_heavy_000.ogg',
+  debris:SAMPLE_ROOT+'kenney_impactsounds/Audio/impactMetal_medium_003.ogg'
+};
 const MAPS={
   route7:{
     name:'Colline Route 7',
@@ -661,20 +672,28 @@ let reinforceShopSignature='';
 const audio=createAudio();
 
 function createAudio(){
-  let ac=null, active=0, ambient=null; const cd=new Map(); const maxActive=18;
+  let ac=null, active=0, ambient=null, samplesRequested=false; const cd=new Map(); const maxActive=22, sampleBuffers=new Map();
   function unlock(){
     const C=window.AudioContext||window.webkitAudioContext;
     if(!C)return false;
     if(!ac)ac=new C();
     if(ac.state==='suspended')ac.resume().catch(()=>{});
+    requestSamples();
     return true;
+  }
+  function requestSamples(){
+    if(samplesRequested||!ac||!window.fetch)return;
+    samplesRequested=true;
+    Object.entries(AUDIO_SAMPLE_URLS).forEach(([name,url])=>{
+      fetch(url,{mode:'cors'}).then(r=>r.ok?r.arrayBuffer():Promise.reject(new Error('audio'))).then(b=>ac.decodeAudioData(b)).then(buf=>sampleBuffers.set(name,buf)).catch(()=>{});
+    });
   }
   function vol(base,x,y){
     if(!ac||settings.audio.muted)return 0;
     let v=(base??1)*settings.audio.masterVolume*settings.audio.sfxVolume;
     if(started&&Number.isFinite(x)&&Number.isFinite(y)){
       const cx=camera.x+innerWidth/(2*camera.z), cy=camera.y+innerHeight/(2*camera.z);
-      const d=Math.hypot(x-cx,y-cy); v*=Math.max(0,1-d/1250);
+      const d=Math.hypot(x-cx,y-cy); v*=Math.max(0,1-d/1350);
     }
     return clamp(v,0,.95);
   }
@@ -684,39 +703,62 @@ function createAudio(){
   }
   function gain(v,dur){
     const g=ac.createGain(); g.gain.setValueAtTime(0,ac.currentTime);
-    g.gain.linearRampToValueAtTime(v,ac.currentTime+.01);
+    g.gain.linearRampToValueAtTime(v,ac.currentTime+.006);
     g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+Math.max(.03,dur));
-    g.connect(ac.destination); active++; setTimeout(()=>active=Math.max(0,active-1),(dur+0.08)*1000); return g;
+    g.connect(ac.destination); active++; setTimeout(()=>active=Math.max(0,active-1),(dur+0.1)*1000); return g;
   }
-  function osc(freq,dur,type,v){
+  function playSample(name,v,rate=1){
+    const buf=sampleBuffers.get(name);
+    if(!buf||!v)return false;
+    const s=ac.createBufferSource(); s.buffer=buf; s.playbackRate.value=rate*(.94+Math.random()*.12);
+    s.connect(gain(v,Math.min(1.2,buf.duration+.03))); s.start(); return true;
+  }
+  function osc(freq,dur,type,v,slide=.55){
     if(!v)return; const o=ac.createOscillator(), g=gain(v,dur);
     o.type=type||'sine'; o.frequency.setValueAtTime(freq,ac.currentTime);
-    o.frequency.exponentialRampToValueAtTime(Math.max(20,freq*.55),ac.currentTime+dur);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20,freq*slide),ac.currentTime+dur);
     o.connect(g); o.start(); o.stop(ac.currentTime+dur+.02);
   }
-  function noise(dur,v,filterFreq=900,kind='bandpass'){
+  function noise(dur,v,filterFreq=900,kind='bandpass',q=.9){
     if(!v)return; const len=Math.max(1,Math.floor(ac.sampleRate*dur)), buf=ac.createBuffer(1,len,ac.sampleRate), data=buf.getChannelData(0);
-    for(let i=0;i<len;i++){data[i]=(Math.random()*2-1)*(1-i/len)}
+    for(let i=0;i<len;i++){
+      const env=Math.pow(1-i/len,1.45);
+      data[i]=(Math.random()*2-1)*env;
+    }
     const s=ac.createBufferSource(); s.buffer=buf;
-    const f=ac.createBiquadFilter(); f.type=kind; f.frequency.value=filterFreq; f.Q.value=.8;
+    const f=ac.createBiquadFilter(); f.type=kind; f.frequency.value=filterFreq; f.Q.value=q;
     s.connect(f); f.connect(gain(v,dur)); s.start(); s.stop(ac.currentTime+dur+.02);
   }
+  function burst(count,spacing,fn){for(let i=0;i<count;i++)setTimeout(fn,i*spacing)}
   function play(name,o={}){
     if(!unlock())return;
     const v=vol(o.volume??1,o.x,o.y); if(v<=.01)return;
     if(!allowed(o.cooldownKey||name,o.cooldown||0))return;
+    const sampleRate=o.rate||1;
+    if(['ui_click','order','impact','armor','debris'].includes(name)&&playSample(name,v,sampleRate))return;
     switch(name){
       case 'ui_click': osc(760,.045,'triangle',v*.28); break;
       case 'order': osc(540,.07,'sine',v*.32); osc(880,.045,'triangle',v*.18); break;
-      case 'rifle': noise(.075,v*.58,1800,'bandpass'); osc(100,.035,'square',v*.12); break;
-      case 'mg': for(let i=0;i<3;i++)setTimeout(()=>noise(.045,v*.42,1600,'bandpass'),i*55); break;
-      case 'autocannon': noise(.12,v*.66,700,'bandpass'); osc(85,.07,'sawtooth',v*.16); break;
-      case 'tank': noise(.28,v*.9,190,'lowpass'); osc(52,.26,'sawtooth',v*.35); break;
+      case 'rifle':
+        // Rifle plus sec : claquement aigu + souffle court.
+        noise(.055,v*.58,2600,'bandpass',1.8); noise(.09,v*.28,520,'lowpass',.8); osc(118,.035,'square',v*.10,.45); break;
+      case 'mg':
+        burst(4,42,()=>{noise(.042,v*.39,2100,'bandpass',1.5); osc(95,.025,'square',v*.07,.5)}); break;
+      case 'at_launch':
+        // Départ roquette : pop sec, souffle grave, sifflement court.
+        noise(.16,v*.64,760,'bandpass',1.1); noise(.34,v*.34,190,'lowpass',.65); osc(520,.22,'sawtooth',v*.11,1.8); break;
+      case 'rocket_whizz':
+        osc(830,.28,'sawtooth',v*.16,1.45); noise(.22,v*.20,1300,'bandpass',1.6); break;
+      case 'autocannon':
+        burst(2,82,()=>{noise(.105,v*.58,900,'bandpass',1.1); osc(80,.06,'sawtooth',v*.14,.5)}); break;
+      case 'tank':
+        noise(.32,v*.92,150,'lowpass',.65); noise(.12,v*.38,900,'bandpass',.9); osc(45,.42,'sawtooth',v*.36,.35); break;
       case 'impact': noise(.045,v*.42,2400,'bandpass'); break;
       case 'flesh': noise(.055,v*.30,520,'lowpass'); osc(90,.035,'sine',v*.08); break;
       case 'armor': noise(.08,v*.58,780,'bandpass'); osc(220,.04,'square',v*.12); break;
       case 'debris': noise(.22,v*.50,1100,'bandpass'); break;
-      case 'explosion': noise(.72,v*.85,160,'lowpass'); osc(48,.55,'sawtooth',v*.34); break;
+      case 'explosion':
+        noise(.78,v*.88,120,'lowpass',.55); noise(.24,v*.36,760,'bandpass',.7); osc(42,.62,'sawtooth',v*.36,.35); break;
       case 'objective': osc(660,.1,'triangle',v*.35); setTimeout(()=>osc(920,.12,'triangle',v*.28),90); break;
     }
   }
@@ -962,6 +1004,10 @@ function assignEnemyAi(u,i){
   u.aiLane=i%Math.max(1,objectives.length);
   u.aiNext=0;
   u.aiMode='staged';
+  u.aiProfile=AI_REACTION_MODES[i%AI_REACTION_MODES.length];
+  u.aiSalt=Math.floor(rand(0,1000));
+  u.aiAggression=clamp(.38+(i%5)*.12+Math.random()*.18,.25,.92);
+  u.aiCaution=clamp(.35+((i*7)%6)*.09+Math.random()*.22,.25,.98);
 }
 function renderReinforcementOptions(){
   const btn=$('reinforceDropdown');
@@ -1085,9 +1131,9 @@ function spawnReinforcement(e){openReinforcementShop(e)}
 function squad(id,f,x,y,cmd=false,role=null){
   const isCmd=cmd||role==='command', av=role==='anti_vehicle'||(!isCmd&&id===4), rifle=role==='rifle'||(!isCmd&&!av);
   const label=isCmd?'Commandant':av?'Anti-véhicule':'Fusiliers';
-  return{kind:'squad',id:`${f[0].toUpperCase()}-SQ${id}`,name:label,type:isCmd?'command':av?'anti_vehicle':'infantry',faction:f,x,y,dx:x,dy:y,selected:false,hp:isCmd?135:av?105:110,max:isCmd?135:av?105:110,morale:100,supp:0,fatigue:0,vision:isCmd?370:av?300:320,range:isCmd?280:av?330:260,dmg:isCmd?9:av?24:8,acc:av?.48:.55,ammo:av?44:160,cd:0,speed:isCmd?54:av?52:58,state:'idle',formation:'wedge',cover:'none',terrain:'open',cmd:isCmd,hidden:f==='enemy',underFire:0,embarked:false,hold:false,attackTargetId:null}
+  return{kind:'squad',id:`${f[0].toUpperCase()}-SQ${id}`,name:label,type:isCmd?'command':av?'anti_vehicle':'infantry',faction:f,x,y,dx:x,dy:y,selected:false,hp:isCmd?135:av?105:110,max:isCmd?135:av?105:110,morale:100,supp:0,fatigue:0,vision:isCmd?370:av?330:320,range:isCmd?280:av?430:260,dmg:isCmd?9:av?90:8,acc:av?.64:.55,ammo:av?3:160,reload:av?3.4:.85,cd:0,speed:isCmd?54:av?50:58,state:'idle',formation:'wedge',cover:'none',terrain:'open',cmd:isCmd,hidden:f==='enemy',underFire:0,embarked:false,hold:false,attackTargetId:null}
 }
-function vehicle(id,type,f,x,y){const c=V[type];return{kind:'vehicle',id,name:type.toUpperCase(),type,faction:f,x,y,dx:x,dy:y,rot:f==='ally'?0:Math.PI,vel:0,selected:false,hp:c.hp,max:c.hp,af:c.af,as:c.as,ar:c.ar,speed:c.spd,rev:c.rev,accel:c.acc,turn:c.turn,vision:c.vis,range:c.range,dmg:c.dmg,acc:c.accu,reload:c.rel,cd:0,ammo:c.ammo,fuel:c.fuel,cap:c.cap,pass:[],state:'idle',crit:'normal',terrain:'open',cover:'none',hidden:f==='enemy',stuckTimer:0,lastX:x,lastY:y,hold:false,heal:c.heal||0,repair:c.repair||0,attackTargetId:null}}
+function vehicle(id,type,f,x,y){const c=V[type];return{kind:'vehicle',id,name:type.toUpperCase(),type,faction:f,x,y,dx:x,dy:y,rot:f==='ally'?0:Math.PI,vel:0,selected:false,hp:c.hp,max:c.hp,af:c.af,as:c.as,ar:c.ar,speed:c.spd,rev:c.rev,accel:c.acc,turn:c.turn,vision:c.vis,range:c.range,dmg:c.dmg,acc:c.accu,reload:c.rel,cd:0,ammo:c.ammo,fuel:c.fuel,cap:c.cap,pass:[],state:'idle',crit:'normal',terrain:'open',cover:'none',hidden:f==='enemy',stuckTimer:0,lastX:x,lastY:y,hold:false,heal:c.heal||0,repair:c.repair||0,rocketHits:0,threatTimer:0,threatX:x,threatY:y,threatType:null,evasiveSeed:Math.floor(Math.random()*9999),attackTargetId:null}}
 
 function loop(now){
   if(!started)return;
@@ -1110,7 +1156,7 @@ function update(dt){
   if(matchTimeLeft<=0){gameOver=true;paused=false;toast('Temps écoulé · partie terminée')}
   for(const u of units){
     if(u.hp<=0)continue;
-    u.terrain=terrainAt(u.x,u.y);u.cover=coverAt(u.x,u.y);u.cd=Math.max(0,(u.cd||0)-dt);u.underFire=Math.max(0,(u.underFire||0)-dt);u.recoil=Math.max(0,(u.recoil||0)-dt*3.2);
+    u.terrain=terrainAt(u.x,u.y);u.cover=coverAt(u.x,u.y);u.cd=Math.max(0,(u.cd||0)-dt);u.underFire=Math.max(0,(u.underFire||0)-dt);u.recoil=Math.max(0,(u.recoil||0)-dt*3.2);if(u.kind==='vehicle')u.threatTimer=Math.max(0,(u.threatTimer||0)-dt);
     updateAttackIntent(u);
     if(u.kind==='squad')moveSquad(u,dt);else moveVeh(u,dt);
   }
@@ -1249,15 +1295,26 @@ function combat(dt){
     const muzzleX=u.kind==='vehicle'?u.x+Math.cos(u.rot)*42:u.x+Math.cos(ang)*18;
     const muzzleY=u.kind==='vehicle'?u.y+Math.sin(u.rot)*42:u.y+Math.sin(ang)*18;
     const shotAng=u.kind==='vehicle'?u.rot:ang;
+    const isRocketShot=u.kind==='squad'&&u.type==='anti_vehicle';
     spawn('muzzle',muzzleX,muzzleY,{rot:shotAng,heavy:u.kind==='vehicle'&&u.type==='mbt'});
-    spawn('tracer',muzzleX,muzzleY,{tx:target.x+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),ty:target.y+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),heavy:u.kind==='vehicle'&&u.type==='mbt'});
+    if(isRocketShot){
+      spawn('rocket',muzzleX,muzzleY,{tx:target.x,ty:target.y,rot:shotAng});
+      spawn('smoke',muzzleX,muzzleY);
+      if(target.kind==='vehicle')markVehicleThreat(target,u,'rocket_launch');
+    }else{
+      spawn('tracer',muzzleX,muzzleY,{tx:target.x+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),ty:target.y+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),heavy:u.kind==='vehicle'&&u.type==='mbt'});
+    }
     playWeaponSound(u);
 
     let acc=(u.acc||.55)*(u.supp>70?.35:u.supp>40?.65:1)*(u.fatigue>70?.75:1);
     if(u.state==='moving')acc*=.86;
     if(Math.random()<acc){
       let dmg=u.dmg;
-      if(target.kind==='vehicle'&&u.type==='anti_vehicle')dmg*=2.4;
+      if(target.kind==='vehicle'&&isRocketShot){
+        target.rocketHits=(target.rocketHits||0)+1;
+        markVehicleThreat(target,u,'rocket_hit');
+        dmg*=2.15;
+      }
       if(target.kind==='vehicle')dmg=armorDamage(target,u,dmg);
       else{
         if(u.kind==='vehicle'){
@@ -1267,6 +1324,9 @@ function combat(dt){
         dmg*=({none:1,light:.82,medium:.65,heavy:.48}[target.cover]||1);
       }
       target.hp-=Math.max(1,dmg);
+      if(target.kind==='vehicle'&&isRocketShot&&target.rocketHits>=((ROCKET_KILL_HITS[target.type]||3))){
+        target.hp=-1;
+      }
       target.underFire=2;target.supp=clamp((target.supp||0)+14,0,100);target.morale=clamp((target.morale||100)-5,0,100);
       const hitType=target.kind==='vehicle'?'armor':'impact';
       spawn(hitType,target.x+rand(-10,10),target.y+rand(-10,10));
@@ -1281,18 +1341,31 @@ function combat(dt){
       spawn('impact',target.x+(Math.random()-.5)*58,target.y+(Math.random()-.5)*58);
       audio.play('impact',{x:target.x,y:target.y,volume:.26,cooldownKey:target.id+'_miss',cooldown:.18});
     }
-    u.ammo--;u.cd=u.kind==='vehicle'?u.reload:.85;u.state='engaging';
+    u.ammo--;u.cd=u.kind==='vehicle'?u.reload:(u.reload||.85);u.state='engaging';
     if(u.kind==='vehicle'){u.recoil=1;if(u.dmg>25)spawn('smoke',muzzleX,muzzleY)}
   }
 }
 function playWeaponSound(u){
   if(u.kind==='squad'){
-    audio.play('rifle',{x:u.x,y:u.y,volume:.55,cooldownKey:u.id+'_rifle',cooldown:.25});
+    if(u.type==='anti_vehicle'){
+      audio.play('at_launch',{x:u.x,y:u.y,volume:.78,cooldownKey:u.id+'_rocket',cooldown:1.2});
+      setTimeout(()=>audio.play('rocket_whizz',{x:u.x,y:u.y,volume:.34,cooldownKey:u.id+'_whizz',cooldown:.7}),90);
+    }else{
+      audio.play(u.cmd?'rifle':'rifle',{x:u.x,y:u.y,volume:u.cmd ? .46 : .55,cooldownKey:u.id+'_rifle',cooldown:.25});
+    }
     return;
   }
   if(u.type==='mbt')audio.play('tank',{x:u.x,y:u.y,volume:.95,cooldownKey:u.id+'_tank',cooldown:u.reload*.75});
   else if(u.type==='ifv')audio.play('autocannon',{x:u.x,y:u.y,volume:.72,cooldownKey:u.id+'_auto',cooldown:.45});
   else audio.play('mg',{x:u.x,y:u.y,volume:.58,cooldownKey:u.id+'_mg',cooldown:.35});
+}
+
+function markVehicleThreat(v,attacker,reason='rocket'){
+  if(!v||v.kind!=='vehicle'||v.state==='destroyed')return;
+  v.threatTimer=Math.max(v.threatTimer||0,AT_THREAT_DURATION);
+  v.threatX=attacker.x; v.threatY=attacker.y; v.threatType=reason;
+  v.aiFear=clamp((v.aiFear||0)+(reason==='rocket_hit'?42:24),0,100);
+  v.aiDelay=Math.min(v.aiDelay||0,.2);
 }
 
 function armorDamage(v,att,dmg){const hit=Math.atan2(att.y-v.y,att.x-v.x), rel=Math.abs(normAng(hit-v.rot));const armor=rel<Math.PI/4?v.af:rel>Math.PI*3/4?v.ar:v.as;return Math.max(1,dmg-armor)}
@@ -1316,6 +1389,50 @@ function destroy(u){
   }
 }
 
+function reactionIndex(u){
+  const t=Math.floor(performance.now()/3000);
+  let h=0, s=String(u.id)+(u.aiSalt||0)+t+(u.threatType||'');
+  for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;
+  return Math.abs(h);
+}
+function vehicleThreatReaction(u,foes){
+  if(u.kind!=='vehicle'||!(u.threatTimer>0))return false;
+  const tx=Number.isFinite(u.threatX)?u.threatX:(foes[0]?.x||u.x-120), ty=Number.isFinite(u.threatY)?u.threatY:(foes[0]?.y||u.y);
+  const hpRatio=u.hp/u.max, idx=reactionIndex(u), mode=AI_REACTION_MODES[idx%AI_REACTION_MODES.length];
+  const away=Math.atan2(u.y-ty,u.x-tx), side=(idx%2?1:-1), caution=u.aiCaution||.5;
+  const far=170+(idx%7)*28, lateral=110+(idx%11)*16;
+  // Générateur : mode × côté × distance × agressivité × état HP = plusieurs centaines de réactions possibles.
+  if(mode==='hull_down'&&['mbt','ifv','apc'].includes(u.type)&&hpRatio>.46){
+    u.attackTargetId=foes[0]?.id||u.attackTargetId;
+    u.dx=clamp(u.x+Math.cos(away)*45+Math.cos(away+Math.PI/2)*side*52,25,W-25);
+    u.dy=clamp(u.y+Math.sin(away)*45+Math.sin(away+Math.PI/2)*side*52,25,H-25);
+    u.state='engaging';
+  }else if(mode==='screen_infantry'&&foes.some(f=>f.type==='anti_vehicle')){
+    const f=foes.find(f=>f.type==='anti_vehicle')||foes[0];
+    const ang=Math.atan2(u.y-f.y,u.x-f.x)+side*.78;
+    u.dx=clamp(u.x+Math.cos(ang)*(far*.72),25,W-25);
+    u.dy=clamp(u.y+Math.sin(ang)*(far*.72),25,H-25);
+    u.attackTargetId=f.id;
+  }else if(mode==='bait_and_hold'&&hpRatio>.65&&u.type==='mbt'){
+    u.dx=clamp(u.x+Math.cos(away)*65,25,W-25);
+    u.dy=clamp(u.y+Math.sin(away)*65,25,H-25);
+    u.attackTargetId=foes[0]?.id||u.attackTargetId;
+  }else{
+    const flank=(mode.includes('left')?-1:mode.includes('right')?1:side);
+    const retreat=mode.includes('retreat')||mode==='break_contact'||hpRatio<.38?1.25:.78;
+    const ang=away+flank*(.55+((idx%5)*.10));
+    u.dx=clamp(u.x+Math.cos(away)*far*retreat+Math.cos(ang+Math.PI/2)*lateral*flank,25,W-25);
+    u.dy=clamp(u.y+Math.sin(away)*far*retreat+Math.sin(ang+Math.PI/2)*lateral*flank,25,H-25);
+    u.attackTargetId=foes[0]&&dist(u,foes[0])<u.range*1.05?foes[0].id:null;
+  }
+  if(settings.graphics.effects==='normal'&&(idx%3===0||mode==='reverse_smoke')){
+    spawn('smoke',u.x-Math.cos(u.rot)*34,u.y-Math.sin(u.rot)*34);
+  }
+  u.aiDelay=.45+((idx%8)*.08)+caution*.35;
+  u.aiFear=clamp((u.aiFear||0)-18,0,100);
+  return true;
+}
+
 function ai(dt){
   if(prepCountdown>0||gameOver)return;
   aiClock+=dt;if(aiClock<.45)return;aiClock=0;
@@ -1324,6 +1441,7 @@ function ai(dt){
     if(u.aiDelay>0)continue;
 
     const foes=visibleEnemies(u).sort((a,b)=>dist(u,a)-dist(u,b));
+    if(vehicleThreatReaction(u,foes))continue;
     if((u.hp/u.max<.25)||(u.morale&&u.morale<20)){
       const map=MAPS[setup.map]||MAPS.route7;
       u.dx=clamp(map.enemySpawn.x+rand(-180,180),20,W-20);u.dy=clamp(map.enemySpawn.y+rand(-220,220),20,H-20);u.state='retreating';continue
@@ -1331,10 +1449,12 @@ function ai(dt){
     if(foes[0]){
       const f=foes[0],d=dist(u,f);
       u.attackTargetId=f.id;
-      if(d>u.range*.88 || d<engageDistance(u)*.62){
-        const side=(u.aiLane%2?1:-1), flank=90+u.aiLane*28, a=Math.atan2(u.y-f.y,u.x-f.x), keep=engageDistance(u);
-        u.dx=clamp(f.x+Math.cos(a)*keep + side*rand(25,flank),20,W-20);
-        u.dy=clamp(f.y+Math.sin(a)*keep + side*rand(-flank,flank),20,H-20);
+      if(d>u.range*.88 || d<engageDistance(u)*.62 || Math.random()<.26){
+        const idx=reactionIndex(u), side=(idx%2?1:-1), flank=80+(idx%9)*24, a=Math.atan2(u.y-f.y,u.x-f.x), keep=engageDistance(u);
+        const arc=(idx%5)*.17*side;
+        u.dx=clamp(f.x+Math.cos(a+arc)*keep + side*rand(25,flank),20,W-20);
+        u.dy=clamp(f.y+Math.sin(a+arc)*keep + side*rand(-flank,flank),20,H-20);
+        u.aiDelay=rand(.15,.75);
       }
       continue
     }
@@ -1379,7 +1499,7 @@ function logistics(dt){
   }
 }
 function spawn(type,x,y,extra={}){
-  const life={boom:.95,smoke:1.35,wreckSmoke:3.2,muzzle:.09,tracer:.12,dust:.55,order:.65,armor:.38,impact:.32,blood:.45,bloodBurst:.85,debris:1.25,fire:.85}[type]||.45;
+  const life={boom:.95,smoke:1.35,wreckSmoke:3.2,muzzle:.09,tracer:.12,rocket:.44,dust:.55,order:.65,armor:.38,impact:.32,blood:.45,bloodBurst:.85,debris:1.25,fire:.85}[type]||.45;
   effects.push(Object.assign({type,x,y,life,max:life},extra));
   const lim=settings.graphics.effects==='reduced'?55:115;
   if(effects.length>lim)effects.splice(0,effects.length-lim);
@@ -1866,6 +1986,13 @@ function drawEffect(e){
     const len=e.heavy?42:24;
     ctx.fillStyle=`rgba(255,240,170,${a})`;ctx.beginPath();ctx.moveTo(0,-6);ctx.lineTo(len,0);ctx.lineTo(0,6);ctx.closePath();ctx.fill();
     ctx.fillStyle=`rgba(255,120,42,${.65*a})`;ctx.beginPath();ctx.moveTo(5,-3);ctx.lineTo(len*.72,0);ctx.lineTo(5,3);ctx.closePath();ctx.fill();
+    ctx.restore();
+  }else if(e.type==='rocket'){
+    const p=1-a, rx=e.x+(e.tx-e.x)*p, ry=e.y+(e.ty-e.y)*p, ang=Math.atan2(e.ty-e.y,e.tx-e.x);
+    ctx.save();ctx.translate(rx,ry);ctx.rotate(ang);
+    ctx.strokeStyle=`rgba(215,220,210,${.62*a})`;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-28,0);ctx.lineTo(-7,0);ctx.stroke();
+    ctx.fillStyle=`rgba(42,54,48,${a})`;ctx.beginPath();ctx.roundRect?ctx.roundRect(-8,-3,22,6,3):ctx.rect(-8,-3,22,6);ctx.fill();
+    ctx.fillStyle=`rgba(255,176,72,${.9*a})`;ctx.beginPath();ctx.moveTo(-10,-5);ctx.lineTo(-24,0);ctx.lineTo(-10,5);ctx.closePath();ctx.fill();
     ctx.restore();
   }else if(e.type==='tracer'){
     ctx.strokeStyle=`rgba(255,219,126,${.70*a})`;ctx.lineWidth=e.heavy?2.2:1.4;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.tx,e.ty);ctx.stroke();
