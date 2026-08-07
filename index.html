@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>OPERATION OVERWATCH — v0.5.4</title>
+  <title>OPERATION OVERWATCH — v0.5.5</title>
   <style>
     :root {
       --bg:#071017;
@@ -220,7 +220,7 @@
           </ul>
         </div>
         <div class="menu-footer">
-          <span class="menu-version">v0.5.4 Menu + Audio</span>
+          <span class="menu-version">v0.5.5 Menu + Audio</span>
           <span>Assets libres documentés</span>
         </div>
       </div>
@@ -239,8 +239,8 @@
       </div>
       <h3>Carte</h3>
       <div class="menu-grid">
-        <div class="choice selected" data-map="route7"><h3>Route 7</h3><p>Grande route centrale, hameaux, zones rocheuses et trois objectifs espacés.</p></div>
-        <div class="choice" data-map="industrial"><h3>Zone Industrielle Delta</h3><p>Entrepôts, obstacles, quartiers urbains et terrain plus cloisonné.</p></div>
+        <div class="choice selected" data-map="route7"><h3>Vallée de Koro</h3><p>Vallée routière avec hameaux, poste central, zone industrielle secondaire et trois objectifs espacés.</p></div>
+        <div class="choice" data-map="industrial"><h3>Zone Industrielle Delta</h3><p>Complexe industriel plus cloisonné, routes lisibles, entrepôts, usines et objectifs tactiques.</p></div>
       </div>
       <div class="menu-row" style="margin-top:14px">
         <button id="btn-open-deploy" class="btn primary">Choisir les unités</button>
@@ -435,9 +435,81 @@ const ASSET_MANIFEST = {
     ambulance: 'assets/models/quaternius/vehicles/ambulance.glb'
   },
   kenney: {
-    building: 'assets/models/kenney/buildings/modular_house.glb',
-    road: 'assets/models/kenney/roads/road_straight.glb',
-    tree: 'assets/models/kenney/nature/tree.glb'
+    modular: {
+      houseA: 'assets/kenney/modular-buildings/building-sample-house-a.glb',
+      houseB: 'assets/kenney/modular-buildings/building-sample-house-b.glb',
+      houseC: 'assets/kenney/modular-buildings/building-sample-house-c.glb',
+      tower: 'assets/kenney/modular-buildings/building-sample-tower-b.glb'
+    },
+    buildingKit: {
+      wall: 'assets/kenney/building-kit/wall.glb',
+      corner: 'assets/kenney/building-kit/wall-corner.glb',
+      doorway: 'assets/kenney/building-kit/wall-doorway-wide-square.glb',
+      roof: 'assets/kenney/building-kit/roof-flat-square.glb',
+      stairs: 'assets/kenney/building-kit/stairs-closed.glb',
+      barricade: 'assets/kenney/building-kit/barricade-doorway-a.glb'
+    },
+    commercial: {
+      small: 'assets/kenney/city-commercial/building-a.glb',
+      medium: 'assets/kenney/city-commercial/building-g.glb',
+      large: 'assets/kenney/city-commercial/building-n.glb',
+      distant: 'assets/kenney/city-commercial/low-detail-building-wide-a.glb'
+    },
+    industrial: {
+      factoryA: 'assets/kenney/city-industrial/building-a.glb',
+      factoryF: 'assets/kenney/city-industrial/building-f.glb',
+      factoryM: 'assets/kenney/city-industrial/building-m.glb',
+      factoryP: 'assets/kenney/city-industrial/building-p.glb',
+      chimney: 'assets/kenney/city-industrial/chimney-medium.glb',
+      tank: 'assets/kenney/city-industrial/detail-tank.glb'
+    },
+    factory: {
+      crane: 'assets/kenney/factory-kit/crane.glb',
+      machine: 'assets/kenney/factory-kit/machine-fortified.glb',
+      conveyor: 'assets/kenney/factory-kit/conveyor-long-stripe-sides.glb',
+      box: 'assets/kenney/factory-kit/box-large.glb',
+      pipe: 'assets/kenney/factory-kit/pipe-large-long.glb',
+      catwalk: 'assets/kenney/factory-kit/catwalk-straight.glb'
+    },
+    roads: {
+      straight: 'assets/kenney/city-roads/road-straight.glb',
+      crossroad: 'assets/kenney/city-roads/road-crossroad.glb',
+      intersection: 'assets/kenney/city-roads/road-intersection.glb',
+      curve: 'assets/kenney/city-roads/road-curve.glb',
+      barrier: 'assets/kenney/city-roads/construction-barrier.glb',
+      cone: 'assets/kenney/city-roads/construction-cone.glb',
+      light: 'assets/kenney/city-roads/light-square-double.glb'
+    },
+    roadTiles: {
+      junction: 'assets/kenney/3d-road-tiles/roadTile_025.gltf',
+      bend: 'assets/kenney/3d-road-tiles/roadTile_030.gltf',
+      waterCrossing: 'assets/kenney/3d-road-tiles/roadTile_042.gltf'
+    },
+    roadTextures: {
+      marked: 'assets/kenney/road-textures/roadTexture_01.png',
+      asphalt: 'assets/kenney/road-textures/roadTexture_23.png',
+      sand: 'assets/kenney/road-textures/roadTexture_26.png',
+      dark: 'assets/kenney/road-textures/roadTexture_38.png'
+    },
+    nature: {
+      oak: 'assets/kenney/nature-kit/tree_oak.glb',
+      pine: 'assets/kenney/nature-kit/tree_pineTallA.glb',
+      tree: 'assets/kenney/nature-kit/tree_default.glb',
+      bush: 'assets/kenney/nature-kit/plant_bushDetailed.glb',
+      rock: 'assets/kenney/nature-kit/rock_largeA.glb',
+      tallRock: 'assets/kenney/nature-kit/rock_tallB.glb',
+      logs: 'assets/kenney/nature-kit/log_stack.glb',
+      path: 'assets/kenney/nature-kit/ground_pathStraight.glb'
+    },
+    survival: {
+      tent: 'assets/kenney/survival-kit/tent.glb',
+      fence: 'assets/kenney/survival-kit/fence-fortified.glb',
+      barrel: 'assets/kenney/survival-kit/barrel.glb',
+      box: 'assets/kenney/survival-kit/box-large.glb',
+      shelter: 'assets/kenney/survival-kit/structure-canvas.glb',
+      campfire: 'assets/kenney/survival-kit/campfire-pit.glb',
+      planks: 'assets/kenney/survival-kit/resource-planks.glb'
+    }
   }
 };
 
@@ -1110,7 +1182,13 @@ let countdownTime = 5;
 let aiPatterns = [];
 let lastFpsUpdate = 0, fpsFrames = 0;
 const loader = new GLTFLoader();
+const textureLoader = new THREE.TextureLoader();
 const loadedModels = new Map();
+const loadedTextures = new Map();
+let mapGeneration = 0;
+let assetLoadsRequested = 0;
+let assetLoadsDone = 0;
+let assetLoadsFailed = 0;
 
 function showNotice(msg, ms=2200){
   $('notice').textContent = msg;
@@ -1135,6 +1213,117 @@ function mat(color, rough=.75, metal=.05){
   if(!matCache.has(key)) matCache.set(key, material(color,rough,metal));
   return matCache.get(key);
 }
+
+function updateAssetState(){
+  const el = $('asset-state');
+  if(!el) return;
+  if(!assetLoadsRequested){ el.textContent='Kenney prêt'; return; }
+  const finished = assetLoadsDone + assetLoadsFailed;
+  el.textContent = finished < assetLoadsRequested
+    ? `Kenney ${finished}/${assetLoadsRequested}`
+    : assetLoadsFailed ? `Kenney ${assetLoadsDone} · ${assetLoadsFailed} secours` : `Kenney ${assetLoadsDone} ✓`;
+}
+
+function loadModelTemplate(path){
+  if(loadedModels.has(path)) return loadedModels.get(path);
+  assetLoadsRequested++;
+  updateAssetState();
+  const promise = loader.loadAsync(path).then(gltf=>{
+    const root = gltf.scene || gltf.scenes?.[0];
+    if(!root) throw new Error(`Scène 3D absente : ${path}`);
+    root.traverse(obj=>{
+      if(!obj.isMesh) return;
+      obj.castShadow=true;
+      obj.receiveShadow=true;
+      if(obj.material?.map) obj.material.map.colorSpace = THREE.SRGBColorSpace;
+    });
+    assetLoadsDone++;
+    updateAssetState();
+    return root;
+  }).catch(err=>{
+    assetLoadsFailed++;
+    updateAssetState();
+    console.warn('Asset Kenney indisponible, géométrie de secours conservée', path, err);
+    throw err;
+  });
+  loadedModels.set(path,promise);
+  return promise;
+}
+
+function placeKenneyModel(path,x,z,targetW,targetL,rot=0,options={}){
+  const generation = mapGeneration;
+  return loadModelTemplate(path).then(template=>{
+    if(generation!==mapGeneration) return null;
+    const root=template.clone(true);
+    root.position.set(0,0,0);
+    root.rotation.set(0,0,0);
+    root.scale.setScalar(1);
+    root.updateMatrixWorld(true);
+    const baseBox=new THREE.Box3().setFromObject(root);
+    const baseSize=baseBox.getSize(new THREE.Vector3());
+    const sizeX=Math.max(.001,baseSize.x);
+    const sizeZ=Math.max(.001,baseSize.z);
+    const fitNormal=Math.min(targetW/sizeX,targetL/sizeZ);
+    const fitQuarterTurn=Math.min(targetW/sizeZ,targetL/sizeX);
+    const quarterTurn=options.autoRotate!==false && fitQuarterTurn>fitNormal*1.015;
+    const fitted=quarterTurn?fitQuarterTurn:fitNormal;
+    const scale=(options.cover?Math.max(targetW/sizeX,targetL/sizeZ):fitted)*(options.scale||1);
+    root.scale.setScalar(scale);
+    root.updateMatrixWorld(true);
+    const scaledBox=new THREE.Box3().setFromObject(root);
+    const center=scaledBox.getCenter(new THREE.Vector3());
+    const finalRot=rot+(quarterTurn?Math.PI/2:0);
+    const horizontalCenter=new THREE.Vector3(center.x,0,center.z).applyAxisAngle(new THREE.Vector3(0,1,0),finalRot);
+    root.position.set(x-horizontalCenter.x, (options.y||0)-scaledBox.min.y, z-horizontalCenter.z);
+    root.rotation.y=finalRot;
+    root.traverse(obj=>{
+      if(!obj.isMesh) return;
+      obj.castShadow=options.castShadow!==false;
+      obj.receiveShadow=options.receiveShadow!==false;
+    });
+    scene.add(root);
+    if(options.fallback) options.fallback.visible=false;
+    return root;
+  }).catch(()=>null);
+}
+
+function loadTextureTemplate(path){
+  if(loadedTextures.has(path)) return loadedTextures.get(path);
+  assetLoadsRequested++;
+  updateAssetState();
+  const promise=textureLoader.loadAsync(path).then(texture=>{
+    texture.colorSpace=THREE.SRGBColorSpace;
+    assetLoadsDone++;
+    updateAssetState();
+    return texture;
+  }).catch(err=>{
+    assetLoadsFailed++;
+    updateAssetState();
+    console.warn('Texture Kenney indisponible',path,err);
+    throw err;
+  });
+  loadedTextures.set(path,promise);
+  return promise;
+}
+
+function applyKenneyTexture(mesh,path,repeatX=1,repeatY=1){
+  const generation=mapGeneration;
+  loadTextureTemplate(path).then(source=>{
+    if(generation!==mapGeneration || !mesh.parent) return;
+    const texture=source.clone();
+    texture.needsUpdate=true;
+    texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+    texture.repeat.set(repeatX,repeatY);
+    const current=mesh.material;
+    mesh.material=new THREE.MeshStandardMaterial({
+      map:texture,
+      color:0xffffff,
+      roughness:current?.roughness ?? .95,
+      metalness:current?.metalness ?? .02
+    });
+  }).catch(()=>{});
+}
+
 
 function makeTextSprite(text, color='#dff5ff', bg='rgba(0,0,0,.45)', size=64){
   const canvas = document.createElement('canvas');
@@ -1415,11 +1604,16 @@ function createRenderer(){
 
 function resetScene(){
   if(!scene) createRenderer();
+  mapGeneration++;
+  assetLoadsRequested=0;
+  assetLoadsDone=0;
+  assetLoadsFailed=0;
   for(const obj of [...scene.children]){
     if(!obj.isLight) scene.remove(obj);
   }
   entities=[]; projectiles=[]; effects=[]; objectives=[]; obstacles=[]; colliders=[]; selectableObjects=[]; selected=null; idSeq=1;
   cameraTarget.set(0,0,0); zoom=1.08; updateCamera();
+  updateAssetState();
   buildMap(mapKey);
 }
 
@@ -1462,6 +1656,7 @@ function addRoad(x,z,w,l,rot=0){
   const group = new THREE.Group();
   const asphalt = new THREE.Mesh(new THREE.BoxGeometry(w,2,l), mat(0x343c3f,.94,.03));
   asphalt.position.y=1; asphalt.receiveShadow=true; group.add(asphalt);
+  applyKenneyTexture(asphalt,ASSET_MANIFEST.kenney.roadTextures.asphalt,Math.max(1,w/96),Math.max(1,l/96));
 
   const shoulderMat = mat(0x5c584a,.92,.02);
   for(const sx of [-1,1]){
@@ -1536,12 +1731,14 @@ function addTree(x,z,s=1){
   crown.position.y=36*s; crown.castShadow=true;
   group.add(trunk,crown); group.position.set(x,0,z); scene.add(group);
   colliders.push({x,z,w:24*s,l:24*s,type:'tree'});
+  return group;
 }
 
 function addRock(x,z,s=1){
   const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(18*s,0), mat(0x777b75,.94,.02));
   rock.scale.set(1.2,.55,.9); rock.position.set(x,10*s,z); rock.rotation.set(rand(0,1),rand(0,6),rand(0,1)); rock.castShadow=true; scene.add(rock);
   colliders.push({x,z,w:34*s,l:30*s,type:'rock'});
+  return rock;
 }
 
 function addBarrier(x,z,w,l,rot=0){
@@ -1552,9 +1749,9 @@ function addBarrier(x,z,w,l,rot=0){
 
 function addObjective(name,x,z){
   const group=new THREE.Group();
-  const base=new THREE.Mesh(new THREE.CylinderGeometry(66,66,2,56), new THREE.MeshBasicMaterial({color:0xe8b35a,transparent:true,opacity:.24}));
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(108,108,2,64), new THREE.MeshBasicMaterial({color:0xe8b35a,transparent:true,opacity:.19,depthWrite:false}));
   base.position.y=1; group.add(base);
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(68,2.2,8,64), new THREE.MeshBasicMaterial({color:0xf0c169,transparent:true,opacity:.62}));
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(110,2.4,8,64), new THREE.MeshBasicMaterial({color:0xf0c169,transparent:true,opacity:.72}));
   ring.rotation.x=Math.PI/2; ring.position.y=2.3; group.add(ring);
   const pole=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,76,10), mat(0xd0d0d0,.65,.12)); pole.position.y=38; group.add(pole);
   const flag=new THREE.Mesh(new THREE.PlaneGeometry(48,30), new THREE.MeshBasicMaterial({color:0xdddddd,side:THREE.DoubleSide}));
@@ -1562,19 +1759,21 @@ function addObjective(name,x,z){
   const label=makeTextSprite(name,'#ffe6ad','rgba(0,0,0,.45)',68);
   label.position.set(0,84,0); group.add(label);
   group.position.set(x,0,z); scene.add(group);
-  const obj={name,x,z,owner:'neutral',progress:0,radius:132,group,flag,base,ring}; objectives.push(obj);
+  const obj={name,x,z,owner:'neutral',progress:0,radius:145,group,flag,base,ring}; objectives.push(obj);
 }
 
 
-function addPavedLot(x,z,w,l,rot=0,color=0x4a5250){
+function addPavedLot(x,z,w,l,rot=0,color=0x4a5250,texturePath=ASSET_MANIFEST.kenney.roadTextures.dark){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,1.4,l), mat(color,.96,.03));
   mesh.position.set(x,.65,z); mesh.rotation.y=rot; mesh.receiveShadow=true; scene.add(mesh);
+  if(texturePath) applyKenneyTexture(mesh,texturePath,Math.max(1,w/110),Math.max(1,l/110));
   return mesh;
 }
 
 function addDirtPatch(x,z,w,l,rot=0){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,1.1,l), mat(0x74624a,.96,.01));
   mesh.position.set(x,.55,z); mesh.rotation.y=rot; mesh.receiveShadow=true; scene.add(mesh);
+  applyKenneyTexture(mesh,ASSET_MANIFEST.kenney.roadTextures.sand,Math.max(1,w/120),Math.max(1,l/120));
   return mesh;
 }
 
@@ -1622,76 +1821,251 @@ function addCheckpoint(x,z,rot=0){
   addFenceLine(x,z+64,180,rot,5);
 }
 
+function addKenneyBuilding(path,x,z,w,l,h=58,type='house',rot=0){
+  const fallback=addBuilding(x,z,w,l,h,type,rot);
+  placeKenneyModel(path,x,z,w,l,rot,{fallback,y:.9});
+  return fallback;
+}
+
+function addKenneyProp(path,x,z,w,l,rot=0,options={}){
+  let fallback=null;
+  if(options.fallback!==false){
+    fallback=new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(5,w*.62),Math.max(4,options.height||Math.min(w,l)*.34),Math.max(5,l*.62)),
+      mat(options.color||0x666b64,.86,.04)
+    );
+    fallback.position.set(x,(options.height||Math.min(w,l)*.34)/2,z);
+    fallback.rotation.y=rot;
+    fallback.castShadow=true;
+    fallback.receiveShadow=true;
+    scene.add(fallback);
+  }
+  if(options.collider){
+    colliders.push({x,z,w:options.colliderW||w*.72,l:options.colliderL||l*.72,rot,type:options.type||'prop'});
+  }
+  placeKenneyModel(path,x,z,w,l,rot,{fallback,y:options.y||.7,castShadow:options.castShadow!==false});
+  return fallback;
+}
+
+function addKenneyTree(x,z,s=1,variant=0){
+  const fallback=addTree(x,z,s);
+  const paths=[ASSET_MANIFEST.kenney.nature.oak,ASSET_MANIFEST.kenney.nature.tree,ASSET_MANIFEST.kenney.nature.pine];
+  const size=(variant%3===2?40:52)*s;
+  placeKenneyModel(paths[Math.abs(variant)%paths.length],x,z,size,size,rand(-Math.PI,Math.PI),{fallback,y:0});
+}
+
+function addKenneyRock(x,z,s=1,variant=0){
+  const fallback=addRock(x,z,s);
+  const path=variant%2?ASSET_MANIFEST.kenney.nature.tallRock:ASSET_MANIFEST.kenney.nature.rock;
+  placeKenneyModel(path,x,z,42*s,38*s,rand(-Math.PI,Math.PI),{fallback,y:.2});
+}
+
+function addKenneyNatureCluster(cx,cz,count,spread=150,seed=0){
+  for(let i=0;i<count;i++){
+    const a=(i*2.399963+seed*.73)%(Math.PI*2);
+    const d=spread*(.32+.68*((i*37+seed*11)%97)/96);
+    addKenneyTree(cx+Math.cos(a)*d,cz+Math.sin(a)*d,.72+((i+seed)%5)*.09,i+seed);
+    if(i%3===0) addKenneyProp(ASSET_MANIFEST.kenney.nature.bush,cx+Math.cos(a+.7)*d*.72,cz+Math.sin(a+.7)*d*.72,30,30,a,{fallback:false,y:.2});
+  }
+}
+
+function addKenneyRockCluster(cx,cz,count,spread=110,seed=0){
+  for(let i=0;i<count;i++){
+    const a=(i*2.17+seed)%(Math.PI*2);
+    const d=spread*(.28+.72*((i*43+17)%89)/88);
+    addKenneyRock(cx+Math.cos(a)*d,cz+Math.sin(a)*d,.5+(i%4)*.11,i+seed);
+  }
+}
+
+function addKenneyRoad(x,z,w,l,rot=0){
+  addRoad(x,z,w,l,rot);
+  const step=124;
+  const count=Math.max(1,Math.ceil(l/step));
+  for(let i=0;i<count;i++){
+    const local=-l/2+(i+.5)*(l/count);
+    const px=x+Math.sin(rot)*local;
+    const pz=z+Math.cos(rot)*local;
+    placeKenneyModel(ASSET_MANIFEST.kenney.roads.straight,px,pz,w-8,l/count+2,rot,{y:2.8,castShadow:false});
+  }
+}
+
+function addKenneyRoadNode(path,x,z,size=148,rot=0){
+  placeKenneyModel(path,x,z,size,size,rot,{y:3,castShadow:false});
+}
+
+function addRoadsideFurniture(x,z,rot=0){
+  addKenneyProp(ASSET_MANIFEST.kenney.roads.barrier,x,z,64,18,rot,{collider:true,colliderW:58,colliderL:12,height:10,color:0x9c8c70});
+  addKenneyProp(ASSET_MANIFEST.kenney.roads.cone,x+38*Math.cos(rot),z-38*Math.sin(rot),14,14,rot,{fallback:false,y:2.5});
+}
+
+function addSurvivalCamp(cx,cz,rot=0,faction='ally'){
+  addDirtPatch(cx,cz,360,250,rot);
+  const tent=ASSET_MANIFEST.kenney.survival.tent;
+  addKenneyProp(tent,cx-92,cz-45,86,74,rot+.08,{collider:true,height:30,color:faction==='ally'?0x596d59:0x705247});
+  addKenneyProp(tent,cx+10,cz-72,86,74,rot-.06,{collider:true,height:30,color:faction==='ally'?0x596d59:0x705247});
+  addKenneyProp(ASSET_MANIFEST.kenney.survival.shelter,cx+105,cz+18,96,82,rot,{collider:true,height:34,color:0x6f6c59});
+  addKenneyProp(ASSET_MANIFEST.kenney.survival.campfire,cx-18,cz+42,34,34,rot,{fallback:false,y:1});
+  addKenneyProp(ASSET_MANIFEST.kenney.survival.barrel,cx+70,cz-82,22,22,rot,{collider:true,colliderW:16,colliderL:16,height:22,color:0x677070});
+  addKenneyProp(ASSET_MANIFEST.kenney.survival.box,cx+104,cz-72,28,28,rot,{collider:true,colliderW:22,colliderL:22,height:20,color:0x73654b});
+  addKenneyProp(ASSET_MANIFEST.kenney.survival.planks,cx-112,cz+56,48,28,rot,{fallback:false,y:.5});
+  for(const side of [-1,1]){
+    for(let i=-1;i<=1;i++) addKenneyProp(ASSET_MANIFEST.kenney.survival.fence,cx+i*70,cz+side*122,66,18,rot,{collider:true,colliderW:62,colliderL:12,height:14,color:0x665a49});
+  }
+}
+
+function addFactoryYard(cx,cz,rot=0){
+  addPavedLot(cx,cz,520,390,rot,0x454b4c,ASSET_MANIFEST.kenney.roadTextures.asphalt);
+  addKenneyProp(ASSET_MANIFEST.kenney.factory.crane,cx-150,cz+70,92,160,rot,{collider:true,colliderW:72,colliderL:122,height:70,color:0x5d6570});
+  addKenneyProp(ASSET_MANIFEST.kenney.factory.machine,cx+55,cz+82,88,72,rot,{collider:true,height:52,color:0x5b6370});
+  addKenneyProp(ASSET_MANIFEST.kenney.factory.conveyor,cx+38,cz-74,150,44,rot,{collider:true,colliderW:138,colliderL:32,height:22,color:0x5b6370});
+  addKenneyProp(ASSET_MANIFEST.kenney.factory.pipe,cx+166,cz-68,82,34,rot+Math.PI/2,{collider:true,colliderW:62,colliderL:24,height:24,color:0x6c7580});
+  addKenneyProp(ASSET_MANIFEST.kenney.factory.catwalk,cx+162,cz+72,120,42,rot,{collider:true,colliderW:104,colliderL:28,height:28,color:0x606a78});
+  for(let i=0;i<4;i++) addKenneyProp(ASSET_MANIFEST.kenney.factory.box,cx-28+i*38,cz+142,30,30,rot+.08*i,{collider:true,colliderW:23,colliderL:23,height:24,color:0x8a7954});
+}
+
 function buildMap(key){
   const sizeX=4600, sizeZ=3000;
   const tex=makeGroundTexture();
   ground = new THREE.Mesh(new THREE.PlaneGeometry(sizeX,sizeZ,1,1), new THREE.MeshStandardMaterial({map:tex, roughness:1}));
   ground.rotation.x = -Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+  addDirtPatch(-1980,1010,560,430,.04);
+  addDirtPatch(1980,-1010,560,430,-.04);
 
-  // Carte plus propre : axes routiers lisibles, zones bâties par blocs, objectifs espacés.
-  addRoad(0,0,128,2860,0);
-  addRoad(-220,-180,116,3600,Math.PI/2);
-  addRoad(-1280,420,96,1150,.55);
-  addRoad(1280,450,96,1200,-.55);
-  addDirtPatch(-1780,820,520,420,.08);
-  addDirtPatch(1760,-820,520,420,-.08);
+  if(key==='industrial') buildIndustrialDelta();
+  else buildRoute7Valley();
 
-  // Objectifs légèrement plus grands et placés dans des zones lisibles.
-  addPavedLot(-1180,-620,430,320,.08,0x454f4a);
-  addObjective('A', -1180, -620);
-  addPavedLot(120,-10,460,330,0,0x46504d);
-  addObjective('B', 120, -10);
-  addPavedLot(1240,640,430,320,-.08,0x454f4a);
-  addObjective('C', 1240, 640);
+  // Les deux bases utilisent Survival Kit et restent en retrait des spawns.
+  addSurvivalCamp(-1980,1080,.04,'ally');
+  addSurvivalCamp(1980,-1080,-.04,'enemy');
+  addKenneyBuilding(ASSET_MANIFEST.kenney.modular.tower,-2180,720,116,116,78,'commercial',.04);
+  addKenneyBuilding(ASSET_MANIFEST.kenney.modular.tower,2180,-720,116,116,78,'commercial',-.04);
 
-  // Village ou zone industrielle selon la carte.
-  const village = [
-    [-1660,-380,110,95,50,'house',.05],[-1500,-520,96,82,44,'house',-.12],
-    [-1340,-350,128,92,54,'commercial',.08],[-1380,-170,92,76,42,'house',.24],
-    [-910,-780,96,82,44,'house',-.1],[-820,-600,130,90,52,'commercial',.16],
-    [740,150,105,88,48,'house',-.15],[900,300,130,100,56,'commercial',.08],
-    [1070,120,95,80,44,'house',.2],[1510,430,110,85,46,'house',-.05],
-    [1450,790,135,105,58,'commercial',.1],[1040,770,92,78,42,'house',-.18]
+  // Bordures naturelles lisibles : elles ferment visuellement le théâtre sans créer un mur continu.
+  addKenneyNatureCluster(-2050,-1080,12,220,2);
+  addKenneyNatureCluster(2020,1080,12,220,7);
+  addKenneyNatureCluster(-760,1210,9,180,4);
+  addKenneyNatureCluster(760,-1210,9,180,9);
+  addKenneyRockCluster(-1670,180,7,135,2);
+  addKenneyRockCluster(1680,-170,7,135,5);
+  addKenneyProp(ASSET_MANIFEST.kenney.nature.logs,-1810,510,74,42,.18,{collider:true,colliderW:58,colliderL:30,height:24,color:0x66503b});
+  addKenneyProp(ASSET_MANIFEST.kenney.nature.logs,1810,-510,74,42,-.18,{collider:true,colliderW:58,colliderL:30,height:24,color:0x66503b});
+}
+
+function buildRoute7Valley(){
+  const K=ASSET_MANIFEST.kenney;
+
+  // Deux axes forts et deux bretelles : la lecture tactique reste immédiate.
+  addKenneyRoad(-40,-130,146,4180,Math.PI/2);
+  addKenneyRoad(90,0,142,2860,0);
+  addKenneyRoad(-1470,470,108,960,.78);
+  addKenneyRoad(1480,-470,108,960,.78);
+  addKenneyRoadNode(K.roads.crossroad,-40,-130,154,0);
+  addKenneyRoadNode(K.roads.intersection,90,530,148,0);
+  addKenneyRoadNode(K.roads.intersection,90,-720,148,Math.PI);
+  placeKenneyModel(K.roadTiles.junction,-1590,600,150,150,.78,{y:1.8,castShadow:false});
+  placeKenneyModel(K.roadTiles.bend,1590,-600,150,150,.78,{y:1.8,castShadow:false});
+  placeKenneyModel(K.roadTiles.waterCrossing,-620,-1260,165,165,0,{y:.4,castShadow:false});
+
+  // Objectifs ouverts : aucun bâtiment dans le disque de capture.
+  addPavedLot(-1180,-610,430,330,.05,0x454d49,K.roadTextures.dark);
+  addObjective('ALPHA',-1180,-610);
+  addPavedLot(90,-80,470,350,0,0x464e4c,K.roadTextures.asphalt);
+  addObjective('BRAVO',90,-80);
+  addPavedLot(1260,610,430,330,-.05,0x454d49,K.roadTextures.dark);
+  addObjective('CHARLIE',1260,610);
+
+  // Hameau Alpha — Modular Buildings + City Kit Commercial.
+  const hamlet=[
+    [K.modular.houseA,-1570,-650,144,132,54,'house',.04],
+    [K.modular.houseB,-1450,-365,138,126,52,'house',-.12],
+    [K.modular.houseC,-1110,-940,150,136,55,'house',.08],
+    [K.modular.houseA,-850,-710,136,124,50,'house',-.08],
+    [K.modular.houseB,-1050,-275,134,122,51,'house',.14],
+    [K.commercial.small,-730,-420,172,154,70,'commercial',.02],
+    [K.commercial.medium,-1710,-250,190,170,76,'commercial',-.06]
   ];
-  const industrial = [
-    [-520,540,210,150,78,'industrial',.05],[-250,650,170,130,66,'industrial',-.08],
-    [520,-620,230,150,84,'industrial',.12],[820,-500,160,130,66,'industrial',-.06],
-    [1600,-220,180,135,70,'industrial',.08],[-1740,520,180,130,64,'industrial',-.04],
-    [360,940,130,100,50,'ruin',.22],[-530,-940,150,112,54,'ruin',-.16]
+  for(const b of hamlet) addKenneyBuilding(...b);
+  addKenneyProp(K.nature.path,-1320,-845,190,62,.14,{fallback:false,y:.3,castShadow:false});
+  addKenneyProp(K.nature.path,-940,-510,180,58,-.2,{fallback:false,y:.3,castShadow:false});
+  addKenneyNatureCluster(-1510,-1010,7,125,3);
+  addKenneyRockCluster(-760,-880,5,95,3);
+
+  // Poste Bravo — pièces Building Kit et mobilier City Kit Roads.
+  addDirtPatch(-360,310,520,300,.02);
+  addKenneyProp(K.buildingKit.barricade,-230,140,112,30,0,{collider:true,colliderW:98,colliderL:20,height:24,color:0x77756f});
+  addKenneyProp(K.buildingKit.wall,-420,335,112,28,Math.PI/2,{collider:true,colliderW:98,colliderL:18,height:34,color:0x777b80});
+  addKenneyProp(K.buildingKit.corner,-325,445,100,100,0,{collider:true,colliderW:78,colliderL:78,height:35,color:0x777b80});
+  addKenneyProp(K.buildingKit.doorway,365,210,126,30,0,{collider:true,colliderW:110,colliderL:20,height:36,color:0x777b80});
+  addKenneyProp(K.buildingKit.stairs,480,320,90,72,Math.PI/2,{collider:true,colliderW:72,colliderL:56,height:24,color:0x777b80});
+  addKenneyProp(K.buildingKit.roof,500,470,118,118,0,{collider:true,colliderW:94,colliderL:94,height:28,color:0x606970});
+  addRoadsideFurniture(-125,-248,0);
+  addRoadsideFurniture(315,92,Math.PI);
+  addKenneyProp(K.roads.light,-160,-90,28,28,0,{fallback:false,y:2});
+  addKenneyProp(K.roads.light,330,-90,28,28,0,{fallback:false,y:2});
+
+  // Charlie — City Kit Industrial et Factory Kit, regroupés en vrai complexe.
+  addKenneyBuilding(K.industrial.factoryA,760,830,210,190,92,'industrial',.03);
+  addKenneyBuilding(K.industrial.factoryF,1740,760,220,198,94,'industrial',-.04);
+  addKenneyBuilding(K.industrial.factoryM,1580,250,210,190,90,'industrial',.05);
+  addKenneyBuilding(K.industrial.factoryP,900,245,194,176,86,'industrial',-.05);
+  addKenneyBuilding(K.commercial.large,1880,190,218,198,98,'commercial',.02);
+  addKenneyProp(K.industrial.chimney,1755,1015,48,48,0,{collider:true,colliderW:34,colliderL:34,height:78,color:0x777f83});
+  addKenneyProp(K.industrial.tank,1575,1060,84,84,0,{collider:true,colliderW:66,colliderL:66,height:52,color:0x747d80});
+  addFactoryYard(1190,1130,-.02);
+  addRoadsideFurniture(1090,385,.08);
+  addRoadsideFurniture(1445,820,Math.PI+.08);
+}
+
+function buildIndustrialDelta(){
+  const K=ASSET_MANIFEST.kenney;
+
+  // Variante plus cloisonnée, mais toujours traversable par les véhicules lourds.
+  addKenneyRoad(0,0,150,2860,0);
+  addKenneyRoad(0,-650,142,4200,Math.PI/2);
+  addKenneyRoad(0,650,142,4200,Math.PI/2);
+  addKenneyRoad(-980,0,112,1160,0);
+  addKenneyRoad(980,0,112,1160,0);
+  for(const p of [[0,-650],[0,650],[-980,-650],[-980,650],[980,-650],[980,650]]) addKenneyRoadNode(K.roads.crossroad,p[0],p[1],154,0);
+  placeKenneyModel(K.roadTiles.junction,-980,0,156,156,0,{y:1.8,castShadow:false});
+  placeKenneyModel(K.roadTiles.bend,980,0,156,156,Math.PI,{y:1.8,castShadow:false});
+
+  addPavedLot(-1120,420,450,340,0,0x444c4c,K.roadTextures.dark);
+  addObjective('ALPHA',-1120,420);
+  addPavedLot(0,0,470,350,0,0x454e4d,K.roadTextures.asphalt);
+  addObjective('BRAVO',0,0);
+  addPavedLot(1120,-420,450,340,0,0x444c4c,K.roadTextures.dark);
+  addObjective('CHARLIE',1120,-420);
+
+  const blocks=[
+    [K.industrial.factoryA,-1550,900,224,205,96,.02],
+    [K.industrial.factoryF,-930,1010,220,198,94,-.04],
+    [K.commercial.medium,-420,1010,194,176,82,.03],
+    [K.commercial.large,430,1010,220,202,98,-.03],
+    [K.industrial.factoryM,1030,1010,220,200,94,.04],
+    [K.industrial.factoryP,1610,880,210,190,90,-.02],
+    [K.commercial.small,-1740,-40,180,164,74,.04],
+    [K.industrial.factoryP,-520,-310,206,188,88,-.05],
+    [K.industrial.factoryM,530,330,212,192,91,.05],
+    [K.commercial.small,1740,40,180,164,74,-.04],
+    [K.modular.houseC,-1550,-990,152,138,58,.05],
+    [K.modular.houseB,-1080,-1040,144,132,55,-.04],
+    [K.commercial.medium,-480,-1030,196,178,84,.03],
+    [K.commercial.large,440,-1030,220,202,98,-.03],
+    [K.industrial.factoryA,980,-1010,224,205,96,.02],
+    [K.industrial.factoryF,1550,-900,220,198,94,-.04]
   ];
-  for(const b of village) addBuilding(...b);
-  for(const b of industrial) addBuilding(...b);
+  for(const [path,x,z,w,l,h,rot] of blocks) addKenneyBuilding(path,x,z,w,l,h,path.includes('commercial')?'commercial':'industrial',rot);
 
-  // Décors tactiques : checkpoints, caisses, murs bas, végétation en clusters au lieu d'un bruit aléatoire.
-  addCheckpoint(-350,-180,Math.PI/2);
-  addCheckpoint(520,55,0);
-  addCheckpoint(-1160,-410,.08);
-  addCheckpoint(1210,820,-.12);
+  addFactoryYard(-1460,-300,.02);
+  addFactoryYard(1460,300,Math.PI+.02);
+  addKenneyProp(K.industrial.chimney,-1780,620,48,48,0,{collider:true,colliderW:34,colliderL:34,height:78,color:0x777f83});
+  addKenneyProp(K.industrial.chimney,1780,-620,48,48,0,{collider:true,colliderW:34,colliderL:34,height:78,color:0x777f83});
+  addKenneyProp(K.industrial.tank,-1460,610,84,84,0,{collider:true,colliderW:66,colliderL:66,height:52,color:0x747d80});
+  addKenneyProp(K.industrial.tank,1460,-610,84,84,0,{collider:true,colliderW:66,colliderL:66,height:52,color:0x747d80});
 
-  const barriers = [
-    [-1260,-520,150,14,.1],[-1080,-720,130,14,.08],[-10,120,180,14,0],
-    [230,-130,160,14,.1],[1130,540,150,14,-.12],[1370,720,120,14,-.08],
-    [-760,240,140,14,.5],[740,-300,150,14,-.45],[1690,-70,130,14,.1]
-  ];
-  for(const b of barriers) addBarrier(...b);
-  for(const c of [[-1520,-260],[-1460,-700],[-920,-680],[680,70],[960,430],[1390,600],[620,-700],[1710,-250]]) addCrateStack(c[0],c[1],rand(-.3,.3),3);
-
-  addTreeCluster(-1900,980,13,220);
-  addTreeCluster(-1730,-980,14,240);
-  addTreeCluster(1830,930,12,220);
-  addTreeCluster(1820,-960,13,220);
-  addTreeCluster(-450,1120,9,180);
-  addTreeCluster(520,1080,8,170);
-  addRockCluster(-650,850,8,150);
-  addRockCluster(780,-850,9,160);
-  addRockCluster(1540,180,7,130);
-  addRockCluster(-1540,100,7,130);
-
-  // Spawn bases un peu mieux cadrées.
-  addBuilding(-2020,920,170,130,62,'industrial',.05);
-  addBuilding(2020,-920,170,130,62,'industrial',-.05);
-  addFenceLine(-1940,720,260,.05,7);
-  addFenceLine(1940,-720,260,-.05,7);
+  for(const [x,z,r] of [[-260,-650,0],[260,650,Math.PI],[-980,-210,Math.PI/2],[980,210,-Math.PI/2]]) addRoadsideFurniture(x,z,r);
+  addKenneyRockCluster(-2050,80,6,105,4);
+  addKenneyRockCluster(2050,-80,6,105,7);
 }
 
 function createMuzzleFlash(x,z,y=25, size=18){
