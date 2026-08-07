@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>OPERATION OVERWATCH — v0.5.10 Spawn/Fog/Navigation Hotfix</title>
+  <title>OPERATION OVERWATCH — v0.5.11 Roles/Audio/Movement Hotfix</title>
   <style>
     :root {
       --bg:#071017;
@@ -98,24 +98,35 @@
     .cost{color:#ffe0a0;font-weight:800}
     .unit-card b{font-size:14px}
     .unit-card small{color:var(--muted);line-height:1.25}
-    .unit-preview{width:52px;height:52px;border:1px solid rgba(151,190,208,.22);border-radius:12px;background:linear-gradient(145deg,rgba(18,31,41,.92),rgba(5,11,17,.86));display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 18px rgba(91,157,179,.08)}
-    .unit-preview::before{content:"";position:absolute;inset:6px;border:1px solid rgba(255,255,255,.06);border-radius:9px}
-    .unit-preview .icon{font-size:23px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
-    .unit-preview .tag{position:absolute;right:4px;bottom:3px;font-size:9px;font-weight:900;color:#101820;background:#e3c276;border-radius:5px;padding:1px 3px;letter-spacing:.04em}
+    .unit-preview{width:58px;height:58px;border:1px solid rgba(151,190,208,.28);border-radius:13px;background:linear-gradient(145deg,rgba(18,31,41,.92),rgba(5,11,17,.86));display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 18px rgba(91,157,179,.08),0 8px 16px rgba(0,0,0,.18);overflow:hidden}
+    .unit-preview::before{content:"";position:absolute;inset:6px;border:1px solid rgba(255,255,255,.055);border-radius:9px}
+    .unit-preview::after{content:"";position:absolute;left:8px;right:8px;bottom:7px;height:2px;border-radius:2px;background:rgba(126,216,137,.48)}
+    .unit-preview .icon{position:relative;z-index:1;font-size:24px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.48));font-weight:900}
+    .unit-preview .tag{position:absolute;right:4px;bottom:3px;font-size:8px;font-weight:950;color:#101820;background:#e3c276;border-radius:5px;padding:1px 3px;letter-spacing:.04em;z-index:2}
+    .unit-preview .role-dot{position:absolute;left:6px;top:6px;width:8px;height:8px;border-radius:50%;background:#7ed889;box-shadow:0 0 9px rgba(126,216,137,.44);z-index:2}
     .unit-preview.vehicle .icon{font-size:25px}
-    .unit-preview.infantry .icon{font-size:21px}
+    .unit-preview.infantry .icon{font-size:22px}
     .unit-preview.support .tag{background:#9ee6bc}
     .unit-preview.heavy .tag{background:#f0a257}
+    .role-rifle .icon{color:#cfe5d6}.role-machinegun .icon{color:#ffe3a7}.role-at .icon{color:#ffc982}.role-command .icon{color:#9fd8ff}
+    .role-mbt .icon,.role-ifv .icon{color:#e5d0b0}.role-ambulance .icon{color:#f8f8f8}.role-support .icon{color:#aee6ba}
     .hud{position:fixed;inset:0;z-index:10;pointer-events:none}
     .hud>*{pointer-events:auto}
     .top-left,.top-center,.top-right,.bottom-panel,.deploy-fab{position:absolute}
     .top-left{top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));display:flex;gap:8px;align-items:center}
     .top-center{top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);text-align:center}
     .top-right{top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;gap:8px;align-items:flex-start}
-    #btn-reinforce{margin-top:22px;box-shadow:0 8px 20px rgba(0,0,0,.18)}
+    #btn-reinforce{box-shadow:0 8px 20px rgba(0,0,0,.18)}
+    .reinforce-menu-btn{position:relative;margin-right:2px;background:rgba(7,18,26,.86);border-color:rgba(126,216,137,.34)}
+    .hamburger-lines,.hamburger-lines::before,.hamburger-lines::after{content:"";display:block;width:18px;height:2px;border-radius:2px;background:#e7f7ff;box-shadow:0 0 8px rgba(126,216,137,.18)}
+    .hamburger-lines::before{transform:translateY(-6px)}
+    .hamburger-lines::after{transform:translateY(4px)}
+    .reinforce-badge{position:absolute;right:-5px;bottom:-6px;min-width:20px;height:18px;padding:1px 5px;border-radius:999px;background:rgba(232,179,90,.95);color:#101820;font-size:10px;font-weight:900;line-height:16px;border:1px solid rgba(0,0,0,.35)}
+    .hud .top-center{pointer-events:none}
+    .timer{isolation:isolate}
     .pill{border:1px solid rgba(162,198,212,.22);border-radius:999px;padding:8px 11px;background:var(--panel);color:#dfeef4;backdrop-filter:blur(8px);font-size:13px}
     .mini-hud-btn{width:38px;height:38px;min-height:38px;padding:0;border-radius:12px;border:1px solid rgba(162,198,212,.22);background:rgba(8,18,28,.78);color:#e7f7ff;font-weight:900;font-size:20px;line-height:1;backdrop-filter:blur(8px)}
-    .timer{font-weight:900;font-size:18px;letter-spacing:.08em;background:rgba(4,10,16,.74);border:1px solid rgba(227,178,91,.35);color:#ffe0a4;border-radius:999px;padding:8px 16px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+    .timer{font-weight:900;font-size:18px;letter-spacing:.08em;background:rgba(2,6,9,.88);border:1px solid rgba(227,178,91,.42);color:#ffe0a4;border-radius:999px;padding:8px 16px;box-shadow:0 8px 24px rgba(0,0,0,.34);min-width:96px}
     .bottom-panel{left:calc(8px + env(safe-area-inset-left));right:calc(8px + env(safe-area-inset-right));bottom:calc(4px + env(safe-area-inset-bottom));width:auto;max-width:1180px;margin:0 auto;background:rgba(4,9,14,.48);border:1px solid rgba(142,184,204,.16);border-radius:12px;backdrop-filter:blur(7px);box-shadow:0 6px 18px rgba(0,0,0,.24);overflow:hidden}
     .unit-compact{display:grid;grid-template-columns:minmax(190px,1fr) auto;align-items:center;gap:8px;padding:6px 8px;min-height:44px}
     .unit-name{font-weight:900;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
@@ -319,7 +330,7 @@
       .unit-card b{font-size:13px}
       .unit-card small{font-size:11px}
       .top-right{top:calc(22px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:62vw}
-      #btn-reinforce{order:8;margin-top:6px}
+      #btn-reinforce{order:0;margin-top:0}
     }
 
   </style>
@@ -364,7 +375,7 @@
           </ul>
         </div>
         <div class="menu-footer">
-          <span class="menu-version">v0.5.10 Performance Hotfix</span>
+          <span class="menu-version">v0.5.11 Roles/Audio/Movement</span>
           <span>Assets libres documentés</span>
         </div>
       </div>
@@ -410,15 +421,16 @@
 
   <div id="hud" class="hud hidden">
     <div class="top-left">
-      <div class="pill">OW 3D</div>
+      <button id="btn-reinforce" class="mini-hud-btn reinforce-menu-btn" aria-label="Ouvrir le menu unités">
+        <span class="hamburger-lines" aria-hidden="true"></span>
+        <span id="reinforce-points" class="reinforce-badge">0</span>
+      </button>
       <button id="btn-zoom-out" class="mini-hud-btn" aria-label="Zoom arrière">−</button>
       <button id="btn-zoom-in" class="mini-hud-btn" aria-label="Zoom avant">+</button>
       <div class="pill" id="fps">FPS --</div>
-      <div class="pill" id="asset-state">3D</div>
     </div>
     <div class="top-center"><div class="timer" id="match-timer">05:00</div></div>
     <div class="top-right">
-      <button id="btn-reinforce" class="btn">Renforts · <span id="reinforce-points">0</span> pts</button>
       <button id="btn-audio-game" class="btn">Options</button>
       <button id="btn-pause" class="btn">Pause</button>
       <button id="btn-menu-game" class="btn">Menu</button>
@@ -577,6 +589,7 @@ const COLORS = {
 
 const UNIT_TYPES = {
   rifle: { label:'Fusiliers', kind:'infantry', cost:120, squad:4, hp:100, speed:40, radius:28, mass:1, range:240, vision:360, damage:5, reload:.44, ammo:260, optimal:180, weapon:'rifle' },
+  machinegun: { label:'Mitrailleuses', kind:'infantry', cost:210, squad:3, hp:92, speed:31, radius:31, mass:1.15, range:310, vision:365, damage:7.5, reload:.24, ammo:420, optimal:245, weapon:'lmg', suppression:3.2 },
   at: { label:'Anti-véhicule', kind:'infantry', cost:220, squad:3, hp:88, speed:34, radius:30, mass:1.1, range:430, vision:380, damage:145, reload:3.8, ammo:90, rockets:3, optimal:350, weapon:'rocket', rifleRange:235, rifleDamage:4.5, rifleReload:.58, rifleOptimal:175 },
   command: { label:'Commandant', kind:'infantry', cost:180, squad:2, hp:75, speed:38, radius:24, mass:1, range:220, vision:430, damage:4, reload:.55, ammo:160, optimal:170, weapon:'rifle' },
   light: { label:'Humvee-like', kind:'vehicle', cost:260, hp:130, speed:60, reverse:28, accel:90, turn:2.2, radius:34, mass:4, range:280, vision:420, damage:8, reload:.22, ammo:340, fuel:100, optimal:230, weapon:'mg', armor:[8,4,2] },
@@ -588,7 +601,7 @@ const UNIT_TYPES = {
   support: { label:'Support', kind:'vehicle', cost:230, hp:125, speed:38, reverse:14, accel:50, turn:1.3, radius:44, mass:6, range:0, vision:310, damage:0, reload:0, ammo:0, fuel:100, optimal:0, weapon:'none', armor:[3,2,1], repair:45 }
 };
 
-const DEPLOY_ORDER = ['rifle','at','command','light','apc','ifv','mbt','truck','ambulance','support'];
+const DEPLOY_ORDER = ['rifle','machinegun','at','command','light','apc','ifv','mbt','truck','ambulance','support'];
 
 const ASSET_MANIFEST = {
   infantry: {
@@ -723,20 +736,21 @@ class AudioManager {
       hover:     { key:'button_hover', category:'ui', volume:.18, cooldown:.10, spatial:false, rate:[.98,1.05] },
       menuOpen:  { key:'menu_open', category:'ui', volume:.30, cooldown:.16, spatial:false, rate:[.94,1.02] },
       menuBack:  { key:'menu_back', category:'ui', volume:.26, cooldown:.16, spatial:false, rate:[.94,1.02] },
-      order:     { key:'order_confirm', category:'ui', volume:.38, cooldown:.18, spatial:false, rate:[.86,.98] },
+      order:     { key:'order_confirm', category:'ui', volume:.30, cooldown:.20, spatial:false, rate:[.72,.86] },
 
-      rifle1:    { key:'infantry_rifle_01', category:'infantry', volume:.46, cooldown:.34, spatial:true, rate:[.94,1.06] },
-      rifle2:    { key:'infantry_rifle_02', category:'infantry', volume:.44, cooldown:.34, spatial:true, rate:[.94,1.06] },
-      burst:     { key:'infantry_burst_01', category:'infantry', volume:.52, cooldown:.42, spatial:true, rate:[.94,1.05] },
-      rifle:     { key:'infantry_burst_01', category:'infantry', volume:.48, cooldown:.36, spatial:true, rate:[.94,1.06] },
-      mg:        { key:'infantry_machinegun_01', category:'infantry', volume:.58, cooldown:.30, spatial:true, rate:[.92,1.04] },
+      rifle1:    { key:'real_rifle_single', category:'infantry', volume:.58, cooldown:.34, spatial:true, rate:[.93,1.04] },
+      rifle2:    { key:'real_rifle_single', category:'infantry', volume:.54, cooldown:.34, spatial:true, rate:[.96,1.08] },
+      burst:     { key:'real_rifle_burst', category:'infantry', volume:.64, cooldown:.42, spatial:true, rate:[.92,1.02] },
+      rifle:     { key:'real_rifle_burst', category:'infantry', volume:.60, cooldown:.38, spatial:true, rate:[.92,1.04] },
+      mg:        { key:'real_lmg_burst', category:'infantry', volume:.76, cooldown:.38, spatial:true, rate:[.90,1.02] },
+      lmg:       { key:'real_lmg_burst', category:'infantry', volume:.80, cooldown:.32, spatial:true, rate:[.88,.99] },
       infantryDown: { key:'infantry_down_01', category:'impact', volume:.58, cooldown:999, spatial:true, rate:[.94,1.04] },
       infantryDown2:{ key:'infantry_down_02', category:'impact', volume:.54, cooldown:999, spatial:true, rate:[.94,1.04] },
       squadEliminated:{ key:'infantry_squad_eliminated', category:'impact', volume:.62, cooldown:999, spatial:true, rate:[.94,1.02] },
 
-      vehicle_mg:{ key:'infantry_machinegun_01', category:'vehicle', volume:.60, cooldown:.34, spatial:true, rate:[.90,1.04] },
-      autocannon:{ key:'infantry_machinegun_01', category:'vehicle', volume:.68, cooldown:.55, spatial:true, rate:[.86,.96] },
-      tank:      { key:'tank_cannon_fire', category:'vehicle', volume:.88, cooldown:2.2, spatial:true, rate:[.94,1.02] },
+      vehicle_mg:{ key:'real_vehicle_mg', category:'vehicle', volume:.72, cooldown:.34, spatial:true, rate:[.88,1.02] },
+      autocannon:{ key:'real_autocannon', category:'vehicle', volume:.82, cooldown:.55, spatial:true, rate:[.84,.96] },
+      tank:      { key:'real_tank_cannon', category:'vehicle', volume:.96, cooldown:2.2, spatial:true, rate:[.90,1.00] },
 
       rocket:    { key:'at_rocket_launch', category:'rocket', volume:.70, cooldown:.85, spatial:true, rate:[.94,1.03] },
       rocket_fly:{ key:'at_rocket_whoosh', category:'rocket', volume:.34, cooldown:.50, spatial:true, rate:[.96,1.08] },
@@ -786,22 +800,46 @@ class AudioManager {
         'https://opengameart.org/sites/default/files/equipment_clicks3.wav'
       ],
 
-      infantry_rifle_01: ['assets/audio/sfx/infantry_rifle_01.ogg', EMBEDDED_COMBAT_AUDIO.infantry_rifle_01],
-      infantry_rifle_02: ['assets/audio/sfx/infantry_rifle_02.ogg', EMBEDDED_COMBAT_AUDIO.infantry_rifle_02],
-      infantry_burst_01: ['assets/audio/sfx/infantry_burst_01.ogg', EMBEDDED_COMBAT_AUDIO.infantry_burst_01],
-      infantry_machinegun_01: ['assets/audio/sfx/infantry_machinegun_01.ogg', EMBEDDED_COMBAT_AUDIO.infantry_machinegun_01],
-      infantry_down_01: ['assets/audio/sfx/infantry_down_01.ogg', EMBEDDED_COMBAT_AUDIO.infantry_down_01],
-      infantry_down_02: ['assets/audio/sfx/infantry_down_02.ogg', EMBEDDED_COMBAT_AUDIO.infantry_down_02],
-      infantry_squad_eliminated: ['assets/audio/sfx/infantry_squad_eliminated.ogg', EMBEDDED_COMBAT_AUDIO.infantry_squad_eliminated],
+      // Nouveaux samples de tir : on ne reprend plus les anciens sons intégrés pour les armes à feu.
+      real_rifle_single: [
+        'assets/audio/sfx/real_rifle_single.wav',
+        'https://opengameart.org/sites/default/files/snd_gunshot1.wav'
+      ],
+      real_rifle_burst: [
+        'assets/audio/sfx/real_rifle_burst.wav',
+        'https://opengameart.org/sites/default/files/snd_gunshot1.wav'
+      ],
+      real_lmg_burst: [
+        'assets/audio/sfx/real_lmg_burst.wav',
+        'https://opengameart.org/sites/default/files/snd_gunshot1.wav'
+      ],
+      real_vehicle_mg: [
+        'assets/audio/sfx/real_vehicle_mg.wav',
+        'https://opengameart.org/sites/default/files/bangs.wav',
+        'https://opengameart.org/sites/default/files/snd_gunshot1.wav'
+      ],
+      real_autocannon: [
+        'assets/audio/sfx/real_autocannon.wav',
+        'https://opengameart.org/sites/default/files/bangs.wav'
+      ],
+      real_tank_cannon: [
+        'assets/audio/sfx/real_tank_cannon.wav',
+        'https://opengameart.org/sites/default/files/bangs.wav',
+        'https://opengameart.org/sites/default/files/cannon_hit_wall_0.ogg'
+      ],
+      infantry_down_01: ['assets/audio/sfx/infantry_down_01.wav', 'https://opengameart.org/sites/default/files/snd_death1.wav'],
+      infantry_down_02: ['assets/audio/sfx/infantry_down_02.wav', 'https://opengameart.org/sites/default/files/snd_death2.wav'],
+      infantry_squad_eliminated: ['assets/audio/sfx/infantry_squad_eliminated.wav', 'https://opengameart.org/sites/default/files/death.wav'],
+
+      // Le lance-roquette conserve son sample dédié, comme demandé.
       at_rocket_launch: ['assets/audio/sfx/at_rocket_launch.ogg', EMBEDDED_COMBAT_AUDIO.at_rocket_launch],
       at_rocket_whoosh: ['assets/audio/sfx/at_rocket_whoosh.ogg', EMBEDDED_COMBAT_AUDIO.at_rocket_whoosh],
       at_rocket_impact: ['assets/audio/sfx/at_rocket_impact.ogg', EMBEDDED_COMBAT_AUDIO.at_rocket_impact],
       at_rocket_explosion: ['assets/audio/sfx/at_rocket_explosion.ogg', EMBEDDED_COMBAT_AUDIO.at_rocket_explosion],
-      tank_cannon_fire: ['assets/audio/sfx/tank_cannon_fire.ogg', EMBEDDED_COMBAT_AUDIO.tank_cannon_fire],
-      tank_shell_impact: ['assets/audio/sfx/tank_shell_impact.ogg', EMBEDDED_COMBAT_AUDIO.tank_shell_impact],
-      armor_impact_heavy: ['assets/audio/sfx/armor_impact_heavy.ogg', EMBEDDED_COMBAT_AUDIO.armor_impact_heavy],
-      armor_ricochet: ['assets/audio/sfx/armor_ricochet.ogg', EMBEDDED_COMBAT_AUDIO.armor_ricochet],
-      vehicle_explosion_heavy: ['assets/audio/sfx/vehicle_explosion_heavy.ogg', EMBEDDED_COMBAT_AUDIO.vehicle_explosion_heavy]
+      tank_shell_impact: ['assets/audio/sfx/tank_shell_impact.ogg', 'https://opengameart.org/sites/default/files/cannon_hit_wall_0.ogg', EMBEDDED_COMBAT_AUDIO.tank_shell_impact],
+      armor_impact_heavy: ['assets/audio/sfx/armor_impact_heavy.wav', 'https://opengameart.org/sites/default/files/snd_bullethit.wav'],
+      armor_ricochet: ['assets/audio/sfx/armor_ricochet.wav', 'https://opengameart.org/sites/default/files/snd_bulletcrackle.wav'],
+      vehicle_explosion_heavy: ['assets/audio/sfx/vehicle_explosion_heavy.wav', 'https://opengameart.org/sites/default/files/dull_explosion.wav', EMBEDDED_COMBAT_AUDIO.vehicle_explosion_heavy]
     };
   }
 
@@ -860,7 +898,7 @@ class AudioManager {
       try{
         const a = new Audio();
         a.preload = 'auto';
-        a.crossOrigin = src.startsWith('data:') ? null : 'anonymous';
+        if(src.startsWith('data:')) a.crossOrigin = null;
         a.src = src;
         a.load();
         this.preloaded.set(name, a);
@@ -954,7 +992,7 @@ class AudioManager {
       try{
         const src = urls[idx];
         const source = (idx===0 && this.preloaded.has(key)) ? this.preloaded.get(key).cloneNode(true) : new Audio(src);
-        if(!String(src).startsWith('data:')) source.crossOrigin = 'anonymous';
+        // Pas de crossOrigin forcé : les balises audio peuvent jouer les sons distants sans bloquer CORS.
         source.volume = clamp(volume,0,1);
         source.playbackRate = clamp(rate, .65, 1.35);
         source.loop = false;
@@ -1004,7 +1042,8 @@ class AudioManager {
     if(key==='at_rocket_impact' || key==='tank_shell_impact') return this.explosionFallback(volume, category, false);
     if(key==='armor_impact_heavy' || key==='armor_ricochet') return this.armorFallback(volume, category);
     if(key.startsWith('infantry_down') || key==='infantry_squad_eliminated') return this.infantryDownFallback(volume, category);
-    if(key==='infantry_machinegun_01') return this.machinegunFallback(volume, category);
+    if(key==='real_lmg_burst' || key==='real_vehicle_mg' || key==='real_autocannon') return this.machinegunFallback(volume, category);
+    if(key==='real_tank_cannon') return this.tankFallback(volume, category);
     return this.rifleFallback(volume, category);
   }
 
@@ -1022,7 +1061,7 @@ class AudioManager {
     if(name==='rocket_fly') return this.whoosh(volume*.7,.55, category);
     if(name==='rocket_impact' || name==='rocket_explosion' || name==='explosion') return this.explosionFallback(volume, category, true);
     if(name==='armor' || name==='armorHeavy' || name==='armorRicochet') return this.armorFallback(volume, category);
-    if(name==='mg' || name==='vehicle_mg' || name==='autocannon') return this.machinegunFallback(volume, category);
+    if(name==='mg' || name==='lmg' || name==='vehicle_mg' || name==='autocannon') return this.machinegunFallback(volume, category);
     if(name==='infantryDown' || name==='squadEliminated') return this.infantryDownFallback(volume, category);
     return this.rifleFallback(volume, category);
   }
@@ -1306,12 +1345,12 @@ const SELECTION_CONFIG = {
 };
 
 const OBSTACLE_CONFIG = {
-  pathPadding: 42,
-  vehicleExtraPadding: 22,
-  detectionDistance: 92,
-  pushStrength: .72,
-  stuckRepathTime: 1.35,
-  stuckStopTime: 4.2
+  pathPadding: 46,
+  vehicleExtraPadding: 24,
+  detectionDistance: 78,
+  pushStrength: .38,
+  stuckRepathTime: 1.6,
+  stuckStopTime: 4.8
 };
 
 
@@ -1392,21 +1431,21 @@ const PERFORMANCE_DEFAULTS = {
 };
 
 const UPDATE_RATES = {
-  ai: .34,
-  combat: .18,
-  objectives: .22,
-  support: .50,
-  enemyReinforce: 1.0,
-  fog: .28,
-  hud: .12,
-  lod: .35,
-  debug: .35
+  ai: .46,
+  combat: .22,
+  objectives: .32,
+  support: .70,
+  enemyReinforce: 1.25,
+  fog: .44,
+  hud: .20,
+  lod: .55,
+  debug: .55
 };
 
 const EFFECT_LIMITS_BY_QUALITY = {
-  low:    { smoke: 14, dust: 16, impacts: 26, explosions: 3, tracers: 34, flash: 18, debris: 18, rocketTrail: 6 },
-  medium: { smoke: 24, dust: 28, impacts: 44, explosions: 5, tracers: 60, flash: 26, debris: 32, rocketTrail: 9 },
-  high:   { smoke: 38, dust: 46, impacts: 72, explosions: 8, tracers: 95, flash: 42, debris: 56, rocketTrail: 14 }
+  low:    { smoke: 10, dust: 12, impacts: 20, explosions: 2, tracers: 24, flash: 12, debris: 12, rocketTrail: 4 },
+  medium: { smoke: 18, dust: 20, impacts: 34, explosions: 4, tracers: 46, flash: 20, debris: 24, rocketTrail: 7 },
+  high:   { smoke: 30, dust: 34, impacts: 58, explosions: 6, tracers: 76, flash: 32, debris: 42, rocketTrail: 10 }
 };
 
 const SPATIAL_HASH_CONFIG = {
@@ -1937,6 +1976,21 @@ function createSoldier(faction, role='rifle'){
     group.add(tube, front, rear, grip, sling);
   }
 
+  if(role==='mg'){
+    const minimiMat = mat(0x171d1d,.52,.42);
+    const receiver = new THREE.Mesh(new THREE.BoxGeometry(.22,.20,1.38), minimiMat);
+    receiver.position.set(.50,1.62,.66); receiver.castShadow=true;
+    const longBarrel = new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,1.62,8), minimiMat);
+    longBarrel.rotation.x = Math.PI/2; longBarrel.position.set(.62,1.62,1.03); longBarrel.castShadow=true;
+    const beltBox = new THREE.Mesh(new THREE.BoxGeometry(.28,.22,.34), mat(0x28302f,.55,.28));
+    beltBox.position.set(.32,1.48,.22); beltBox.castShadow=true;
+    const bipodA = new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,.72,5), minimiMat);
+    const bipodB = bipodA.clone();
+    bipodA.position.set(.54,1.22,1.50); bipodA.rotation.z=.34; bipodA.rotation.x=Math.PI/2;
+    bipodB.position.set(.72,1.22,1.50); bipodB.rotation.z=-.34; bipodB.rotation.x=Math.PI/2;
+    group.add(receiver,longBarrel,beltBox,bipodA,bipodB);
+  }
+
   if(role==='command'){
     const ant = new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,1.2,6), mat(0x111111,.6,.25));
     ant.position.set(-.55,2.05,-.35); ant.rotation.z = .25; group.add(ant);
@@ -1952,7 +2006,7 @@ function makeInfantryModel(type, faction){
   const group = new THREE.Group();
   const offsets = cfg.squad===4 ? [[-12,-10],[12,-9],[-10,12],[12,11]] : cfg.squad===3 ? [[-12,0],[9,-10],[10,13]] : [[-9,0],[10,3]];
   for(let i=0;i<cfg.squad;i++){
-    const role = type==='at' && i===0 ? 'at' : type==='command' ? 'command' : 'rifle';
+    const role = type==='at' && i===0 ? 'at' : type==='machinegun' && i===0 ? 'mg' : type==='command' ? 'command' : 'rifle';
     const soldier = createSoldier(faction, role);
     soldier.userData.lodSoldier = true;
     soldier.userData.lodIndex = i;
@@ -1962,6 +2016,9 @@ function makeInfantryModel(type, faction){
   }
   if(type==='at'){
     const label = makeTextSprite('AT', faction==='ally'?'#c8ffdc':'#ffd1cb','rgba(0,0,0,.35)',54);
+    label.position.set(0,30,0); group.add(label);
+  } else if(type==='machinegun'){
+    const label = makeTextSprite('MG', faction==='ally'?'#fff0bd':'#ffd1cb','rgba(0,0,0,.30)',52);
     label.position.set(0,30,0); group.add(label);
   } else if(type==='command'){
     const label = makeTextSprite('★', faction==='ally'?'#c8ffdc':'#ffd1cb','rgba(0,0,0,.25)',68);
@@ -2058,7 +2115,7 @@ function spawnEntity(type, faction, x, z, opts={}){
     hp:cfg.hp, maxHp:cfg.hp, ammo:cfg.ammo, rockets:cfg.rockets||0, fuel:cfg.fuel ?? 0,
     reload:rand(0,.3), state:'idle', dest:null, speedNow:0, selected:false, radius:cfg.radius, mass:cfg.mass,
     attackTarget:null, aiDelay:opts.aiDelay||0, aiSeed:Math.random(), aiGoal:opts.aiGoal||null,
-    threatTimer:0, threatFrom:null, atHits:0, dead:false, visibleToPlayer:faction==='ally',
+    threatTimer:0, threatFrom:null, atHits:0, dead:false, visibleToPlayer:faction==='ally', suppressedTimer:0, commandBoost:0,
     finalDest:null, path:[], repathTimer:0, stuckTimer:0, stuckBoost:0,
     lastX:x, lastZ:z, lastMoveSample:0, selectionRadius:getBaseSelectionRadius(type)
   };
@@ -2247,6 +2304,12 @@ function registerCollider(c){
     padding: c.padding ?? 12,
     ...c
   };
+  // Hotfix v0.5.11 : les props décoratifs ne sont plus des obstacles physiques.
+  // On garde uniquement les bâtiments dans la grille de collision pour stabiliser le pathing et les FPS.
+  if(collider.type !== 'building'){
+    collider.disabled = true;
+    return collider;
+  }
   colliders.push(collider);
   staticGridDirty = true;
   if(debugOverlayGroup){
@@ -2260,7 +2323,6 @@ function registerCollider(c){
   }
   return collider;
 }
-
 function worldToColliderLocal(x,z,c){
   const rot = -(c.rot || 0);
   const cos = Math.cos(rot), sin = Math.sin(rot);
@@ -2317,8 +2379,7 @@ function pathPaddingFor(ent){
 function getFirstBlockingCollider(from,to,ent,ignoreIfInside=true){
   const margin = pathPaddingFor(ent);
   for(const c of queryCollidersForSegment(from,to,margin)){
-    // Les petits props ne doivent plus piéger l'infanterie dans le pathfinding.
-    if(ent?.cfg?.kind === 'infantry' && isSoftPropCollider(c)) continue;
+    if(!isHardObstacleCollider(c)) continue;
     if(ignoreIfInside && pointInsideCollider(from.x,from.z,c,margin*.25)) continue;
     if(segmentIntersectsCollider(from,to,c,margin)) return c;
   }
@@ -2328,7 +2389,7 @@ function getFirstBlockingCollider(from,to,ent,ignoreIfInside=true){
 function isSegmentClear(a,b,ent,ignoreCollider=null){
   const margin = pathPaddingFor(ent);
   for(const c of queryCollidersForSegment(a,b,margin)){
-    if(c === ignoreCollider) continue;
+    if(c === ignoreCollider || !isHardObstacleCollider(c)) continue;
     if(segmentIntersectsCollider(a,b,c,margin)) return false;
   }
   return true;
@@ -2352,6 +2413,7 @@ function findBestCornerAroundBuilding(ent, blocker, destination){
     if(!isSegmentClear(p,destination,ent,null)) score += 250;
     // Évite les coins trop serrés.
     for(const c of queryCollidersNear(p.x,p.z,180)){
+      if(!isHardObstacleCollider(c)) continue;
       if(pointInsideCollider(p.x,p.z,c,ent.radius*.45)) score += 1200;
     }
     if(score < bestScore){ bestScore = score; best = p; }
@@ -2401,31 +2463,28 @@ function clearUnitDestination(ent){
 
 function getObstacleAvoidance(ent){
   let ax = 0, az = 0;
-  const detection = OBSTACLE_CONFIG.detectionDistance + ent.radius*.45;
+  const detection = OBSTACLE_CONFIG.detectionDistance + ent.radius*.35;
   for(const c of queryCollidersNear(ent.x, ent.z, detection + ent.radius + 90)){
-    const soft = isSoftPropCollider(c);
-    const margin = soft
-      ? (ent.cfg.kind === 'infantry' ? Math.min(18, ent.radius*.45) : Math.min(25, ent.radius*.58))
-      : ent.radius*.72 + (ent.cfg.kind==='vehicle'?20:10);
+    if(!isHardObstacleCollider(c)) continue;
+    const margin = ent.radius*.58 + (ent.cfg.kind==='vehicle'?18:9);
     const closest = closestPointOnCollider(ent.x, ent.z, c, margin);
     let dx = ent.x - closest.x, dz = ent.z - closest.z;
     let d = Math.hypot(dx,dz);
-    if(pointInsideCollider(ent.x,ent.z,c,margin*.75)){
+    if(pointInsideCollider(ent.x,ent.z,c,margin*.72)){
       const local = worldToColliderLocal(ent.x,ent.z,c);
       const sx = Math.sign(local.x || .01), sz = Math.sign(local.z || .01);
-      const exitX = colliderLocalToWorld(sx*(c.w/2+(c.padding||0)+margin+8), local.z, c);
-      const exitZ = colliderLocalToWorld(local.x, sz*(c.l/2+(c.padding||0)+margin+8), c);
+      const exitX = colliderLocalToWorld(sx*(c.w/2+(c.padding||0)+margin+10), local.z, c);
+      const exitZ = colliderLocalToWorld(local.x, sz*(c.l/2+(c.padding||0)+margin+10), c);
       const distX = Math.hypot(exitX.x-ent.x, exitX.z-ent.z);
       const distZ = Math.hypot(exitZ.x-ent.x, exitZ.z-ent.z);
       const exit = distX < distZ ? exitX : exitZ;
       dx = ent.x - exit.x; dz = ent.z - exit.z; d = Math.max(.001, Math.hypot(dx,dz));
-      ax -= dx/d * (soft ? .65 : 1.65);
-      az -= dz/d * (soft ? .65 : 1.65);
+      ax -= dx/d * 1.15;
+      az -= dz/d * 1.15;
       continue;
     }
-    const localDetection = soft ? detection*.62 : detection;
-    if(d < localDetection){
-      const strength = (1 - d/localDetection) * OBSTACLE_CONFIG.pushStrength * (soft ? .38 : 1);
+    if(d < detection){
+      const strength = (1 - d/detection) * OBSTACLE_CONFIG.pushStrength;
       if(d < .001){
         dx = ent.aiSeed>.5 ? 1 : -1;
         dz = ent.aiSeed>.5 ? -1 : 1;
@@ -2436,10 +2495,9 @@ function getObstacleAvoidance(ent){
     }
   }
   const len = Math.hypot(ax,az);
-  if(len > 1.05){ ax/=len; az/=len; }
+  if(len > .85){ ax/=len/.85; az/=len/.85; }
   return {x:ax,z:az};
 }
-
 function updateStuckState(ent,dt){
   if(!ent.dest || ent.dead) return;
   ent.lastMoveSample += dt;
@@ -3151,6 +3209,7 @@ function applyDamage(target, raw, shooter, source, opts={}){
   } else {
     if(shooter.type==='mbt') dmg *= 2.7;
     if(shooter.type==='ifv') dmg *= 1.75;
+    if(source==='lmg') { dmg *= 1.15; target.suppressedTimer = Math.max(target.suppressedTimer || 0, 2.4); }
     if(source==='tank') {
       if(wantsAudio) audio.play('tank_impact',{x:target.x,z:target.z},.56,.10);
     } else if(wantsAudio) audio.play('impact',{x:target.x,z:target.z},.30,.04);
@@ -3205,7 +3264,19 @@ function acquireTarget(ent){
     const profile = getWeaponProfile(ent, other);
     if(!profile) continue;
     let score = d;
-    if(ent.type==='at'){
+    if(ent.type==='machinegun'){
+    return {
+      weapon:'lmg',
+      range:ent.cfg.range,
+      damage: target.cfg.kind === 'infantry' ? ent.cfg.damage : ent.cfg.damage*.28,
+      reload: ent.commandBoost>0 ? ent.cfg.reload*.88 : ent.cfg.reload,
+      optimal:ent.cfg.optimal || 245,
+      ammoKey:'ammo',
+      muzzleSize:10,
+      hitChance: target.cfg.kind === 'infantry' ? .64 : .28
+    };
+  }
+  if(ent.type==='at'){
       if(other.cfg.kind==='vehicle' && ent.rockets>0) score -= 360;
       if(other.cfg.kind==='infantry') score += 35;
       if(ent.rockets<=0 && other.cfg.kind==='vehicle') score += 500;
@@ -3220,6 +3291,18 @@ function acquireTarget(ent){
 
 function getWeaponProfile(ent,target){
   if(!ent || !target || ent.dead || target.dead) return null;
+  if(ent.type==='machinegun'){
+    return {
+      weapon:'lmg',
+      range:ent.cfg.range,
+      damage: target.cfg.kind === 'infantry' ? ent.cfg.damage : ent.cfg.damage*.28,
+      reload: ent.commandBoost>0 ? ent.cfg.reload*.88 : ent.cfg.reload,
+      optimal:ent.cfg.optimal || 245,
+      ammoKey:'ammo',
+      muzzleSize:10,
+      hitChance: target.cfg.kind === 'infantry' ? .64 : .28
+    };
+  }
   if(ent.type==='at'){
     if(target.cfg.kind === 'vehicle' && ent.rockets > 0){
       return {
@@ -3256,7 +3339,7 @@ function getWeaponProfile(ent,target){
     optimal:ent.cfg.optimal || (ent.cfg.range || 0) * .7,
     ammoKey:ent.cfg.kind === 'vehicle' ? 'ammo' : 'ammo',
     muzzleSize:ent.type==='mbt'?28:ent.type==='ifv'?18:10,
-    hitChance:ent.cfg.weapon==='tank'?.72:ent.cfg.weapon==='autocannon'?.64:ent.cfg.weapon==='mg'?.56:.50
+    hitChance:(ent.cfg.weapon==='tank'?.72:ent.cfg.weapon==='autocannon'?.64:ent.cfg.weapon==='mg'?.56:.50) + (ent.commandBoost>0?.06:0)
   };
 }
 
@@ -3300,8 +3383,12 @@ function fireAt(ent,target){
   if(profile.weapon==='rifle') {
     audio.playRandom(['rifle1','rifle2','burst'],muzzle,.88,.05,{cooldownKey:ent.id+'_infantry_fire', cooldown:.35});
   }
+  if(profile.weapon==='lmg') {
+    audio.play('lmg',muzzle,1,.06,{cooldownKey:ent.id+'_lmg_fire', cooldown:.30});
+    if(target.cfg.kind==='infantry') target.suppressedTimer = Math.max(target.suppressedTimer || 0, 2.2);
+  }
   if(profile.weapon==='mg') {
-    audio.play('vehicle_mg',muzzle,.86,.06,{cooldownKey:ent.id+'_vehicle_mg', cooldown:.28});
+    audio.play('vehicle_mg',muzzle,.90,.06,{cooldownKey:ent.id+'_vehicle_mg', cooldown:.30});
   }
   if(profile.weapon==='autocannon') {
     audio.play('autocannon',muzzle,.92,.12,{cooldownKey:ent.id+'_autocannon', cooldown:profile.reload*.75});
@@ -3325,7 +3412,7 @@ function maintainEngagementDistance(ent,target){
   const tooFar = d > Math.min(profile.range*.92, optimal*1.28);
   if(tooClose || tooFar){
     const goalDistance = tooClose ? optimal*1.05 : optimal;
-    setUnitDestination(ent, {x: target.x + dx/len*goalDistance, z: target.z + dz/len*goalDistance}, {minChange:42, repathCooldown:.55});
+    setUnitDestination(ent, {x: target.x + dx/len*goalDistance, z: target.z + dz/len*goalDistance}, {minChange:95, repathCooldown:1.15});
   } else if(ent.attackTarget === target) {
     clearUnitDestination(ent);
     if(ent.cfg.kind==='vehicle') ent.speedNow = Math.min(ent.speedNow || 0, ent.cfg.speed*.12);
@@ -3394,16 +3481,19 @@ function updateMovement(ent,dt){
 
   const directX = dx/Math.max(.001,d), directZ = dz/Math.max(.001,d);
   const avoid = getObstacleAvoidance(ent);
-  let moveX = directX + avoid.x*.85;
-  let moveZ = directZ + avoid.z*.85;
+  ent.avoidX = lerp(ent.avoidX || 0, avoid.x, clamp(dt*4.5,0,1));
+  ent.avoidZ = lerp(ent.avoidZ || 0, avoid.z, clamp(dt*4.5,0,1));
+  let moveX = directX + ent.avoidX*.42;
+  let moveZ = directZ + ent.avoidZ*.42;
   const moveLen = Math.max(.001, Math.hypot(moveX,moveZ));
   moveX /= moveLen; moveZ /= moveLen;
   const targetYaw = Math.atan2(moveX,moveZ);
   const diff = normalizeAngle(targetYaw-ent.yaw);
-  const turnRate = ent.cfg.kind==='vehicle' ? ent.cfg.turn : 4.6;
+  const turnRate = ent.cfg.kind==='vehicle' ? ent.cfg.turn*.92 : 3.2;
   ent.yaw += clamp(diff, -turnRate*dt, turnRate*dt);
-  const align = Math.max(ent.cfg.kind==='vehicle' ? .42 : .36, 1 - Math.abs(diff)/Math.PI);
+  const align = Math.max(ent.cfg.kind==='vehicle' ? .58 : .56, 1 - Math.abs(diff)/Math.PI);
   let targetSpeed = ent.cfg.speed * align;
+  if(ent.suppressedTimer>0){ ent.suppressedTimer=Math.max(0,ent.suppressedTimer-dt); targetSpeed *= ent.cfg.kind==='infantry' ? .72 : .90; }
   if(ent.cfg.kind==='vehicle' && ent.fuel<=0) targetSpeed *= .15;
   if(d<slow) targetSpeed *= clamp(d/slow,.36,1);
   if(ent.cfg.kind==='vehicle') ent.speedNow = lerp(ent.speedNow,targetSpeed,clamp(dt*3.1,0,1));
@@ -3449,6 +3539,10 @@ function isSoftPropCollider(c){
   return ['tree','rock','crate','prop'].includes(t) && size <= 72;
 }
 
+function isHardObstacleCollider(c){
+  return c?.type === 'building';
+}
+
 function colliderMarginFor(c, ent, r){
   if(isSoftPropCollider(c)){
     if(ent?.cfg?.kind === 'infantry') return Math.min(12, r*.30);
@@ -3459,7 +3553,9 @@ function colliderMarginFor(c, ent, r){
 }
 
 function collidesWithStatic(x,z,r,ent=null){
+  // Seuls les bâtiments sont réellement bloquants. Les props décoratifs ne bloquent plus le pathing.
   for(const c of queryCollidersNear(x,z,r+120)){
+    if(!isHardObstacleCollider(c)) continue;
     if(pointInsideCollider(x,z,c,colliderMarginFor(c, ent, r))) return true;
   }
   return false;
@@ -3469,18 +3565,18 @@ function solveCollisions(){
   const processed = new Set();
   for(const a of entities){
     if(a.dead) continue;
-    const nearby = queryEntitiesNear(a.x, a.z, a.radius + 120, b=>b!==a && !b.dead);
+    const nearby = queryEntitiesNear(a.x, a.z, a.radius + 100, b=>b!==a && !b.dead);
     for(const b of nearby){
       const key = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
       if(processed.has(key)) continue;
       processed.add(key);
-      // Les unités d'une même faction se traversent pour éviter les bouchons irréalistes.
+      // Toutes les unités de la même faction se traversent pour éviter les bouchons.
       if(a.faction === b.faction) continue;
       const dx=b.x-a.x, dz=b.z-a.z;
       const d=Math.hypot(dx,dz) || .001;
       const min=a.radius+b.radius;
       if(d<min){
-        const overlap=(min-d)*0.54;
+        const overlap=(min-d)*0.24;
         const nx=dx/d, nz=dz/d;
         const total=a.mass+b.mass;
         const pa=overlap*(b.mass/total), pb=overlap*(a.mass/total);
@@ -3489,14 +3585,11 @@ function solveCollisions(){
         if(!collidesWithStatic(ax,az,a.radius,a)){ a.x=ax; a.z=az; }
         if(!collidesWithStatic(bx,bz,b.radius,b)){ b.x=bx; b.z=bz; }
         a.group.position.set(a.x,0,a.z); b.group.position.set(b.x,0,b.z);
-        // Séparation physique douce : on garde l'élan, on ne ralentit plus les colonnes entières.
-        if(a.cfg.kind==='vehicle') a.speedNow=Math.max(a.speedNow, a.cfg.speed*.35);
-        if(b.cfg.kind==='vehicle') b.speedNow=Math.max(b.speedNow, b.cfg.speed*.35);
+        // On ne casse plus la vitesse à chaque contact : ça supprime l'effet vibration/ralenti.
       }
     }
   }
 }
-
 function generateAiPatterns(){
   const maneuvers=['hold','reverse','flankLeft','flankRight','wideLeft','wideRight','smokeBreak','hullDown','bait','objectiveShift'];
   const ranges=['close','medium','long','max'];
@@ -3550,11 +3643,12 @@ function updateObjectives(dt){
     let ally=0, enemy=0;
     for(const e of queryEntitiesNear(obj.x,obj.z,(obj.radius || 122)+80, e=>!e.dead)){
       if(Math.hypot(e.x-obj.x,e.z-obj.z)<(obj.radius || 122)){
-        if(e.faction==='ally') ally++; else enemy++;
+        const weight = e.type==='rifle' ? 1.35 : e.type==='command' ? 1.15 : e.cfg.kind==='infantry' ? 1 : .45;
+        if(e.faction==='ally') ally += weight; else enemy += weight;
       }
     }
-    if(ally && !enemy) obj.progress += dt*.25;
-    else if(enemy && !ally) obj.progress -= dt*.25;
+    if(ally && !enemy) obj.progress += dt*.25*clamp(ally,1,3);
+    else if(enemy && !ally) obj.progress -= dt*.25*clamp(enemy,1,3);
     else obj.progress *= .992;
     obj.progress = clamp(obj.progress,-1,1);
     const owner = obj.progress>.95?'ally':obj.progress<-.95?'enemy':'neutral';
@@ -3564,7 +3658,6 @@ function updateObjectives(dt){
     if(obj.ring) obj.ring.material.color.setHex(owner==='ally'?0x76e0a1:owner==='enemy'?0xff6258:0xf0c169);
   }
 }
-
 function updateSupport(dt){
   if(gamePhase!=='running') return;
   for(const e of entities){
@@ -3579,6 +3672,14 @@ function updateSupport(dt){
         if(dist2(e,u)<e.cfg.repair) u.hp = Math.min(u.maxHp, u.hp + dt*1.8);
       }
     }
+    if(e.type==='command'){
+      for(const u of queryEntitiesNear(e.x,e.z,310,u=>!u.dead && u.faction===e.faction && u.id!==e.id)){
+        if(dist2(e,u)<300) u.commandBoost = Math.max(u.commandBoost || 0, .9);
+      }
+    }
+  }
+  for(const u of entities){
+    if(!u.dead && u.commandBoost>0) u.commandBoost = Math.max(0, u.commandBoost-dt);
   }
 }
 
@@ -3650,7 +3751,7 @@ function updateFogOfWar(){
   }
 }
 
-const AI_REINFORCE_TYPES = ['rifle','rifle','at','light','apc','ifv','truck','ambulance','mbt'];
+const AI_REINFORCE_TYPES = ['rifle','machinegun','rifle','at','light','apc','ifv','truck','ambulance','mbt'];
 
 function chooseEnemyReinforcement(){
   const allyVehicles = entities.filter(e=>!e.dead && e.faction==='ally' && e.cfg.kind==='vehicle').length;
@@ -3830,7 +3931,7 @@ function spawnInitialPlayer(cart){
 }
 
 function spawnEnemyForces(){
-  const types=['rifle','rifle','at','command','light','apc','ifv','mbt','truck','ambulance','support'];
+  const types=['rifle','machinegun','rifle','at','command','light','apc','ifv','mbt','truck','ambulance','support'];
   const goals=objectives;
   const base = getMapSpawn('enemy');
   types.forEach((type,i)=>{
@@ -3867,23 +3968,54 @@ function startBattle(){
   $('countdown').classList.remove('hidden'); $('countdown').textContent='5';
 }
 
+function unitRoleText(type){
+  return ({
+    rifle:'Assaut polyvalent · capture fiable',
+    machinegun:'Mitrailleuse Minimi · suppression anti-infanterie',
+    at:'Anti-véhicule · roquettes réservées aux blindés',
+    command:'Commandement · bonus aux unités proches',
+    light:'Reconnaissance · rapide et fragile',
+    apc:'Transport blindé · appui mitrailleuse',
+    ifv:'Appui direct · autocanon anti-infanterie',
+    mbt:'Char lourd · duel blindé et percée',
+    truck:'Transport logistique · économique',
+    ambulance:'Soutien médical · soigne les fantassins',
+    support:'Support technique · répare les véhicules'
+  })[type] || 'Unité tactique';
+}
+
 function unitPreviewMarkup(type){
   const cfg = UNIT_TYPES[type];
   const iconMap = {
-    rifle:'♟', at:'♜', command:'★',
-    light:'▰', apc:'▱', ifv:'▰', mbt:'▣',
+    rifle:'⌁', machinegun:'≋', at:'⇱', command:'✦',
+    light:'◇', apc:'▱', ifv:'▰', mbt:'▣',
     truck:'▭', ambulance:'✚', support:'⚙'
   };
   const tagMap = {
-    rifle:'RIF', at:'AT', command:'CMD',
-    light:'LTV', apc:'APC', ifv:'IFV', mbt:'MBT',
+    rifle:'ASS', machinegun:'LMG', at:'AT', command:'CMD',
+    light:'REC', apc:'APC', ifv:'IFV', mbt:'MBT',
     truck:'LOG', ambulance:'MED', support:'REP'
+  };
+  const roleMap = {
+    rifle:'prise objectif',
+    machinegun:'suppression',
+    at:'anti-blindé',
+    command:'bonus moral',
+    light:'recon rapide',
+    apc:'transport blindé',
+    ifv:'appui direct',
+    mbt:'percée',
+    truck:'transport',
+    ambulance:'soin',
+    support:'réparation'
   };
   const heavy = type === 'mbt' || type === 'ifv';
   const support = ['ambulance','support','truck'].includes(type);
-  return `<div class="unit-preview ${cfg.kind} ${heavy?'heavy':''} ${support?'support':''}" aria-hidden="true"><span class="icon">${iconMap[type] || '◆'}</span><span class="tag">${tagMap[type] || cfg.kind}</span></div>`;
+  const role = roleMap[type] || cfg.kind;
+  return `<div class="unit-preview ${cfg.kind} role-${type} ${heavy?'heavy':''} ${support?'support':''}" aria-hidden="true" title="${role}">
+    <span class="role-dot"></span><span class="icon">${iconMap[type] || '◆'}</span><span class="tag">${tagMap[type] || cfg.kind}</span>
+  </div>`;
 }
-
 function renderDeployList(containerId, cart, budgetGetter, mode){
   const el=$(containerId); el.innerHTML='';
   for(const type of DEPLOY_ORDER){
@@ -3891,7 +4023,7 @@ function renderDeployList(containerId, cart, budgetGetter, mode){
     const card=document.createElement('div'); card.className='unit-card';
     const owned=cart[type]||0;
     card.innerHTML = `${unitPreviewMarkup(type)}<div class="unit-card-body"><div class="top"><b>${cfg.label}</b><span class="cost">${cfg.cost}</span></div>
-      <small>${cfg.kind} · ${cfg.weapon} · HP ${cfg.hp} · portée ${cfg.range}</small>
+      <small>${unitRoleText(type)} · HP ${cfg.hp} · portée ${cfg.range}</small>
       <div class="menu-row"><button class="btn" data-add="${type}">+ Acheter</button><button class="btn" data-rem="${type}">−</button><span class="pill">x${owned}</span></div></div>`;
     card.querySelector('[data-add]').onclick=()=>{
       const cost = totalCost(cart)+cfg.cost;
@@ -4132,7 +4264,7 @@ function setupMenus(){
     el.classList.add('selected'); mapKey=el.dataset.map; audio.play('ui');
   });
   $('btn-open-deploy').onclick=()=>{$('setup-screen').classList.add('hidden');$('deploy-screen').classList.remove('hidden'); refreshDeployUis();};
-  $('btn-recommended').onclick=()=>{deployCart={rifle:3,at:1,command:1,light:1,apc:1,ifv:1}; refreshDeployUis();};
+  $('btn-recommended').onclick=()=>{deployCart={rifle:2,machinegun:1,at:1,command:1,light:1,apc:1,ifv:1}; refreshDeployUis();};
   $('btn-clear-deploy').onclick=()=>{deployCart={}; refreshDeployUis();};
   $('btn-start-battle').onclick=startBattle;
   $('btn-reinforce').onclick=()=>{reinforceCart={}; refreshDeployUis(); $('reinforce-modal').classList.remove('hidden'); audio.play('menuOpen',{x:cameraTarget.x,z:cameraTarget.z},1,.05,{cooldownKey:'reinforce_open'});};
@@ -4282,7 +4414,7 @@ function gameLoopBootstrap(){
   refreshDeployUis();
   gamePhase='menu';
   animate();
-  $('asset-state').textContent = '3D meshes';
+  if($('asset-state')) $('asset-state').textContent = '3D meshes';
 }
 
 gameLoopBootstrap();
