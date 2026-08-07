@@ -1,293 +1,241 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>OPERATION OVERWATCH v0.1 - Standalone</title>
-  <style>
-    html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#e8eadf;font-family:Arial,Helvetica,sans-serif;touch-action:none}
-    #game{position:fixed;inset:0}
-    #hud{position:fixed;left:12px;top:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px 12px;line-height:1.35;font-size:13px;max-width:360px;pointer-events:none}
-    #title{font-weight:700;color:#d7f5ff;margin-bottom:4px}
-    #hint{opacity:.85}
-    #status{position:fixed;right:12px;top:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px 12px;font-size:13px;pointer-events:none}
-    #err{display:none;position:fixed;inset:12px;background:#190606;color:#ffd8d8;border:1px solid #943939;border-radius:10px;padding:14px;white-space:pre-wrap;z-index:5}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>OPERATION OVERWATCH v0.2 Combat</title>
+<style>
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10140f;font-family:Arial,sans-serif;color:#e8f0df;touch-action:none}
+  #game{position:fixed;inset:0}
+  #hud{position:fixed;left:12px;right:12px;bottom:12px;display:flex;gap:10px;align-items:flex-end;pointer-events:none}
+  .panel{background:rgba(12,18,16,.82);border:1px solid rgba(180,220,170,.35);border-radius:12px;padding:10px;backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  #info{min-width:240px;max-width:360px;font-size:13px;line-height:1.35}
+  #buttons{display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto}
+  button{background:#22352d;color:#e8f0df;border:1px solid #5b8065;border-radius:9px;padding:10px 12px;font-weight:700}
+  button:active{transform:translateY(1px)}
+  #top{position:fixed;left:12px;top:12px;font-size:13px;background:rgba(12,18,16,.72);padding:8px 10px;border-radius:10px;border:1px solid rgba(180,220,170,.25)}
+  #hint{position:fixed;right:12px;top:12px;max-width:320px;font-size:12px;text-align:right;color:#d6e8ca;background:rgba(12,18,16,.55);padding:8px 10px;border-radius:10px}
+</style>
 </head>
 <body>
-  <div id="game"></div>
-  <div id="hud">
-    <div id="title">OPERATION OVERWATCH v0.1</div>
-    <div id="hint">
-      Desktop: clic gauche sélectionner, clic droit déplacer, WASD/clic-milieu déplacer caméra, molette zoom.<br>
-      Mobile: tap sélectionner, appui long donner ordre, glisser à deux doigts caméra, pinch zoom.
-    </div>
+<div id="game"></div>
+<div id="top">OPERATION OVERWATCH v0.2 — Combat infantry prototype</div>
+<div id="hint">Desktop: clic gauche sélectionner, clic droit déplacer, molette zoom, WASD caméra, 1-4 formations. Mobile: tap sélectionner, appui long déplacer, glisser caméra, pinch zoom.</div>
+<div id="hud">
+  <div id="info" class="panel">Sélectionne une escouade alliée.</div>
+  <div id="buttons" class="panel">
+    <button data-formation="line">Ligne</button>
+    <button data-formation="column">Colonne</button>
+    <button data-formation="wedge">Wedge</button>
+    <button data-formation="spread">Dispersé</button>
+    <button id="stop">Stop</button>
+    <button id="retreat">Repli</button>
   </div>
-  <div id="status">Chargement...</div>
-  <div id="err"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
+<script>
+(async()=>{
+const {Application,Container,Graphics,Text} = PIXI;
+const app = new Application();
+await app.init({resizeTo:window,background:'#182018',antialias:true,powerPreference:'high-performance'});
+document.getElementById('game').appendChild(app.canvas);
 
-  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
-  <script>
-  (() => {
-    const errBox = document.getElementById('err');
-    window.addEventListener('error', e => {
-      errBox.style.display = 'block';
-      errBox.textContent = 'Erreur JavaScript:\\n' + (e.message || e.error || e);
-    });
+const MAP={w:2400,h:1600};
+const BAL={
+ speed:78, vision:330, range:270, damage:9, acc:.56,
+ moraleRetreat:18, pinned:80, commandRadius:220
+};
+const FORM={
+ line:{speed:.9, suppress:.95, vuln:.9, acc:1.08, spread:44},
+ column:{speed:1.18, suppress:1.14, vuln:1.18, acc:.95, spread:22},
+ wedge:{speed:1, suppress:1, vuln:1, acc:1, spread:34},
+ spread:{speed:.82, suppress:.78, vuln:.78, acc:.98, spread:58}
+};
+const TERRAIN={
+ open:{speed:1,cover:'none',supp:1.2,vision:1,recvAcc:1.06,dmg:1},
+ forest:{speed:.82,cover:'light',supp:.85,vision:.82,recvAcc:.86,dmg:.92},
+ road:{speed:1.25,cover:'none',supp:1.12,vision:1,recvAcc:1.04,dmg:1},
+ urban:{speed:.9,cover:'medium',supp:.78,vision:.78,recvAcc:.78,dmg:.72},
+ rocks:{speed:.72,cover:'heavy',supp:.62,vision:.9,recvAcc:.7,dmg:.55}
+};
+const world=new Container(); app.stage.addChild(world);
+const ground=new Graphics(); world.addChild(ground);
+const effects=new Container(); world.addChild(effects);
+const squadsLayer=new Container(); world.addChild(squadsLayer);
+const uiLayer=new Container(); world.addChild(uiLayer);
 
-    if (!window.PIXI) {
-      errBox.style.display = 'block';
-      errBox.textContent = 'PixiJS n’a pas pu être chargé. Connexion internet requise pour cette version index.html autonome.';
-      return;
-    }
+let camera={x:0,y:0,z:1,min:.45,max:1.8};
+let pointer={down:false,drag:false,x:0,y:0,wx:0,wy:0,t:0,long:false};
+let keys={}; let selected=null; let orderMarkers=[]; let particles=[]; let lastTap=0;
 
-    const { Application, Container, Graphics, Text } = PIXI;
-    const W = 2400, H = 1500;
-    const TEAM = { allied: 0x3ba7ff, enemy: 0xff5a4d, neutral: 0xd7d0a8 };
-    const status = document.getElementById('status');
+const terrains=[
+ {type:'forest',x:210,y:180,w:480,h:310},{type:'forest',x:1480,y:180,w:520,h:330},
+ {type:'road',x:0,y:690,w:2400,h:120},{type:'urban',x:950,y:485,w:360,h:270},
+ {type:'rocks',x:540,y:980,w:430,h:250},{type:'rocks',x:1600,y:1010,w:420,h:250}
+];
+const covers=[
+ {x:600,y:1040,w:360,h:180,type:'heavy'},{x:990,y:510,w:300,h:220,type:'medium'},
+ {x:1540,y:220,w:350,h:230,type:'light'},{x:1660,y:1045,w:320,h:160,type:'heavy'}
+];
+const objectives=[
+ {id:'Alpha',x:820,y:760,r:95,owner:'neutral',progress:0,bar:new Graphics(),label:null},
+ {id:'Bravo',x:1560,y:760,r:95,owner:'neutral',progress:0,bar:new Graphics(),label:null}
+];
 
-    const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
-    const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-    const rand = (a,b)=>a+Math.random()*(b-a);
+function drawMap(){
+ ground.clear().rect(0,0,MAP.w,MAP.h).fill(0x526246);
+ terrains.forEach(t=>{
+  const c={forest:0x304a32,road:0x6d644f,urban:0x5c5f62,rocks:0x6b6a5f,open:0x526246}[t.type];
+  ground.rect(t.x,t.y,t.w,t.h).fill(c);
+ });
+ for(let i=0;i<70;i++){let x=(i*197)%MAP.w,y=(i*89+130)%MAP.h; ground.circle(x,y,12+((i*7)%13)).fill(0x253b28);}
+ for(let i=0;i<34;i++){let x=(i*151+60)%MAP.w,y=(i*211+440)%MAP.h; ground.circle(x,y,14+((i*5)%12)).fill(0x77776c);}
+ covers.forEach(c=>ground.roundRect(c.x,c.y,c.w,c.h,18).stroke({color:0xe8dfae,width:3,alpha:.65}).fill({color:0x3b4439,alpha:.35}));
+ objectives.forEach(o=>{
+  const g=new Graphics(); world.addChild(g); o.g=g; world.addChild(o.bar);
+  o.label=new Text({text:o.id,style:{fontSize:18,fill:'#f2f4df',fontWeight:'bold'}}); o.label.anchor.set(.5); o.label.position.set(o.x,o.y-8); world.addChild(o.label);
+ });
+}
+drawMap();
 
-    class Camera {
-      constructor(stage) {
-        this.stage = stage; this.x = 0; this.y = 0; this.zoom = 0.72;
-        this.keys = new Set();
-        addEventListener('keydown', e=>this.keys.add(e.key.toLowerCase()));
-        addEventListener('keyup', e=>this.keys.delete(e.key.toLowerCase()));
-      }
-      update(dt) {
-        const s = 720 * dt / this.zoom;
-        if (this.keys.has('a') || this.keys.has('arrowleft')) this.x -= s;
-        if (this.keys.has('d') || this.keys.has('arrowright')) this.x += s;
-        if (this.keys.has('w') || this.keys.has('arrowup')) this.y -= s;
-        if (this.keys.has('s') || this.keys.has('arrowdown')) this.y += s;
-        this.apply();
-      }
-      screenToWorld(px,py){ return { x:(px - innerWidth/2)/this.zoom + this.x, y:(py - innerHeight/2)/this.zoom + this.y }; }
-      apply(){
-        const vw = innerWidth / this.zoom, vh = innerHeight / this.zoom;
-        this.x = clamp(this.x, vw/2, W-vw/2); this.y = clamp(this.y, vh/2, H-vh/2);
-        this.zoom = clamp(this.zoom, .38, 1.7);
-        this.stage.scale.set(this.zoom);
-        this.stage.position.set(innerWidth/2 - this.x*this.zoom, innerHeight/2 - this.y*this.zoom);
-      }
-    }
+function makeSquad(d){
+ const g=new Container(); squadsLayer.addChild(g);
+ const s=Object.assign({destinationX:d.x,destinationY:d.y,selected:false,health:100,maxHealth:100,morale:100,suppression:0,fatigue:0,visionRange:BAL.vision,attackRange:BAL.range,damage:BAL.damage,accuracy:BAL.acc,ammo:999,speed:BAL.speed,state:'idle',formation:'wedge',suppState:'normal',coverState:'none',terrain:'open',cool:0,target:null,commander:false,ai:'patrol'},d,{g});
+ s.sel=new Graphics(); s.body=new Graphics(); s.bars=new Graphics(); s.txt=new Text({text:d.name,style:{fontSize:12,fill:'#ffffff'}}); s.txt.anchor.set(.5,1.9);
+ g.addChild(s.sel,s.body,s.bars,s.txt); return s;
+}
+const squads=[
+ makeSquad({id:'a1',name:'A-1 Rifle',faction:'ally',x:270,y:680}),
+ makeSquad({id:'a2',name:'A-2 Fire',faction:'ally',x:250,y:780}),
+ makeSquad({id:'a3',name:'A-3 Scout',faction:'ally',x:320,y:890,visionRange:380,accuracy:.62}),
+ makeSquad({id:'a4',name:'A-4 Support',faction:'ally',x:210,y:1000,damage:11,speed:68}),
+ makeSquad({id:'ac',name:'HQ Commander',faction:'ally',x:160,y:820,commander:true,health:80,maxHealth:80,damage:6}),
+ makeSquad({id:'e1',name:'E-1 Rifle',faction:'enemy',x:2030,y:620}),
+ makeSquad({id:'e2',name:'E-2 Fire',faction:'enemy',x:2100,y:760}),
+ makeSquad({id:'e3',name:'E-3 Scout',faction:'enemy',x:1980,y:920,visionRange:380,accuracy:.62}),
+ makeSquad({id:'e4',name:'E-4 Support',faction:'enemy',x:2140,y:1020,damage:11,speed:68}),
+ makeSquad({id:'ec',name:'EN Commander',faction:'enemy',x:2220,y:820,commander:true,health:80,maxHealth:80,damage:6})
+];
 
-    class Squad {
-      constructor(data) {
-        Object.assign(this, data);
-        this.destinationX = data.x; this.destinationY = data.y;
-        this.selected = false; this.visible = true; this.target = null;
-        this.fireCd = rand(.2,1.2); this.state = 'idle'; this.dead = false;
-        this.g = new Container();
-        this.body = new Graphics(); this.ui = new Graphics(); this.text = new Text({text:this.id,style:{fill:'#fff',fontSize:12}});
-        this.text.anchor.set(.5); this.text.y = -42;
-        this.g.addChild(this.body,this.ui,this.text);
-        this.drawBody();
-      }
-      drawBody(){
-        const c = this.faction === 'allied' ? TEAM.allied : TEAM.enemy;
-        this.body.clear();
-        this.body.circle(0,0,18).fill(c).stroke({color:0x101010,width:3});
-        this.body.circle(-7,-5,5).fill(0xffffff);
-        this.body.circle(7,-5,5).fill(0xffffff);
-        this.body.rect(-18,14,36,9).fill(0x252525).stroke({color:0x000000,width:1});
-      }
-      updateUi(){
-        this.g.position.set(this.x,this.y);
-        this.g.alpha = this.visible || this.faction === 'allied' ? 1 : .12;
-        this.g.visible = !this.dead;
-        this.ui.clear();
-        if (this.selected) this.ui.circle(0,0,28).stroke({color:0xffff88,width:3});
-        this.ui.rect(-22,26,44,6).fill(0x310d0d);
-        this.ui.rect(-22,26,44*(this.health/this.maxHealth),6).fill(0x55d96f);
-        this.ui.rect(-22,34,44,4).fill(0x241b44);
-        this.ui.rect(-22,34,44*(this.morale/100),4).fill(0x9ec5ff);
-        if (this.suppression > 30) this.ui.circle(20,-20,5).fill(0xffee66);
-      }
-    }
+function dist(a,b,c,d){return Math.hypot(a-c,b-d)}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function screenToWorld(x,y){return {x:(x-world.x)/camera.z,y:(y-world.y)/camera.z}}
+function updateCamera(){world.scale.set(camera.z); world.position.set(-camera.x*camera.z+app.screen.width/2,-camera.y*camera.z+app.screen.height/2)}
+function clampCamera(){camera.x=clamp(camera.x,app.screen.width/(2*camera.z),MAP.w-app.screen.width/(2*camera.z));camera.y=clamp(camera.y,app.screen.height/(2*camera.z),MAP.h-app.screen.height/(2*camera.z))}
+function terrainAt(x,y){for(let i=terrains.length-1;i>=0;i--){let t=terrains[i]; if(x>=t.x&&x<=t.x+t.w&&y>=t.y&&y<=t.y+t.h)return t.type;} return 'open'}
+function coverAt(x,y){let best='none'; for(const c of covers){if(x>=c.x&&x<=c.x+c.w&&y>=c.y&&y<=c.y+c.h)best=c.type;} return best}
+function isVisibleToEnemy(s){return squads.some(o=>o.faction!==s.faction&&o.health>0&&dist(s.x,s.y,o.x,o.y)<o.visionRange*(TERRAIN[o.terrain]?.vision||1))}
+function commandBonus(s){return squads.some(o=>o.faction===s.faction&&o.commander&&o!==s&&o.health>0&&dist(s.x,s.y,o.x,o.y)<BAL.commandRadius)}
+function select(s){squads.forEach(q=>q.selected=false); selected=s; if(s){s.selected=true; updateHud();}}
+function setFormation(f){if(selected&&selected.faction==='ally'&&selected.health>0){selected.formation=f; selected.fatigue=clamp(selected.fatigue+4,0,100);}}
+function orderMove(x,y){if(!selected||selected.health<=0)return; selected.destinationX=clamp(x,20,MAP.w-20); selected.destinationY=clamp(y,20,MAP.h-20); selected.state='moving'; selected.fatigue=clamp(selected.fatigue+5,0,100); marker(x,y);}
+function marker(x,y){const g=new Graphics().circle(0,0,18).stroke({color:0x90d7ff,width:3}).moveTo(-24,0).lineTo(24,0).moveTo(0,-24).lineTo(0,24).stroke({color:0x90d7ff,width:2});g.position.set(x,y);uiLayer.addChild(g);orderMarkers.push({g,t:.7});}
+function particle(x,y,type){if(particles.length>120)return; const g=new Graphics(); let color=type==='smoke'?0xb8b8a8:type==='dust'?0xc5b183:0xffe1a0; g.circle(0,0,type==='smoke'?12:5).fill({color,alpha:.7}); g.position.set(x,y); effects.addChild(g); particles.push({g,t:type==='smoke'?1.0:.45,type});}
+function shoot(a,b,dt){
+ a.cool-=dt; if(a.cool>0||a.ammo<=0)return; a.cool=.55+Math.random()*.35; a.ammo--;
+ particle(b.x+(Math.random()-.5)*32,b.y+(Math.random()-.5)*32,'impact'); particle(a.x,a.y,'smoke');
+ const form=FORM[a.formation], terr=TERRAIN[b.terrain]; const supMult=(a.suppState==='pinned'?.25:a.suppState==='suppressed'?.45:a.suppState==='pressured'?.75:1);
+ const fatigueMult=1-a.fatigue/220; const cmd=commandBonus(a)?1.12:1;
+ const chance=clamp(a.accuracy*form.acc*supMult*fatigueMult*cmd*(terr.recvAcc||1),.04,.9);
+ b.suppression=clamp(b.suppression+8*FORM[b.formation].suppress*(TERRAIN[b.terrain].supp||1),0,100);
+ b.morale=clamp(b.morale-2.8,0,100);
+ if(Math.random()<chance){let cov={none:1,light:.82,medium:.62,heavy:.42}[b.coverState]||1; b.health=clamp(b.health-a.damage*cov*(terr.dmg||1)*FORM[b.formation].vuln,0,b.maxHealth); b.suppression=clamp(b.suppression+8,0,100); b.morale=clamp(b.morale-5,0,100);}
+}
+function updateSquadMeta(s,dt){
+ s.terrain=terrainAt(s.x,s.y); s.coverState=coverAt(s.x,s.y); if(s.coverState==='none')s.coverState=TERRAIN[s.terrain].cover;
+ s.suppression=clamp(s.suppression-(commandBonus(s)?11:7)*dt,0,100);
+ if(s.suppression>80)s.suppState='pinned'; else if(s.suppression>55)s.suppState='suppressed'; else if(s.suppression>25)s.suppState='pressured'; else s.suppState='normal';
+ if(s.state==='moving')s.fatigue=clamp(s.fatigue+(2+(s.suppression/40))*dt,0,100); else s.fatigue=clamp(s.fatigue-(s.coverState!=='none'?7:4)*dt,0,100);
+ if(s.suppression<30)s.morale=clamp(s.morale+(commandBonus(s)?5:2)*dt,0,100);
+ if(s.morale<BAL.moraleRetreat&&s.state!=='dead')s.state='retreating';
+}
+function movement(s,dt){
+ if(s.health<=0){s.state='dead';return}
+ if(s.suppState==='pinned'&&s.state==='moving'){s.state='idle';return}
+ let tx=s.destinationX,ty=s.destinationY;
+ if(s.state==='retreating'){tx=s.faction==='ally'?90:MAP.w-90; ty=s.y;}
+ const d=dist(s.x,s.y,tx,ty); if(d>5&&(s.state==='moving'||s.state==='retreating')){
+  const sp=s.speed*FORM[s.formation].speed*(TERRAIN[s.terrain].speed||1)*(1-s.fatigue/190)*(s.suppState==='suppressed'?.58:s.suppState==='pressured'?.82:1);
+  s.x+=((tx-s.x)/d)*sp*dt; s.y+=((ty-s.y)/d)*sp*dt; if(Math.random()<.04)particle(s.x,s.y,'dust');
+ } else if(s.state==='moving') s.state='idle';
+}
+function combat(s,dt){
+ if(s.health<=0||s.state==='retreating')return;
+ let enemies=squads.filter(o=>o.faction!==s.faction&&o.health>0&&dist(s.x,s.y,o.x,o.y)<s.visionRange*(TERRAIN[s.terrain].vision||1));
+ enemies.sort((a,b)=>dist(s.x,s.y,a.x,a.y)-dist(s.x,s.y,b.x,b.y)); s.target=enemies[0]||null;
+ if(s.target&&dist(s.x,s.y,s.target.x,s.target.y)<s.attackRange){s.state='engaging'; shoot(s,s.target,dt);}
+ else if(s.state==='engaging')s.state='idle';
+}
+function ai(s,dt){
+ if(s.faction!=='enemy'||s.health<=0)return;
+ const visible=squads.filter(o=>o.faction==='ally'&&o.health>0&&dist(s.x,s.y,o.x,o.y)<s.visionRange*(TERRAIN[s.terrain].vision||1)).sort((a,b)=>dist(s.x,s.y,a.x,a.y)-dist(s.x,s.y,b.x,b.y))[0];
+ if(s.morale<22){s.state='retreating'; return;}
+ if(s.suppression>62&&s.coverState==='none'){let c=covers.reduce((best,c)=>dist(s.x,s.y,c.x+c.w/2,c.y+c.h/2)<best.d?{c,d:dist(s.x,s.y,c.x+c.w/2,c.y+c.h/2)}:best,{c:null,d:9999}).c; if(c){s.destinationX=c.x+c.w/2;s.destinationY=c.y+c.h/2;s.state='moving'; return;}}
+ if(visible){let d=dist(s.x,s.y,visible.x,visible.y); if(d>s.attackRange*.82){let ang=Math.atan2(visible.y-s.y,visible.x-s.x)+(Math.random()-.5)*.55; s.destinationX=s.x+Math.cos(ang)*120; s.destinationY=s.y+Math.sin(ang)*120; s.state='moving';} return;}
+ let obj=objectives.find(o=>o.owner!=='enemy')||objectives[0]; if(dist(s.x,s.y,obj.x,obj.y)>85){s.destinationX=obj.x+(Math.random()-.5)*120;s.destinationY=obj.y+(Math.random()-.5)*120;s.state='moving';}
+}
+function objectivesUpdate(dt){
+ objectives.forEach(o=>{
+  let allies=squads.filter(s=>s.faction==='ally'&&s.health>0&&dist(s.x,s.y,o.x,o.y)<o.r);
+  let enemies=squads.filter(s=>s.faction==='enemy'&&s.health>0&&dist(s.x,s.y,o.x,o.y)<o.r);
+  let faction=null; if(allies.length&&!enemies.length)faction='ally'; if(enemies.length&&!allies.length)faction='enemy';
+  if(faction){let cmd=[...allies,...enemies].some(s=>s.commander); o.progress+=dt*(cmd?34:22)*(faction==='ally'?1:-1);}
+  else o.progress*=.985;
+  o.progress=clamp(o.progress,-100,100); if(o.progress>=100)o.owner='ally'; if(o.progress<=-100)o.owner='enemy';
+ });
+}
+function render(){
+ objectives.forEach(o=>{let color=o.owner==='ally'?0x4ea1ff:o.owner==='enemy'?0xff5b4e:0xf2e38a; o.g.clear().circle(o.x,o.y,o.r).stroke({color,width:4,alpha:.85}).fill({color,alpha:.13}); o.bar.clear().rect(o.x-55,o.y+20,110,8).fill(0x151515).rect(o.x-55,o.y+20,(o.progress+100)/200*110,8).fill(color);});
+ squads.forEach(s=>{
+  const g=s.g; g.position.set(s.x,s.y); s.body.clear(); s.sel.clear(); s.bars.clear();
+  if(s.health<=0){s.body.circle(0,0,14).fill(0x1b1b1b).stroke({color:0x555555,width:2});return}
+  const ally=s.faction==='ally', color=ally?0x49a7ff:0xff5a45, edge=s.commander?0xfff08a:0xffffff;
+  if(s.selected)s.sel.circle(0,0,42).stroke({color:0x9fe8ff,width:4,alpha:.9});
+  if(s.coverState!=='none')s.sel.roundRect(-30,28,60,8,4).fill({color:0xf2df8a,alpha:{light:.35,medium:.55,heavy:.8}[s.coverState]});
+  const spread=FORM[s.formation].spread; const pts=s.formation==='line'?[[-spread,0],[0,0],[spread,0]]:s.formation==='column'?[[0,-spread*.55],[0,0],[0,spread*.55]]:s.formation==='spread'?[[-spread*.7,-10],[0,10],[spread*.7,-10]]:[[-spread*.55,12],[0,-16],[spread*.55,12]];
+  pts.forEach((p,i)=>s.body.circle(p[0],p[1],s.commander&&i===1?14:10).fill(color).stroke({color:edge,width:s.commander&&i===1?3:1,alpha:.9}));
+  s.body.circle(0,0,s.visionRange).stroke({color,alpha:s.selected?.14:.025,width:1});
+  s.bars.rect(-30,-42,60,6).fill(0x1a1d1a).rect(-30,-42,60*(s.health/s.maxHealth),6).fill(0x5be06b);
+  s.bars.rect(-30,-34,60,4).fill(0x1a1d1a).rect(-30,-34,60*(s.morale/100),4).fill(0xf3df59);
+  s.bars.rect(-30,-28,60,4).fill(0x1a1d1a).rect(-30,-28,60*(s.suppression/100),4).fill(0xff7a30);
+  s.txt.text=s.commander?'★ '+s.name:s.name;
+  s.alpha=s.faction==='enemy'&&!isVisibleToEnemy(s)?.28:1;
+ });
+}
+function updateHud(){
+ const el=document.getElementById('info');
+ if(!selected||selected.health<=0){el.textContent='Sélectionne une escouade alliée.';return}
+ el.innerHTML=`<b>${selected.name}</b><br>Santé ${selected.health.toFixed(0)}/${selected.maxHealth} · Moral ${selected.morale.toFixed(0)}<br>Suppression ${selected.suppression.toFixed(0)} (${selected.suppState}) · Fatigue ${selected.fatigue.toFixed(0)}<br>Formation ${selected.formation} · État ${selected.state}<br>Terrain ${selected.terrain} · Couverture ${selected.coverState} · Munitions ${selected.ammo}${commandBonus(selected)?'<br>Bonus commandant actif':''}`;
+}
+document.querySelectorAll('[data-formation]').forEach(b=>b.onclick=()=>setFormation(b.dataset.formation));
+document.getElementById('stop').onclick=()=>{if(selected){selected.destinationX=selected.x;selected.destinationY=selected.y;selected.state='idle';}};
+document.getElementById('retreat').onclick=()=>{if(selected)selected.state='retreating';};
+window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true; if(['1','2','3','4'].includes(e.key))setFormation(['line','column','wedge','spread'][+e.key-1]);});
+window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+app.canvas.addEventListener('contextmenu',e=>e.preventDefault());
+app.canvas.addEventListener('pointerdown',e=>{const w=screenToWorld(e.clientX,e.clientY); pointer={down:true,drag:false,x:e.clientX,y:e.clientY,wx:w.x,wy:w.y,t:performance.now(),long:false};});
+app.canvas.addEventListener('pointermove',e=>{if(!pointer.down)return; let dx=e.clientX-pointer.x,dy=e.clientY-pointer.y; if(Math.hypot(dx,dy)>7)pointer.drag=true; if(pointer.drag){camera.x-=dx/camera.z;camera.y-=dy/camera.z;pointer.x=e.clientX;pointer.y=e.clientY;clampCamera();updateCamera();}});
+app.canvas.addEventListener('pointerup',e=>{
+ const w=screenToWorld(e.clientX,e.clientY); const long=performance.now()-pointer.t>420; 
+ if(!pointer.drag){let hit=squads.filter(s=>s.faction==='ally'&&s.health>0&&dist(w.x,w.y,s.x,s.y)<45).sort((a,b)=>dist(w.x,w.y,a.x,a.y)-dist(w.x,w.y,b.x,b.y))[0]; if(hit&&!long)select(hit); else if((e.button===2||long)&&selected)orderMove(w.x,w.y);}
+ pointer.down=false;
+});
+app.canvas.addEventListener('wheel',e=>{e.preventDefault(); const old=camera.z; camera.z=clamp(camera.z*(e.deltaY>0?.9:1.1),camera.min,camera.max); clampCamera(); updateCamera();},{passive:false});
+let touchDist=0;
+app.canvas.addEventListener('touchmove',e=>{if(e.touches.length===2){e.preventDefault();let d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); if(touchDist){camera.z=clamp(camera.z*(d/touchDist),camera.min,camera.max);clampCamera();updateCamera();} touchDist=d;}},{passive:false});
+app.canvas.addEventListener('touchend',()=>touchDist=0);
 
-    class Objective {
-      constructor(id,x,y){this.id=id;this.x=x;this.y=y;this.r=82;this.owner='neutral';this.progress=0;this.capturing=null;this.g=new Graphics();}
-      draw(){
-        const col = this.owner==='allied'?TEAM.allied:this.owner==='enemy'?TEAM.enemy:TEAM.neutral;
-        this.g.clear();
-        this.g.circle(this.x,this.y,this.r).fill({color:col,alpha:.16}).stroke({color:col,width:4,alpha:.9});
-        this.g.rect(this.x-45,this.y-7,90,14).fill(0x111111).stroke({color:0xffffff,width:1,alpha:.3});
-        this.g.rect(this.x-45,this.y-7,90*(this.progress/100),14).fill(col);
-      }
-    }
-
-    async function boot(){
-      const app = new Application();
-      await app.init({resizeTo: window, background:'#182018', antialias:true, preference:'webgl'});
-      document.getElementById('game').appendChild(app.canvas);
-      app.canvas.addEventListener('contextmenu', e=>e.preventDefault());
-
-      const world = new Container(); app.stage.addChild(world);
-      const camera = new Camera(world);
-
-      const terrain = new Graphics(); world.addChild(terrain);
-      terrain.rect(0,0,W,H).fill(0x24311e);
-      terrain.rect(0,650,W,130).fill(0x474238);
-      terrain.rect(1000,0,130,H).fill(0x474238);
-      for(let i=0;i<60;i++){const x=rand(80,W-80),y=rand(80,H-80);terrain.circle(x,y,rand(10,22)).fill(0x193f1d);}
-      for(let i=0;i<28;i++){const x=rand(80,W-80),y=rand(80,H-80);terrain.circle(x,y,rand(10,18)).fill(0x77766c);}
-      const coverZones=[
-        {x:520,y:430,w:260,h:110},{x:1390,y:400,w:300,h:110},{x:1220,y:985,w:330,h:120}
-      ];
-      coverZones.forEach(z=>terrain.rect(z.x,z.y,z.w,z.h).fill({color:0x5f6845,alpha:.65}).stroke({color:0xb4bf82,width:2,alpha:.8}));
-
-      const objectives=[new Objective('ALPHA',840,610),new Objective('BRAVO',1550,875)];
-      objectives.forEach(o=>{world.addChild(o.g);o.draw();});
-
-      const squadLayer=new Container(); world.addChild(squadLayer);
-      const make=(id,f,x,y)=>new Squad({id,faction:f,x,y,health:100,maxHealth:100,morale:100,suppression:0,visionRange:330,attackRange:245,damage:13,accuracy:.68,ammo:999,fatigue:0,speed: f==='allied'?115:100,state:'idle'});
-      const squads=[
-        make('A1','allied',260,350),make('A2','allied',310,500),make('A3','allied',260,710),make('A4','allied',330,870),
-        make('E1','enemy',2050,330),make('E2','enemy',2120,500),make('E3','enemy',2010,870),make('E4','enemy',2140,1040)
-      ];
-      squads.forEach(s=>squadLayer.addChild(s.g));
-
-      const fx = new Graphics(); world.addChild(fx);
-      let orderMarks=[];
-      let pointerDown=null, longTimer=null, draggingCam=false, lastPinch=0;
-
-      function issueOrder(p){
-        const selected=squads.filter(s=>s.selected&&!s.dead);
-        selected.forEach((s,i)=>{s.destinationX=p.x+(i%2)*42;s.destinationY=p.y+Math.floor(i/2)*42;s.state='moving';});
-        orderMarks.push({x:p.x,y:p.y,t:.65});
-      }
-      function selectAt(p, additive=false){
-        if(!additive)squads.forEach(s=>s.selected=false);
-        let hit=squads.filter(s=>s.faction==='allied'&&!s.dead&&dist(s,p)<32).sort((a,b)=>dist(a,p)-dist(b,p))[0];
-        if(hit)hit.selected=true;
-      }
-
-      app.canvas.addEventListener('wheel',e=>{e.preventDefault();const before=camera.screenToWorld(e.clientX,e.clientY);camera.zoom*=e.deltaY>0?.9:1.1;camera.apply();const after=camera.screenToWorld(e.clientX,e.clientY);camera.x+=before.x-after.x;camera.y+=before.y-after.y;camera.apply();},{passive:false});
-      app.canvas.addEventListener('pointerdown',e=>{
-        app.canvas.setPointerCapture(e.pointerId);
-        pointerDown={id:e.pointerId,x:e.clientX,y:e.clientY,wx:camera.x,wy:camera.y,t:performance.now(),button:e.button};
-        draggingCam=e.button===1;
-        clearTimeout(longTimer);
-        longTimer=setTimeout(()=>{ if(pointerDown){issueOrder(camera.screenToWorld(pointerDown.x,pointerDown.y)); pointerDown=null;} },520);
-      });
-      app.canvas.addEventListener('pointermove',e=>{
-        if(!pointerDown)return;
-        const dx=e.clientX-pointerDown.x, dy=e.clientY-pointerDown.y;
-        if(Math.hypot(dx,dy)>8) clearTimeout(longTimer);
-        if(draggingCam || e.buttons===4 || (e.pointerType==='touch' && e.isPrimary===false)){
-          camera.x=pointerDown.wx-dx/camera.zoom; camera.y=pointerDown.wy-dy/camera.zoom; camera.apply();
-        }
-      });
-      app.canvas.addEventListener('pointerup',e=>{
-        clearTimeout(longTimer);
-        if(!pointerDown)return;
-        const moved=Math.hypot(e.clientX-pointerDown.x,e.clientY-pointerDown.y)>10;
-        const p=camera.screenToWorld(e.clientX,e.clientY);
-        if(!moved){
-          if(e.button===2) issueOrder(p); else selectAt(p,e.shiftKey);
-        }
-        pointerDown=null; draggingCam=false;
-      });
-      app.canvas.addEventListener('contextmenu',e=>{e.preventDefault();issueOrder(camera.screenToWorld(e.clientX,e.clientY));});
-
-      const touches=new Map();
-      app.canvas.addEventListener('pointerdown', e=>{ if(e.pointerType==='touch')touches.set(e.pointerId,{x:e.clientX,y:e.clientY});});
-      app.canvas.addEventListener('pointermove', e=>{
-        if(e.pointerType!=='touch'||!touches.has(e.pointerId))return;
-        touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
-        if(touches.size===2){
-          const a=[...touches.values()][0], b=[...touches.values()][1];
-          const d=Math.hypot(a.x-b.x,a.y-b.y);
-          if(lastPinch){camera.zoom*=d/lastPinch;camera.apply();}
-          lastPinch=d;
-        }
-      });
-      app.canvas.addEventListener('pointerup', e=>{touches.delete(e.pointerId); if(touches.size<2)lastPinch=0;});
-
-      function inCover(s){return coverZones.some(z=>s.x>z.x&&s.x<z.x+z.w&&s.y>z.y&&s.y<z.y+z.h);}
-      function moveToward(s,x,y,dt,mult=1){
-        const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy);
-        if(d<4){s.state=s.state==='moving'?'idle':s.state;return;}
-        const step=Math.min(d,s.speed*mult*dt*(s.morale<25?.55:1));
-        s.x+=dx/d*step;s.y+=dy/d*step;
-        s.x=clamp(s.x,30,W-30);s.y=clamp(s.y,30,H-30);
-      }
-      function visibleEnemiesFor(s){return squads.filter(o=>o.faction!==s.faction&&!o.dead&&dist(s,o)<=s.visionRange);}
-      function nearestEnemy(s){return visibleEnemiesFor(s).sort((a,b)=>dist(s,a)-dist(s,b))[0];}
-      function damage(att,tar){
-        if(att.fireCd>0||att.dead||tar.dead||att.state==='retreating')return;
-        att.fireCd=.65+Math.random()*.65;
-        const range=dist(att,tar), cover=inCover(tar), sup=clamp(att.suppression/120,0,.55);
-        const chance=clamp(att.accuracy - range/850 - sup, .08, .88);
-        tar.suppression=clamp(tar.suppression+12,0,100);
-        tar.morale=clamp(tar.morale-(cover?3:7),0,100);
-        if(Math.random()<chance){
-          tar.health-=att.damage*(cover?.55:1)*rand(.75,1.25);
-          if(tar.health<=0){tar.health=0;tar.dead=true;tar.state='dead';tar.selected=false;}
-        }
-      }
-
-      let aiT=0;
-      app.ticker.add(t=>{
-        const dt=Math.min(t.deltaMS/1000,.05);
-        camera.update(dt);
-        aiT-=dt;
-        squads.forEach(s=>{
-          if(s.dead)return;
-          s.fireCd-=dt; s.suppression=clamp(s.suppression-dt*6,0,100);
-          if(s.suppression>70)s.state='suppressed';
-          if(s.morale<12 && s.state!=='retreating'){s.state='retreating';s.destinationX=s.faction==='allied'?80:W-80;s.destinationY=s.y+rand(-80,80);}
-          if(s.state==='moving'||s.state==='retreating'||s.state==='suppressed') moveToward(s,s.destinationX,s.destinationY,dt,s.state==='suppressed'?.55:1);
-        });
-        if(aiT<=0){
-          aiT=.35;
-          squads.filter(s=>s.faction==='enemy'&&!s.dead).forEach(e=>{
-            const t=nearestEnemy(e);
-            if(t){e.target=t;if(dist(e,t)>e.attackRange*.82){e.destinationX=t.x+rand(-80,80);e.destinationY=t.y+rand(-80,80);e.state='moving';}}
-            else if(Math.random()<.25){e.destinationX=e.x+rand(-110,110);e.destinationY=e.y+rand(-90,90);e.state='moving';}
-          });
-        }
-        squads.forEach(s=>{
-          if(s.dead)return;
-          const target=nearestEnemy(s);
-          s.target=target||null;
-          if(target && dist(s,target)<=s.attackRange && s.state!=='retreating'){s.state='engaging'; damage(s,target);}
-        });
-        squads.forEach(e=>{ if(e.faction==='enemy') e.visible=squads.some(a=>a.faction==='allied'&&!a.dead&&dist(a,e)<=a.visionRange); });
-
-        objectives.forEach(o=>{
-          const inside=squads.filter(s=>!s.dead&&dist(s,o)<o.r);
-          const allied=inside.some(s=>s.faction==='allied'), enemy=inside.some(s=>s.faction==='enemy');
-          if(allied!==enemy){
-            const f=allied?'allied':'enemy';
-            o.capturing=f; o.progress=clamp(o.progress+dt*18,0,100);
-            inside.forEach(s=>s.state='capturing');
-            if(o.progress>=100)o.owner=f;
-          } else if(inside.length===0){o.progress=clamp(o.progress-dt*8,0,100);}
-          o.draw();
-        });
-
-        fx.clear();
-        orderMarks=orderMarks.filter(m=>{m.t-=dt;fx.circle(m.x,m.y,22*(m.t+.25)).stroke({color:0xffff99,width:3,alpha:clamp(m.t,0,1)});return m.t>0;});
-        squads.forEach(s=>{
-          s.updateUi();
-          if(s.target&&!s.dead&&!s.target.dead&&dist(s,s.target)<=s.attackRange){
-            fx.moveTo(s.x,s.y).lineTo(s.target.x,s.target.y).stroke({color:0xffdd77,width:2,alpha:.18});
-          }
-        });
-        const aliveA=squads.filter(s=>s.faction==='allied'&&!s.dead).length, aliveE=squads.filter(s=>s.faction==='enemy'&&!s.dead).length;
-        const sel=squads.filter(s=>s.selected).map(s=>s.id).join(', ')||'aucune';
-        status.innerHTML=`Alliés: ${aliveA}/4<br>Ennemis: ${aliveE}/4<br>Sélection: ${sel}<br>Objectifs: ${objectives.map(o=>o.id+': '+o.owner).join(' | ')}`;
-      });
-
-      camera.x=900; camera.y=650; camera.apply();
-    }
-    boot();
-  })();
-  </script>
+camera.x=MAP.w/2; camera.y=MAP.h/2; updateCamera();
+let acc=0;
+app.ticker.add(t=>{
+ const dt=Math.min(t.deltaMS/1000,.05); acc+=dt;
+ const camSp=520*dt/camera.z; if(keys.w||keys.arrowup)camera.y-=camSp;if(keys.s||keys.arrowdown)camera.y+=camSp;if(keys.a||keys.arrowleft)camera.x-=camSp;if(keys.d||keys.arrowright)camera.x+=camSp;clampCamera();updateCamera();
+ squads.forEach(s=>updateSquadMeta(s,dt)); squads.forEach(s=>ai(s,dt)); squads.forEach(s=>movement(s,dt)); squads.forEach(s=>combat(s,dt)); objectivesUpdate(dt);
+ orderMarkers.forEach(m=>{m.t-=dt;m.g.alpha=m.t/.7;m.g.scale.set(1+(1-m.t/.7)*.7)}); orderMarkers=orderMarkers.filter(m=>m.t>0||(m.g.destroy(),false));
+ particles.forEach(p=>{p.t-=dt;p.g.alpha=Math.max(0,p.t);p.g.scale.x+=dt*.5;p.g.scale.y+=dt*.5}); particles=particles.filter(p=>p.t>0||(p.g.destroy(),false));
+ render(); if(acc>.18){updateHud();acc=0;}
+});
+})();
+</script>
 </body>
 </html>
