@@ -5,44 +5,127 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
 <title>OPERATION OVERWATCH v0.4 — Logistique + UI</title>
 <style>
-:root{--ui:rgba(11,16,20,.82);--line:rgba(255,255,255,.16);--txt:#eaf2ef;--mut:#9fb1aa;--accent:#7fd0ff}
+:root{
+  --ui:rgba(11,16,20,.84);
+  --card:rgba(8,13,17,.92);
+  --line:rgba(255,255,255,.16);
+  --txt:#eaf2ef;
+  --mut:#a9bbb4;
+  --accent:#7fd0ff;
+  --ok:#8df59a;
+}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#09100d;color:var(--txt);font-family:system-ui,Arial,sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
+html,body{
+  margin:0;width:100%;height:100%;overflow:hidden;background:#09100d;color:var(--txt);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;
+}
 button,input,select{font:inherit}
-#game{position:fixed;inset:0;width:100vw;height:100vh;display:block;background:#223629}
-.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 40% 30%,#263b32,#07100d 70%);z-index:10}
-.card{width:min(520px,92vw);padding:22px;border:1px solid var(--line);border-radius:18px;background:rgba(9,14,18,.88);box-shadow:0 20px 80px #0008}
-h1{margin:0 0 4px;font-size:clamp(27px,5vw,46px);letter-spacing:.08em}
-h2{margin:0 0 14px;font-size:22px}
-.sub{color:var(--mut);margin:0 0 22px}
-.menu{display:grid;gap:10px}
-button{border:1px solid var(--line);border-radius:12px;background:#1d2c34;color:var(--txt);padding:12px 14px;cursor:pointer}
+button{
+  border:1px solid var(--line);border-radius:14px;background:#1b2d35;color:var(--txt);
+  min-height:52px;padding:13px 16px;cursor:pointer;font-weight:750;letter-spacing:.01em;
+  touch-action:manipulation;
+}
 button:hover{background:#29414c}
-button:disabled{opacity:.45;cursor:not-allowed}
-.row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:8px 0;color:var(--mut)}
-.row input[type=range]{width:180px}
+button:active{transform:translateY(1px);filter:brightness(1.08)}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+button.primary{background:linear-gradient(135deg,#286c89,#204d37);border-color:#7fd0ff66;color:white;box-shadow:0 8px 24px #0006}
+button.ghost{background:#ffffff0a}
+#game{position:fixed;inset:0;width:100vw;height:100vh;display:block;background:#223629;z-index:0}
+
+/* Menus mobile-first */
+.screen{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:calc(14px + env(safe-area-inset-top,0px)) calc(14px + env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) calc(14px + env(safe-area-inset-left,0px));
+  background:
+    radial-gradient(circle at 22% 18%,rgba(127,208,255,.22),transparent 32%),
+    radial-gradient(circle at 80% 80%,rgba(141,245,154,.12),transparent 34%),
+    linear-gradient(135deg,#06100d,#11221b 52%,#07100d);
+  z-index:50;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+}
+.card{
+  width:min(560px,94vw);
+  max-height:calc(100dvh - 28px);
+  overflow:auto;-webkit-overflow-scrolling:touch;
+  padding:clamp(18px,4vw,28px);
+  border:1px solid var(--line);border-radius:22px;background:var(--card);
+  box-shadow:0 24px 90px #000a, inset 0 1px 0 #ffffff10;
+}
+.brand{text-align:center;margin-bottom:18px}
+.eyebrow{margin:0 0 8px;color:var(--accent);font-size:12px;font-weight:900;letter-spacing:.22em;text-transform:uppercase}
+h1{margin:0;font-size:clamp(30px,8vw,54px);letter-spacing:.07em;line-height:.95}
+h2{margin:0 0 12px;font-size:clamp(24px,5vw,34px)}
+.sub{color:var(--mut);margin:10px 0 18px;line-height:1.35}
+.menu{display:grid;gap:12px}
+.menu.two{grid-template-columns:1fr 1fr}
+.hint{
+  margin:14px 0 0;color:var(--mut);font-size:13px;line-height:1.35;text-align:center;
+  background:#ffffff08;border:1px solid #ffffff0e;border-radius:12px;padding:10px;
+}
+.row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;margin:10px 0;color:var(--mut)}
+.row input[type=range]{width:min(220px,42vw)}
+.row select{min-height:42px;border-radius:10px;border:1px solid var(--line);background:#17262d;color:var(--txt);padding:8px}
+
+/* HUD */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:3}
-#topbar{position:absolute;top:env(safe-area-inset-top,0);left:0;right:0;height:44px;padding:6px 8px;display:flex;gap:8px;align-items:center;justify-content:space-between;background:linear-gradient(#07100dcc,#07100d22);pointer-events:none}
+#topbar{
+  position:absolute;top:env(safe-area-inset-top,0);left:0;right:0;min-height:44px;
+  padding:6px 8px;display:flex;gap:8px;align-items:center;justify-content:space-between;
+  background:linear-gradient(#07100dcc,#07100d22);pointer-events:none;
+}
 #topbar .group{display:flex;gap:8px;align-items:center;pointer-events:auto}
 .chip{padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:var(--ui);font-size:12px;color:#d8ebe4;white-space:nowrap}
-.iconbtn{min-width:42px;padding:9px 10px}
-#panel{position:absolute;left:10px;bottom:10px;width:min(390px,calc(100vw - 20px));border:1px solid var(--line);border-radius:14px;background:var(--ui);backdrop-filter:blur(8px);pointer-events:auto;overflow:hidden}
-#panel.min{width:auto}
+.iconbtn{min-width:46px;min-height:44px;padding:9px 10px}
+#panel{
+  position:absolute;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  width:min(390px,calc(100vw - 20px));border:1px solid var(--line);border-radius:16px;
+  background:var(--ui);backdrop-filter:blur(8px);pointer-events:auto;overflow:hidden;
+}
+#panel.min{width:min(260px,calc(100vw - 20px))}
 #panelHead{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-bottom:1px solid var(--line);gap:8px}
-#panelTitle{font-weight:800;font-size:13px}
+#panelTitle{font-weight:850;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #panelBody{padding:9px 10px;display:grid;gap:6px;font-size:12px}
 #panel.min #panelBody{display:none}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.stat{background:#ffffff10;border-radius:8px;padding:6px}
+.stat{background:#ffffff10;border-radius:8px;padding:6px;min-width:0}
 .actions{display:flex;gap:6px;flex-wrap:wrap}
-.actions button{font-size:12px;padding:8px 9px}
-#portrait{position:fixed;inset:0;display:none;z-index:20;background:#07100df2;align-items:center;justify-content:center;text-align:center;padding:32px}
-#portrait .card{max-width:420px}
+.actions button{font-size:12px;min-height:38px;padding:8px 9px}
 #fps{font-variant-numeric:tabular-nums}
-#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111d;padding:10px 14px;border:1px solid var(--line);border-radius:12px;z-index:30;display:none}
-@media (max-height:520px) and (orientation:landscape){
+#toast{
+  position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:#111d;padding:10px 14px;border:1px solid var(--line);border-radius:12px;z-index:80;display:none;
+}
+
+/* Orientation warning only while playing */
+#portrait{
+  position:fixed;inset:0;display:none;z-index:60;background:#07100df2;
+  align-items:center;justify-content:center;text-align:center;padding:22px;
+}
+#portrait .card{max-width:440px}
+
+/* Phones */
+@media (max-width:560px){
+  .screen{align-items:flex-start;justify-content:center}
+  .card{width:100%;border-radius:18px;padding:18px;max-height:calc(100dvh - 20px)}
+  .menu.two{grid-template-columns:1fr}
+  button{min-height:56px;font-size:16px}
+  .row{grid-template-columns:1fr;gap:6px}
+  .row input[type=range]{width:100%}
+}
+
+/* Landscape phones: compact, wide, no wasted vertical space */
+@media (orientation:landscape) and (max-height:560px){
+  .screen{align-items:center;padding:10px calc(12px + env(safe-area-inset-right,0px)) 10px calc(12px + env(safe-area-inset-left,0px))}
+  .card{width:min(760px,96vw);max-height:calc(100dvh - 14px);padding:14px 16px;border-radius:18px}
+  .main-card{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;align-items:center}
+  .brand{text-align:left;margin:0}
+  h1{font-size:clamp(28px,7vw,48px)}
+  .sub{margin:8px 0 0;font-size:13px}
+  .hint{grid-column:1 / -1;margin-top:8px;padding:8px;font-size:12px}
+  .menu{gap:9px}
+  button{min-height:46px;padding:10px 13px;font-size:14px}
   #panel{left:auto;right:8px;bottom:8px;width:min(360px,42vw)}
-  #panelBody{font-size:11px;padding:7px}.stat{padding:5px}.actions button{padding:7px 8px}
+  #panelBody{font-size:11px;padding:7px}.stat{padding:5px}.actions button{padding:7px 8px;min-height:34px}
   .chip{padding:6px 8px}
 }
 </style>
@@ -51,27 +134,73 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <canvas id="game"></canvas>
 
 <div id="mainMenu" class="screen">
-  <div class="card"><h1>OPERATION OVERWATCH</h1><p class="sub">v0.4 — Logistique + UI/Menus</p>
+  <div class="card main-card">
+    <div class="brand">
+      <p class="eyebrow">Prototype RTS mobile</p>
+      <h1>OPERATION<br>OVERWATCH</h1>
+      <p class="sub">v0.4 — UI mobile, blindés, infanterie et logistique simple.</p>
+    </div>
     <div class="menu">
-      <button id="playBtn">Jouer</button><button id="optionsBtn">Options</button><button id="creditsBtn">Crédits</button><button id="fsBtn">Plein écran</button><button id="quitBtn">Quitter / Retour</button>
+      <button id="newGameBtnMain" class="primary">Nouvelle partie</button>
+      <button id="playBtn">Menu jouer</button>
+      <button id="optionsBtn">Options</button>
+      <button id="creditsBtn">Crédits</button>
+      <button id="fsBtn">Plein écran</button>
+      <button id="quitBtn" class="ghost">Quitter / Retour</button>
+    </div>
+    <p class="hint">Mobile : le menu fonctionne en portrait et en paysage. Pour jouer, le paysage reste recommandé.</p>
+  </div>
+</div>
+
+<div id="playMenu" class="screen" style="display:none">
+  <div class="card">
+    <h2>Jouer</h2>
+    <p class="sub">Lance la carte prototype avec infanterie, véhicules, objectifs, mines et support.</p>
+    <div class="menu">
+      <button id="newGameBtn" class="primary">Nouvelle partie</button>
+      <button disabled>Continuer — bientôt</button>
+      <button data-back="mainMenu" class="ghost">Retour</button>
     </div>
   </div>
 </div>
-<div id="playMenu" class="screen" style="display:none"><div class="card"><h2>Jouer</h2><div class="menu"><button id="newGameBtn">Nouvelle partie</button><button disabled>Continuer</button><button data-back>Retour</button></div></div></div>
-<div id="optionsMenu" class="screen" style="display:none"><div class="card"><h2>Options</h2>
-  <div class="row">Volume général <input id="masterVol" type="range" min="0" max="1" step=".05"></div>
-  <div class="row">Effets visuels <select id="effects"><option value="normal">Activés</option><option value="reduced">Réduits</option></select></div>
-  <div class="row">Afficher FPS <input id="showFPS" type="checkbox"></div>
-  <div class="row">Taille UI <select id="uiScale"><option value=".9">Petite</option><option value="1">Normale</option><option value="1.15">Grande</option></select></div>
-  <div class="row">Vitesse caméra <input id="camSpeed" type="range" min=".5" max="2" step=".1"></div>
-  <div class="row">Rayons vision <input id="showVision" type="checkbox"></div>
-  <div class="row">Portées attaque <input id="showRange" type="checkbox"></div>
-  <div class="menu"><button id="fsBtn2">Plein écran</button><button data-back>Retour</button></div>
-</div></div>
-<div id="creditsMenu" class="screen" style="display:none"><div class="card"><h2>Crédits</h2><p class="sub">OPERATION OVERWATCH — Développement prototype. Rendu procédural autonome dans ce fichier. Pour les versions projet, voir ASSET_LICENSES.md pour les licences complètes.</p><div class="menu"><button data-back>Retour</button></div></div></div>
-<div id="pauseMenu" class="screen" style="display:none"><div class="card"><h2>Pause</h2><div class="menu"><button id="resumeBtn">Reprendre</button><button id="pauseOptionsBtn">Options</button><button id="mainBackBtn">Retour menu principal</button></div></div></div>
 
-<div id="portrait"><div class="card"><h2>Mode paysage recommandé</h2><p>Tournez votre appareil en mode paysage pour jouer confortablement.</p></div></div>
+<div id="optionsMenu" class="screen" style="display:none">
+  <div class="card">
+    <h2>Options</h2>
+    <div class="row">Volume général <input id="masterVol" type="range" min="0" max="1" step=".05"></div>
+    <div class="row">Effets visuels <select id="effects"><option value="normal">Activés</option><option value="reduced">Réduits</option></select></div>
+    <div class="row">Afficher FPS <input id="showFPS" type="checkbox"></div>
+    <div class="row">Taille UI <select id="uiScale"><option value=".9">Petite</option><option value="1">Normale</option><option value="1.15">Grande</option></select></div>
+    <div class="row">Vitesse caméra <input id="camSpeed" type="range" min=".5" max="2" step=".1"></div>
+    <div class="row">Rayons vision <input id="showVision" type="checkbox"></div>
+    <div class="row">Portées attaque <input id="showRange" type="checkbox"></div>
+    <div class="menu two">
+      <button id="fsBtn2">Plein écran</button>
+      <button id="optionsBackBtn" class="ghost">Retour</button>
+    </div>
+  </div>
+</div>
+
+<div id="creditsMenu" class="screen" style="display:none">
+  <div class="card">
+    <h2>Crédits</h2>
+    <p class="sub">OPERATION OVERWATCH — Développement prototype. Cette version autonome utilise un rendu procédural dans le fichier HTML. Pour une version projet avec assets externes, documenter chaque fichier dans ASSET_LICENSES.md.</p>
+    <div class="menu"><button data-back="mainMenu" class="ghost">Retour</button></div>
+  </div>
+</div>
+
+<div id="pauseMenu" class="screen" style="display:none">
+  <div class="card">
+    <h2>Pause</h2>
+    <div class="menu">
+      <button id="resumeBtn" class="primary">Reprendre</button>
+      <button id="pauseOptionsBtn">Options</button>
+      <button id="mainBackBtn" class="ghost">Retour menu principal</button>
+    </div>
+  </div>
+</div>
+
+<div id="portrait"><div class="card"><h2>Mode paysage recommandé</h2><p>Tournez votre appareil en mode paysage pour jouer confortablement.</p><div class="menu"><button id="portraitContinue" class="primary">Continuer quand même</button></div></div></div>
 <div id="hud" style="display:none">
   <div id="topbar"><div class="group"><span class="chip">OW v0.4</span><span id="fps" class="chip"></span></div><div class="group"><button id="hudFs" class="iconbtn">⛶</button><button id="pauseBtn" class="iconbtn">Ⅱ</button></div></div>
   <div id="panel" style="display:none"><div id="panelHead"><span id="panelTitle">Unité</span><button id="minPanel">—</button></div><div id="panelBody"></div></div>
@@ -97,15 +226,29 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function mobile(){return matchMedia('(pointer:coarse)').matches}
 async function toggleFullscreen(){try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){toast('Plein écran bloqué par le navigateur')}}
 ['fsBtn','fsBtn2','hudFs'].forEach(id=>$(id).onclick=toggleFullscreen);
-function show(id){['mainMenu','playMenu','optionsMenu','creditsMenu','pauseMenu'].forEach(x=>$(x).style.display=x===id?'flex':'none')}
-$('playBtn').onclick=()=>show('playMenu');$('optionsBtn').onclick=()=>show('optionsMenu');$('creditsBtn').onclick=()=>show('creditsMenu');$('quitBtn').onclick=()=>toast('Merci d’avoir joué à OPERATION OVERWATCH.');
-document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>show('mainMenu'));
-$('pauseOptionsBtn').onclick=()=>show('optionsMenu');
+const screens=['mainMenu','playMenu','optionsMenu','creditsMenu','pauseMenu'];
+let optionsReturn='mainMenu', portraitDismissed=false;
+function show(id){screens.forEach(x=>$(x).style.display=x===id?'flex':'none')}
+function openOptions(returnTo='mainMenu'){optionsReturn=returnTo;bindOptions();show('optionsMenu')}
+$('playBtn').onclick=()=>show('playMenu');
+$('optionsBtn').onclick=()=>openOptions('mainMenu');
+$('creditsBtn').onclick=()=>show('creditsMenu');
+$('quitBtn').onclick=()=>toast('Merci d’avoir joué à OPERATION OVERWATCH.');
+document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>show(b.dataset.back||'mainMenu'));
+$('optionsBackBtn').onclick=()=>show(optionsReturn);
+$('pauseOptionsBtn').onclick=()=>openOptions('pauseMenu');
+$('portraitContinue').onclick=()=>{portraitDismissed=true;$('portrait').style.display='none'};
 function bindOptions(){ $('masterVol').value=settings.audio.masterVolume; $('effects').value=settings.graphics.effects; $('showFPS').checked=settings.graphics.showFPS; $('uiScale').value=settings.graphics.uiScale; $('camSpeed').value=settings.gameplay.cameraSpeed; $('showVision').checked=settings.gameplay.showVisionRanges; $('showRange').checked=settings.gameplay.showAttackRanges;}
 bindOptions();
 $('masterVol').oninput=e=>{settings.audio.masterVolume=+e.target.value;save()};$('effects').onchange=e=>{settings.graphics.effects=e.target.value;save()};$('showFPS').onchange=e=>{settings.graphics.showFPS=e.target.checked;save()};$('uiScale').onchange=e=>{settings.graphics.uiScale=+e.target.value;document.body.style.fontSize=(16*settings.graphics.uiScale)+'px';save()};$('camSpeed').oninput=e=>{settings.gameplay.cameraSpeed=+e.target.value;save()};$('showVision').onchange=e=>{settings.gameplay.showVisionRanges=e.target.checked;save()};$('showRange').onchange=e=>{settings.gameplay.showAttackRanges=e.target.checked;save()};
 document.body.style.fontSize=(16*settings.graphics.uiScale)+'px';
-function orient(){ $('portrait').style.display=(mobile()&&innerHeight>innerWidth)?'flex':'none'; if(!started)$('mainMenu').style.display='flex'} addEventListener('resize',orient); addEventListener('orientationchange',orient); orient();
+function orient(){
+  const portraitPlaying=started&&!paused&&!portraitDismissed&&mobile()&&innerHeight>innerWidth;
+  $('portrait').style.display=portraitPlaying?'flex':'none';
+}
+addEventListener('resize',orient);
+addEventListener('orientationchange',()=>{portraitDismissed=false;orient()});
+orient();
 
 let app,world,uiG,started=false,paused=false,selected=null,camera={x:0,y:0,z:.62,drag:false,lx:0,ly:0},units=[],effects=[],mines=[],obstacles=[];
 const terrain=[{t:'road',x:0,y:690,w:2600,h:130},{t:'forest',x:220,y:160,w:520,h:420},{t:'rocks',x:1580,y:260,w:420,h:330},{t:'urban',x:1180,y:980,w:520,h:340},{t:'open',x:0,y:0,w:W,h:H}];
@@ -125,12 +268,20 @@ function initUnits(){units=[]; for(let i=0;i<4;i++){units.push(makeSquad(i+1,'al
 ['humvee','apc','ifv','mbt','truck','ambulance','support'].forEach((t,i)=>units.push(makeVeh('A'+i,t,'ally',300+i*90,950+(i%2)*90)));
 ['humvee','apc','ifv','mbt','truck','ambulance'].forEach((t,i)=>units.push(makeVeh('E'+i,t,'enemy',2100-i*90,950+(i%2)*90)));}
 
-function startGame(){if(started)return; started=true; $('hud').style.display='block'; show('none'); $('mainMenu').style.display='none';
+function startGame(){
+ if(!window.PIXI){toast('PixiJS ne charge pas. Vérifie ta connexion internet.');return}
+ if(started){paused=false;$('hud').style.display='block';show('none');orient();return}
+ started=true; paused=false; portraitDismissed=false;
+ $('hud').style.display='block'; show('none');
  app=new PIXI.Application({view:$('game'),resizeTo:window,backgroundAlpha:0,antialias:true});
- world=new PIXI.Container(); uiG=new PIXI.Graphics(); app.stage.addChild(world,uiG); initUnits(); setupInput(); app.ticker.add(tick);
+ world=new PIXI.Container(); uiG=new PIXI.Graphics(); app.stage.addChild(world,uiG); initUnits(); setupInput(); app.ticker.add(tick); orient();
 }
-$('newGameBtn').onclick=startGame; $('pauseBtn').onclick=()=>pause(true); $('resumeBtn').onclick=()=>pause(false); $('mainBackBtn').onclick=()=>{pause(false);location.reload()};
-function pause(v){paused=v;$('pauseMenu').style.display=v?'flex':'none'}
+$('newGameBtn').onclick=startGame;
+$('newGameBtnMain').onclick=startGame;
+$('pauseBtn').onclick=()=>pause(true);
+$('resumeBtn').onclick=()=>pause(false);
+$('mainBackBtn').onclick=()=>{pause(false);location.reload()};
+function pause(v){paused=v; if(v)show('pauseMenu'); else show('none'); orient()}
 
 function setupInput(){
  const c=app.view;
