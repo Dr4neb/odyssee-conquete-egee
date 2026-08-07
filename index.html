@@ -514,7 +514,6 @@ add("eA",3470,940,"enemy");
 add("eS",3170,930,"enemy");
 add("eC",3150,1510,"enemy");
 add("eM",3650,1570,"enemy");
-units.forEach(applyFormation);
 
 function terrainAt(x,y){
   for(const m of marshes) if(Math.hypot(x-m.x,y-m.y)<m.r) return "Marécage";
@@ -623,6 +622,8 @@ function attackArcMultiplier(attacker,target){
   if(diff>Math.PI*.72)return {mult:1.55,label:"dos"};
   return {mult:1.28,label:"flanc"};
 }
+
+units.forEach(applyFormation);
 
 function updateUI(){
   ui.food.textContent=Math.floor(resources.food);ui.wood.textContent=Math.floor(resources.wood);ui.gold.textContent=Math.floor(resources.gold);
