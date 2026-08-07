@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.4 — Setup, cartes et match 5 minutes</title>
+<title>OPERATION OVERWATCH v0.4.5 — Infantry uniformisé, distance et ambiance</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -535,13 +535,14 @@ const MAPS={
   }
 };
 const V={
-  humvee:{hp:120,af:8,as:5,ar:3,spd:150,rev:70,acc:220,turn:3.2,vis:360,range:260,dmg:10,accu:.55,rel:.6,ammo:300,fuel:100,cap:1},
-  apc:{hp:220,af:18,as:12,ar:8,spd:110,rev:50,acc:140,turn:2.4,vis:320,range:260,dmg:14,accu:.50,rel:.8,ammo:400,fuel:100,cap:2},
-  ifv:{hp:260,af:26,as:16,ar:10,spd:100,rev:45,acc:120,turn:2.1,vis:340,range:320,dmg:26,accu:.58,rel:1.4,ammo:120,fuel:100,cap:1},
-  mbt:{hp:420,af:60,as:35,ar:20,spd:75,rev:35,acc:80,turn:1.4,vis:330,range:420,dmg:90,accu:.62,rel:3.5,ammo:40,fuel:100,cap:0},
-  truck:{hp:100,af:2,as:1,ar:1,spd:120,rev:45,acc:120,turn:2.0,vis:260,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:3},
-  ambulance:{hp:110,af:3,as:2,ar:1,spd:115,rev:45,acc:120,turn:2.0,vis:280,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:1,heal:180},
-  support:{hp:130,af:4,as:2,ar:1,spd:105,rev:40,acc:110,turn:2.0,vis:260,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:1,repair:180}
+  // v0.4.5 : déplacements volontairement plus lents et plus tactiques.
+  humvee:{hp:120,af:8,as:5,ar:3,spd:112,rev:52,acc:160,turn:2.7,vis:360,range:260,dmg:12,accu:.55,rel:.75,ammo:300,fuel:100,cap:1},
+  apc:{hp:220,af:18,as:12,ar:8,spd:82,rev:38,acc:105,turn:2.0,vis:320,range:270,dmg:18,accu:.50,rel:1.05,ammo:400,fuel:100,cap:2},
+  ifv:{hp:260,af:26,as:16,ar:10,spd:76,rev:34,acc:95,turn:1.8,vis:340,range:330,dmg:34,accu:.58,rel:1.65,ammo:120,fuel:100,cap:1},
+  mbt:{hp:420,af:60,as:35,ar:20,spd:48,rev:22,acc:55,turn:1.05,vis:330,range:430,dmg:118,accu:.62,rel:3.7,ammo:40,fuel:100,cap:0},
+  truck:{hp:100,af:2,as:1,ar:1,spd:78,rev:30,acc:85,turn:1.65,vis:260,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:3},
+  ambulance:{hp:110,af:3,as:2,ar:1,spd:74,rev:30,acc:82,turn:1.65,vis:280,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:1,heal:180},
+  support:{hp:130,af:4,as:2,ar:1,spd:68,rev:28,acc:78,turn:1.55,vis:260,range:0,dmg:0,accu:0,rel:0,ammo:0,fuel:100,cap:1,repair:180}
 };
 
 const DEPLOYMENT_BUDGET=1800;
@@ -562,7 +563,7 @@ let deployment=Object.fromEntries(DEPLOYABLE.map(d=>[d.key,0]));
 const audio=createAudio();
 
 function createAudio(){
-  let ac=null, active=0; const cd=new Map(); const maxActive=18;
+  let ac=null, active=0, ambient=null; const cd=new Map(); const maxActive=18;
   function unlock(){
     const C=window.AudioContext||window.webkitAudioContext;
     if(!C)return false;
@@ -619,7 +620,32 @@ function createAudio(){
       case 'objective': osc(660,.1,'triangle',v*.35); setTimeout(()=>osc(920,.12,'triangle',v*.28),90); break;
     }
   }
-  return{unlock,play};
+  function startAmbient(){
+    if(!unlock()||ambient)return;
+    const g=ac.createGain(); ambient={gain:g,nodes:[]}; g.connect(ac.destination); setAmbientVolume();
+    const windLen=Math.max(1,Math.floor(ac.sampleRate*2.2));
+    const buf=ac.createBuffer(1,windLen,ac.sampleRate), data=buf.getChannelData(0);
+    for(let i=0;i<windLen;i++)data[i]=(Math.random()*2-1)*0.22;
+    const src=ac.createBufferSource(); src.buffer=buf; src.loop=true;
+    const low=ac.createBiquadFilter(); low.type='lowpass'; low.frequency.value=420;
+    src.connect(low); low.connect(g); src.start();
+    const hum=ac.createOscillator(); hum.type='sine'; hum.frequency.value=45;
+    const humGain=ac.createGain(); humGain.gain.value=.04;
+    hum.connect(humGain); humGain.connect(g); hum.start();
+    ambient.nodes.push(src,hum);
+  }
+  function setAmbientVolume(){
+    if(!ambient||!ambient.gain||!ac)return;
+    const v=settings.audio.muted?0:(settings.audio.masterVolume||1)*(settings.audio.musicVolume||.7)*0.16;
+    ambient.gain.gain.setTargetAtTime(v,ac.currentTime,.25);
+  }
+  function stopAmbient(){
+    if(!ambient)return;
+    for(const n of ambient.nodes){try{n.stop()}catch(e){}}
+    try{ambient.gain.disconnect()}catch(e){}
+    ambient=null;
+  }
+  return{unlock,play,startAmbient,stopAmbient,setAmbientVolume};
 }
 
 
@@ -725,10 +751,10 @@ function bindOptions(){
   $('showRange').checked=settings.gameplay.showAttackRanges;
 }
 function optionEvents(){
-  $('masterVol').oninput=e=>{settings.audio.masterVolume=+e.target.value;save()};
+  $('masterVol').oninput=e=>{settings.audio.masterVolume=+e.target.value;save();audio.setAmbientVolume?.()};
   $('sfxVol').oninput=e=>{settings.audio.sfxVolume=+e.target.value;save();audio.play('ui_click',{volume:.35,cooldownKey:'ui',cooldown:.06})};
-  $('musicVol').oninput=e=>{settings.audio.musicVolume=+e.target.value;save()};
-  $('muteAudio').onchange=e=>{settings.audio.muted=e.target.checked;save()};
+  $('musicVol').oninput=e=>{settings.audio.musicVolume=+e.target.value;save();audio.setAmbientVolume?.()};
+  $('muteAudio').onchange=e=>{settings.audio.muted=e.target.checked;save();audio.setAmbientVolume?.()};
   $('quality').onchange=e=>{settings.graphics.quality=e.target.value;save()};
   $('effects').onchange=e=>{settings.graphics.effects=e.target.value;save()};
   $('showFPS').onchange=e=>{settings.graphics.showFPS=e.target.checked;save()};
@@ -744,7 +770,7 @@ function orient(){const p=started&&!paused&&!portraitDismissed&&mobile()&&innerH
 function dismissPortrait(){portraitDismissed=true;$('portrait').style.display='none'}
 function pause(){if(!started)return;audio.play('ui_click',{volume:.35,cooldownKey:'ui',cooldown:.08});paused=true;show('pauseMenu');orient()}
 function resume(){audio.play('ui_click',{volume:.35,cooldownKey:'ui',cooldown:.08});paused=false;show(null);orient()}
-function toMenu(){audio.play('ui_click',{volume:.35,cooldownKey:'ui',cooldown:.08});paused=false;started=false;show('mainMenu');$('hud').style.display='none';$('portrait').style.display='none';selected=null}
+function toMenu(){audio.play('ui_click',{volume:.35,cooldownKey:'ui',cooldown:.08});audio.stopAmbient?.();paused=false;started=false;show('mainMenu');$('hud').style.display='none';$('portrait').style.display='none';selected=null}
 
 function play(ev){
   if(ev){ev.preventDefault?.();ev.stopPropagation?.();}
@@ -753,6 +779,7 @@ function play(ev){
   lastPlayTap=now;
   audio.unlock();
   audio.play('ui_click',{volume:.4,cooldownKey:'ui',cooldown:.08});
+  audio.startAmbient?.();
   show(null);
   $('hud').style.display='block';
   const map=MAPS[setup.map]||MAPS.route7;
@@ -869,9 +896,9 @@ function spawnReinforcement(){
 function squad(id,f,x,y,cmd=false,role=null){
   const isCmd=cmd||role==='command', av=role==='anti_vehicle'||(!isCmd&&id===4), rifle=role==='rifle'||(!isCmd&&!av);
   const label=isCmd?'Commandant':av?'Anti-véhicule':'Fusiliers';
-  return{kind:'squad',id:`${f[0].toUpperCase()}-SQ${id}`,name:label,type:isCmd?'command':av?'anti_vehicle':'infantry',faction:f,x,y,dx:x,dy:y,selected:false,hp:isCmd?135:av?105:110,max:isCmd?135:av?105:110,morale:100,supp:0,fatigue:0,vision:isCmd?370:av?300:320,range:isCmd?280:av?330:260,dmg:isCmd?9:av?24:8,acc:av?.48:.55,ammo:av?44:160,cd:0,speed:isCmd?78:av?78:85,state:'idle',formation:'wedge',cover:'none',terrain:'open',cmd:isCmd,hidden:f==='enemy',underFire:0,embarked:false,hold:false}
+  return{kind:'squad',id:`${f[0].toUpperCase()}-SQ${id}`,name:label,type:isCmd?'command':av?'anti_vehicle':'infantry',faction:f,x,y,dx:x,dy:y,selected:false,hp:isCmd?135:av?105:110,max:isCmd?135:av?105:110,morale:100,supp:0,fatigue:0,vision:isCmd?370:av?300:320,range:isCmd?280:av?330:260,dmg:isCmd?9:av?24:8,acc:av?.48:.55,ammo:av?44:160,cd:0,speed:isCmd?54:av?52:58,state:'idle',formation:'wedge',cover:'none',terrain:'open',cmd:isCmd,hidden:f==='enemy',underFire:0,embarked:false,hold:false,attackTargetId:null}
 }
-function vehicle(id,type,f,x,y){const c=V[type];return{kind:'vehicle',id,name:type.toUpperCase(),type,faction:f,x,y,dx:x,dy:y,rot:f==='ally'?0:Math.PI,vel:0,selected:false,hp:c.hp,max:c.hp,af:c.af,as:c.as,ar:c.ar,speed:c.spd,rev:c.rev,accel:c.acc,turn:c.turn,vision:c.vis,range:c.range,dmg:c.dmg,acc:c.accu,reload:c.rel,cd:0,ammo:c.ammo,fuel:c.fuel,cap:c.cap,pass:[],state:'idle',crit:'normal',terrain:'open',cover:'none',hidden:f==='enemy',stuckTimer:0,lastX:x,lastY:y,hold:false,heal:c.heal||0,repair:c.repair||0}}
+function vehicle(id,type,f,x,y){const c=V[type];return{kind:'vehicle',id,name:type.toUpperCase(),type,faction:f,x,y,dx:x,dy:y,rot:f==='ally'?0:Math.PI,vel:0,selected:false,hp:c.hp,max:c.hp,af:c.af,as:c.as,ar:c.ar,speed:c.spd,rev:c.rev,accel:c.acc,turn:c.turn,vision:c.vis,range:c.range,dmg:c.dmg,acc:c.accu,reload:c.rel,cd:0,ammo:c.ammo,fuel:c.fuel,cap:c.cap,pass:[],state:'idle',crit:'normal',terrain:'open',cover:'none',hidden:f==='enemy',stuckTimer:0,lastX:x,lastY:y,hold:false,heal:c.heal||0,repair:c.repair||0,attackTargetId:null}}
 
 function loop(now){
   if(!started)return;
@@ -895,10 +922,34 @@ function update(dt){
   for(const u of units){
     if(u.hp<=0)continue;
     u.terrain=terrainAt(u.x,u.y);u.cover=coverAt(u.x,u.y);u.cd=Math.max(0,(u.cd||0)-dt);u.underFire=Math.max(0,(u.underFire||0)-dt);u.recoil=Math.max(0,(u.recoil||0)-dt*3.2);
+    updateAttackIntent(u);
     if(u.kind==='squad')moveSquad(u,dt);else moveVeh(u,dt);
   }
   resolveCollisions(dt);
   vision();combat(dt);ai(dt);objectivesUpdate(dt);logistics(dt);updateEffects(dt);shake=Math.max(0,shake-dt*1.8);clampCam();fps(dt);updateStrategicHud();
+}
+
+function updateAttackIntent(u){
+  if(!u.attackTargetId||u.hp<=0||u.embarked||u.hold)return;
+  const t=units.find(x=>x.id===u.attackTargetId&&x.hp>0&&!x.embarked&&!x.hidden);
+  if(!t){u.attackTargetId=null;return}
+  const d=dist(u,t), preferred=engageDistance(u), min=preferred*.68;
+  const a=Math.atan2(u.y-t.y,u.x-t.x);
+  const px=clamp(t.x+Math.cos(a)*preferred,25,W-25), py=clamp(t.y+Math.sin(a)*preferred,25,H-25);
+  if(d>u.range*.92 || d<min || distXY(u.dx,u.dy,px,py)>34){
+    u.dx=px;u.dy=py;
+    if(u.kind==='vehicle')u.stuckTimer=0;
+  }
+  if(d<=u.range*.92 && d>=min){
+    u.dx=u.x;u.dy=u.y;
+    if(u.kind==='vehicle')u.vel*=.82;
+    u.state='engaging';
+  }
+}
+function engageDistance(u){
+  if(!u.range||u.range<=0)return 120;
+  const factor=u.kind==='vehicle'?(u.type==='mbt'?.86:u.type==='ifv'?.82:.78):.74;
+  return clamp(u.range*factor,u.kind==='vehicle'?170:135,Math.max(140,u.range-22));
 }
 
 function moveSquad(u,dt){
@@ -957,15 +1008,18 @@ function combat(dt){
   if(prepCountdown>0||gameOver)return;
   for(const u of units){
     if(u.hp<=0||u.hold||u.ammo<=0||u.state==='retreating'||u.embarked||u.range<=0)continue;
-    const target=visibleEnemies(u).filter(e=>dist(u,e)<=u.range).sort((a,b)=>dist(u,a)-dist(u,b))[0];
+    const candidates=visibleEnemies(u).filter(e=>dist(u,e)<=u.range);
+    const orderedTarget=u.attackTargetId?candidates.find(e=>e.id===u.attackTargetId):null;
+    const target=orderedTarget||candidates.sort((a,b)=>dist(u,a)-dist(u,b))[0];
     if(!target||u.cd>0)continue;
 
     const ang=Math.atan2(target.y-u.y,target.x-u.x);
     if(u.kind==='vehicle'){
-      // Véhicules v0.4.4 : le tir part de l’avant. Ils doivent d’abord aligner le châssis.
-      const diff=normAng(ang-u.rot), ad=Math.abs(diff), arc=u.type==='mbt'?.16:u.type==='ifv'?.22:.28;
+      // Véhicules v0.4.5 : tir strictement frontal, plus de tir latéral "au hasard".
+      const diff=normAng(ang-u.rot), ad=Math.abs(diff), arc=u.type==='mbt'?.08:u.type==='ifv'?.12:.16;
       if(ad>arc){
-        u.rot+=Math.sign(diff)*Math.min(ad,(u.turn||1.8)*dt*(u.type==='mbt'?.72:1));
+        u.rot+=Math.sign(diff)*Math.min(ad,(u.turn||1.8)*dt*(u.type==='mbt'?.62:.9));
+        u.vel*=.72;
         u.state='engaging';
         continue;
       }
@@ -977,7 +1031,7 @@ function combat(dt){
     const muzzleY=u.kind==='vehicle'?u.y+Math.sin(u.rot)*42:u.y+Math.sin(ang)*18;
     const shotAng=u.kind==='vehicle'?u.rot:ang;
     spawn('muzzle',muzzleX,muzzleY,{rot:shotAng,heavy:u.kind==='vehicle'&&u.type==='mbt'});
-    spawn('tracer',muzzleX,muzzleY,{tx:target.x+rand(-10,10),ty:target.y+rand(-10,10),heavy:u.kind==='vehicle'&&u.type==='mbt'});
+    spawn('tracer',muzzleX,muzzleY,{tx:target.x+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),ty:target.y+rand(u.kind==='vehicle'?-3:-10,u.kind==='vehicle'?3:10),heavy:u.kind==='vehicle'&&u.type==='mbt'});
     playWeaponSound(u);
 
     let acc=(u.acc||.55)*(u.supp>70?.35:u.supp>40?.65:1)*(u.fatigue>70?.75:1);
@@ -986,7 +1040,13 @@ function combat(dt){
       let dmg=u.dmg;
       if(target.kind==='vehicle'&&u.type==='anti_vehicle')dmg*=2.4;
       if(target.kind==='vehicle')dmg=armorDamage(target,u,dmg);
-      else dmg*=({none:1,light:.82,medium:.65,heavy:.48}[target.cover]||1);
+      else{
+        if(u.kind==='vehicle'){
+          dmg*=({mbt:1.95,ifv:1.55,apc:1.22,humvee:1.08}[u.type]||1);
+          if(['mbt','ifv'].includes(u.type))target.supp=clamp((target.supp||0)+18,0,100);
+        }
+        dmg*=({none:1,light:.82,medium:.65,heavy:.48}[target.cover]||1);
+      }
       target.hp-=Math.max(1,dmg);
       target.underFire=2;target.supp=clamp((target.supp||0)+14,0,100);target.morale=clamp((target.morale||100)-5,0,100);
       const hitType=target.kind==='vehicle'?'armor':'impact';
@@ -1040,10 +1100,11 @@ function ai(dt){
     }
     if(foes[0]){
       const f=foes[0],d=dist(u,f);
-      if(d>u.range*.82){
-        const side=(u.aiLane%2?1:-1), flank=90+u.aiLane*28;
-        u.dx=clamp(f.x-Math.cos(Math.atan2(f.y-u.y,f.x-u.x))*u.range*.62 + side*rand(40,flank),20,W-20);
-        u.dy=clamp(f.y-Math.sin(Math.atan2(f.y-u.y,f.x-u.x))*u.range*.62 + side*rand(-flank,flank),20,H-20);
+      u.attackTargetId=f.id;
+      if(d>u.range*.88 || d<engageDistance(u)*.62){
+        const side=(u.aiLane%2?1:-1), flank=90+u.aiLane*28, a=Math.atan2(u.y-f.y,u.x-f.x), keep=engageDistance(u);
+        u.dx=clamp(f.x+Math.cos(a)*keep + side*rand(25,flank),20,W-20);
+        u.dy=clamp(f.y+Math.sin(a)*keep + side*rand(-flank,flank),20,H-20);
       }
       continue
     }
@@ -1167,19 +1228,43 @@ function drawRockAsset(x,y,s=1){
 function drawBuilding(b){
   ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.rot||0);
   const damaged=b.state==='damaged'||b.type==='ruin';
-  ctx.fillStyle='rgba(0,0,0,.30)';ctx.beginPath();ctx.ellipse(8,10,b.w*.56,b.h*.48,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=damaged?'#575047':(b.type==='hangar'?'#536166':b.type==='outpost'?'#46524a':'#5a5e58');
-  round(-b.w/2,-b.h/2,b.w,b.h,8,true);
-  ctx.strokeStyle='rgba(235,240,230,.16)';ctx.lineWidth=2;round(-b.w/2,-b.h/2,b.w,b.h,8,false);
-  ctx.fillStyle=damaged?'#2d2924':'rgba(22,32,36,.72)';
-  ctx.fillRect(-b.w*.35,-b.h*.28,b.w*.22,b.h*.20);ctx.fillRect(b.w*.13,-b.h*.28,b.w*.22,b.h*.20);
-  ctx.fillStyle='rgba(12,18,20,.85)';ctx.fillRect(-18,b.h/2-13,36,13);
-  if(b.type==='hangar'){ctx.fillStyle='rgba(160,177,180,.18)';for(let i=-2;i<=2;i++)ctx.fillRect(i*27-5,-b.h/2+7,10,b.h-18)}
-  if(b.type==='outpost'){ctx.fillStyle='rgba(220,182,92,.85)';ctx.fillRect(-7,-b.h/2-19,14,30);ctx.fillStyle='rgba(235,245,240,.85)';ctx.beginPath();ctx.moveTo(7,-b.h/2-19);ctx.lineTo(33,-b.h/2-10);ctx.lineTo(7,-b.h/2-2);ctx.closePath();ctx.fill()}
+  const hangar=b.type==='hangar', outpost=b.type==='outpost';
+  // Ombre et footprint plus lisibles, style miniature RTS.
+  ctx.fillStyle='rgba(0,0,0,.32)';ctx.beginPath();ctx.ellipse(10,13,b.w*.58,b.h*.50,0,0,Math.PI*2);ctx.fill();
+
+  const wall=damaged?'#514a42':hangar?'#5b6970':outpost?'#4b5b51':'#666961';
+  const roof=damaged?'#35302a':hangar?'#435258':outpost?'#36453d':'#4b5049';
+  ctx.fillStyle=wall;round(-b.w/2,-b.h/2,b.w,b.h,9,true);
+  ctx.fillStyle=roof;round(-b.w/2+8,-b.h/2+8,b.w-16,b.h-18,7,true);
+
+  // Arêtes et panneaux façon asset low-poly.
+  ctx.strokeStyle='rgba(238,244,235,.18)';ctx.lineWidth=2;round(-b.w/2,-b.h/2,b.w,b.h,9,false);
+  ctx.strokeStyle='rgba(0,0,0,.20)';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(-b.w/2+12,-b.h/2+12);ctx.lineTo(b.w/2-14,b.h/2-18);ctx.moveTo(-b.w/2+18,b.h/2-18);ctx.lineTo(b.w/2-14,-b.h/2+12);ctx.stroke();
+
+  // Fenêtres / portes plus sobres.
+  ctx.fillStyle='rgba(15,23,25,.82)';
+  const winW=hangar?14:18, winH=hangar?b.h-28:14;
+  if(hangar){
+    for(let x=-b.w*.34;x<=b.w*.34;x+=28)round(x-7,-b.h/2+14,winW,winH,2,true);
+    ctx.fillStyle='rgba(200,214,210,.12)';round(-b.w*.43,b.h*.18,b.w*.86,14,4,true);
+  }else{
+    round(-b.w*.35,-b.h*.25,18,14,3,true);
+    round(b.w*.18,-b.h*.25,18,14,3,true);
+    round(-b.w*.35,b.h*.05,18,14,3,true);
+    round(b.w*.18,b.h*.05,18,14,3,true);
+    ctx.fillStyle='rgba(12,18,20,.92)';round(-18,b.h/2-17,36,17,3,true);
+  }
+
+  if(outpost){
+    ctx.fillStyle='rgba(220,182,92,.86)';round(-7,-b.h/2-22,14,32,3,true);
+    ctx.fillStyle='rgba(235,245,240,.90)';ctx.beginPath();ctx.moveTo(7,-b.h/2-22);ctx.lineTo(35,-b.h/2-12);ctx.lineTo(7,-b.h/2-3);ctx.closePath();ctx.fill();
+  }
   if(damaged){
-    ctx.fillStyle='rgba(28,22,18,.55)';
-    ctx.beginPath();ctx.moveTo(-b.w/2,-b.h/2+12);ctx.lineTo(-b.w/2+36,-b.h/2);ctx.lineTo(-b.w/2+70,-b.h/2+30);ctx.lineTo(-b.w/2+18,-b.h/2+34);ctx.closePath();ctx.fill();
-    ctx.strokeStyle='rgba(0,0,0,.32)';ctx.beginPath();ctx.moveTo(-b.w*.25,0);ctx.lineTo(-b.w*.05,20);ctx.moveTo(b.w*.18,-b.h*.2);ctx.lineTo(b.w*.32,-b.h*.03);ctx.stroke();
+    ctx.fillStyle='rgba(31,24,19,.72)';
+    ctx.beginPath();ctx.moveTo(-b.w/2+2,-b.h/2+14);ctx.lineTo(-b.w/2+38,-b.h/2+2);ctx.lineTo(-b.w/2+72,-b.h/2+31);ctx.lineTo(-b.w/2+20,-b.h/2+38);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.36)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-b.w*.25,0);ctx.lineTo(-b.w*.05,20);ctx.moveTo(b.w*.18,-b.h*.2);ctx.lineTo(b.w*.32,-b.h*.03);ctx.stroke();
+    ctx.fillStyle='rgba(255,120,62,.14)';ctx.beginPath();ctx.ellipse(7,9,b.w*.18,b.h*.10,0,0,Math.PI*2);ctx.fill();
   }
   ctx.restore();
 }
@@ -1249,10 +1334,17 @@ function drawUnit(u){
   drawUnitBars(u);
 }
 function drawSelection(u){
-  const r=u.kind==='vehicle'?50:36;
+  const w=u.kind==='vehicle'?86:78, h=u.kind==='vehicle'?56:50, l=16;
   ctx.save();ctx.translate(u.x,u.y);
-  ctx.strokeStyle='rgba(235,245,240,.88)';ctx.lineWidth=2.4;
-  for(let i=0;i<4;i++){ctx.rotate(Math.PI/2);ctx.beginPath();ctx.arc(0,0,r,-.42,.42);ctx.stroke()}
+  if(u.kind==='vehicle')ctx.rotate(u.rot||0);
+  ctx.strokeStyle='rgba(235,245,240,.90)';ctx.lineWidth=2.2;ctx.lineCap='round';
+  const x=-w/2,y=-h/2;
+  ctx.beginPath();
+  ctx.moveTo(x,y+l);ctx.lineTo(x,y);ctx.lineTo(x+l,y);
+  ctx.moveTo(x+w-l,y);ctx.lineTo(x+w,y);ctx.lineTo(x+w,y+l);
+  ctx.moveTo(x+w,y+h-l);ctx.lineTo(x+w,y+h);ctx.lineTo(x+w-l,y+h);
+  ctx.moveTo(x+l,y+h);ctx.lineTo(x,y+h);ctx.lineTo(x,y+h-l);
+  ctx.stroke();
   ctx.restore();
 }
 function drawUnitBars(u){
@@ -1270,48 +1362,52 @@ function drawDownedSquad(u,p){
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.face||0);
   ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(0,7,26,13,0,0,Math.PI*2);ctx.fill();
   ctx.globalAlpha=.58;
-  drawSoldierAsset(-9,0,0,p,'rifle',false,true);
-  drawSoldierAsset(10,4,.3,p,'rifle',false,true);
+  drawSoldierAsset(-9,0,0,p,'rifle',u.faction==='enemy',true,u.faction);
+  drawSoldierAsset(10,4,.3,p,'rifle',u.faction==='enemy',true,u.faction);
   ctx.restore();
 }
 
+function squadFormationPoints(u){
+  if(u.formation==='column')return [[0,-30],[0,-10],[0,10],[0,30]];
+  if(u.formation==='line')return [[-36,0],[-12,0],[12,0],[36,0]];
+  if(u.formation==='spread')return [[-28,-18],[28,-18],[-28,18],[28,18]];
+  return [[0,-26],[-24,6],[24,6],[0,28]];
+}
+function roleLabel(u){return u.type==='anti_vehicle'?'AT':u.cmd?'CMD':'RIF'}
+function drawRoleBadge(u){
+  const txt=roleLabel(u);
+  const col=u.faction==='enemy'?'rgba(238,92,75,.94)':'rgba(101,197,238,.94)';
+  ctx.save();
+  ctx.translate(0,-42);
+  ctx.fillStyle='rgba(4,9,11,.78)';round(-18,-9,36,18,5,true);
+  ctx.strokeStyle=col;ctx.lineWidth=1.6;round(-18,-9,36,18,5,false);
+  ctx.fillStyle='rgba(232,241,236,.95)';ctx.font='900 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,0,0);
+  ctx.restore();
+}
 function drawKenneySquad(u,p){
-  const base=imageOk(u.type==='anti_vehicle'?'infantry.machine':(u.cmd?'infantry.command':'infantry.rifle'))||imageOk('infantry.rifleAlt')||imageOk('infantry.rifle');
+  const base=imageOk('infantry.rifle')||imageOk('infantry.rifleAlt')||imageOk('infantry.machine')||imageOk('infantry.command');
   if(!base)return false;
   const suppressed=u.supp>70, lowMorale=u.morale<30;
-  ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.face||0);ctx.globalAlpha=suppressed?.88:1;
-  ctx.fillStyle='rgba(0,0,0,.32)';ctx.beginPath();ctx.ellipse(0,10,44,25,0,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle=u.selected?'rgba(235,245,240,.72)':(u.faction==='ally'?'rgba(100,195,235,.34)':'rgba(240,105,82,.34)');
-  ctx.lineWidth=u.selected?2:1.2;ctx.beginPath();ctx.ellipse(0,5,41,24,0,0,Math.PI*2);ctx.stroke();
+  ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.face||0);ctx.globalAlpha=suppressed?.82:1;
 
-  const pts=u.cmd?[[-12,-5],[12,7]]
-    : u.type==='anti_vehicle'?[[-24,-8],[0,2],[24,10]]
-    : u.formation==='column'?[[0,-28],[0,-10],[0,10],[0,28]]
-    : u.formation==='line'?[[-36,0],[-12,0],[12,0],[36,0]]
-    : u.formation==='spread'?[[-27,-18],[27,-18],[-27,18],[27,18]]
-    : [[0,-25],[-23,5],[23,5],[0,27]];
-
+  const pts=squadFormationPoints(u);
   for(const [i,pt] of pts.entries()){
-    const img=(u.type==='anti_vehicle'&&i===1&&imageOk('infantry.machine'))||base;
     const tint=u.faction==='enemy'?{color:'#d4543f',alpha:.34}:{color:'#5eb6e7',alpha:.16};
-    drawImageCentered(img,pt[0],pt[1],30,30,(i%2?-0.10:0.12),tint,1);
+    ctx.save();ctx.translate(pt[0],pt[1]);
+    ctx.fillStyle='rgba(0,0,0,.22)';
+    round(-9,12,18,4,2,true); // petite ombre plate, pas de rond permanent
+    ctx.restore();
+    drawImageCentered(base,pt[0],pt[1],31,31,(i%2?-0.10:0.12),tint,1);
   }
-  if(u.type==='anti_vehicle'){
-    const launcher=imageOk('infantry.weaponMachine');
-    if(launcher)drawImageCentered(launcher,8,-34,30,12,0,{color:'#d7d4bd',alpha:.18},1);
-    ctx.fillStyle='rgba(221,230,210,.95)';round(-10,-42,22,14,4,true);
-    ctx.fillStyle='#101512';ctx.font='900 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('AT',1,-35);
-  }
-  if(u.cmd){
-    ctx.fillStyle='rgba(255,232,150,.95)';ctx.beginPath();ctx.arc(0,-35,8,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#141916';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('★',0,-35);
-  }
+
+  drawRoleBadge(u);
   if(suppressed){
-    ctx.strokeStyle='rgba(255,210,93,.72)';ctx.lineWidth=2;ctx.setLineDash([5,6]);ctx.beginPath();ctx.arc(0,2,37,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,210,93,.92)';
+    round(-13,30,26,7,3,true);
   }
   if(lowMorale){
-    ctx.fillStyle='rgba(255,210,93,.92)';ctx.beginPath();ctx.moveTo(27,-33);ctx.lineTo(36,-18);ctx.lineTo(18,-18);ctx.closePath();ctx.fill();
-    ctx.fillStyle='#111';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText('!',27,-20);
+    ctx.fillStyle='rgba(255,210,93,.92)';ctx.beginPath();ctx.moveTo(27,-30);ctx.lineTo(36,-16);ctx.lineTo(18,-16);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#111';ctx.font='900 11px system-ui';ctx.textAlign='center';ctx.fillText('!',27,-18);
   }
   ctx.restore();return true;
 }
@@ -1321,60 +1417,29 @@ function drawSquadAsset(u,p){
   const suppressed=u.supp>70, lowMorale=u.morale<30;
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.face||0);ctx.globalAlpha=suppressed?.86:1;
 
-  // v0.4.2b infantry visual pass:
-  // squads are now drawn as a small group of top-down soldiers, not as dots.
-  ctx.fillStyle='rgba(0,0,0,.34)';
-  ctx.beginPath();ctx.ellipse(0,9,42,24,0,0,Math.PI*2);ctx.fill();
+  const pts=squadFormationPoints(u);
+  pts.forEach((pt,i)=>drawSoldierAsset(pt[0],pt[1],(i%2?-0.10:0.11),p,'rifle',u.faction==='enemy',false,u.faction));
 
-  const pts=u.cmd?[[-13,-7],[13,7]]
-    : u.type==='anti_vehicle'?[[-22,-10],[0,0],[22,12]]
-    : u.formation==='column'?[[0,-27],[0,-9],[0,9],[0,27]]
-    : u.formation==='line'?[[-34,0],[-12,0],[12,0],[34,0]]
-    : u.formation==='spread'?[[-26,-18],[26,-18],[-26,18],[26,18]]
-    : [[0,-24],[-22,5],[22,5],[0,25]];
-
-  // subtle squad base plate, shaped like a miniature base instead of a permanent colored circle
-  ctx.strokeStyle=u.selected?'rgba(235,245,240,.62)':(u.faction==='ally'?'rgba(90,190,235,.26)':'rgba(240,110,90,.25)');
-  ctx.lineWidth=u.selected?2:1.2;
-  ctx.beginPath();ctx.ellipse(0,4,40,24,0,0,Math.PI*2);ctx.stroke();
-
-  pts.forEach((pt,i)=>{
-    const role=u.cmd&&i===1?'radio':u.type==='anti_vehicle'&&i===1?'rocket':'rifle';
-    const wobble=(i%2?-0.10:0.11)+(u.type==='anti_vehicle'&&i===1?0.05:0);
-    drawSoldierAsset(pt[0],pt[1],wobble,p,role,u.faction==='enemy',false,u.faction);
-  });
-
-  if(u.cmd){
-    // small radio/leader marker, much smaller than old prototype labels
-    ctx.fillStyle='rgba(255,232,150,.95)';
-    ctx.beginPath();ctx.arc(0,-36,8,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#141916';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('★',0,-36);
-  }
-  if(u.type==='anti_vehicle'){
-    // small heavy weapon marker; soldiers remain the main visual element
-    ctx.fillStyle='rgba(220,230,210,.96)';
-    round(-11,-38,22,14,4,true);
-    ctx.fillStyle='#111713';ctx.font='900 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('AT',0,-31);
-  }
+  drawRoleBadge(u);
   if(suppressed){
-    ctx.strokeStyle='rgba(255,210,93,.72)';ctx.lineWidth=2;ctx.setLineDash([5,6]);ctx.beginPath();ctx.arc(0,1,37,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='rgba(255,210,93,.90)';ctx.font='900 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('▾',0,37);
+    ctx.fillStyle='rgba(255,210,93,.88)';
+    round(-13,30,26,7,3,true);
   }
   if(lowMorale){
-    ctx.fillStyle='rgba(255,210,93,.92)';ctx.beginPath();ctx.moveTo(26,-34);ctx.lineTo(35,-18);ctx.lineTo(17,-18);ctx.closePath();ctx.fill();
-    ctx.fillStyle='#111';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText('!',26,-20);
+    ctx.fillStyle='rgba(255,210,93,.92)';ctx.beginPath();ctx.moveTo(27,-30);ctx.lineTo(36,-16);ctx.lineTo(18,-16);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#111';ctx.font='900 11px system-ui';ctx.textAlign='center';ctx.fillText('!',27,-18);
   }
   ctx.restore();
 }
 function drawSoldierAsset(x,y,rot,p,role,enemy,downed,faction){
-  ctx.save();ctx.translate(x,y);ctx.rotate(rot||0);ctx.scale(1.28,1.28);
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot||0);ctx.scale(1.22,1.22);
   if(downed)ctx.rotate(Math.PI*.45);
 
-  // shadow
-  ctx.fillStyle='rgba(0,0,0,.34)';ctx.beginPath();ctx.ellipse(2,5,15,7,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.22)';
+  round(-10,12,20,4,2,true);
 
-  // outline pass for RTS readability
-  ctx.strokeStyle='rgba(4,8,9,.88)';ctx.lineWidth=4.8;ctx.lineCap='round';ctx.lineJoin='round';
+  // Tous les soldats d'une faction utilisent la même silhouette; seul le badge de l'escouade change.
+  ctx.strokeStyle='rgba(4,8,9,.88)';ctx.lineWidth=4.5;ctx.lineCap='round';ctx.lineJoin='round';
   ctx.beginPath();
   ctx.moveTo(-5,4);ctx.lineTo(-10,12);
   ctx.moveTo(5,4);ctx.lineTo(11,11);
@@ -1382,8 +1447,7 @@ function drawSoldierAsset(x,y,rot,p,role,enemy,downed,faction){
   ctx.moveTo(5,-2);ctx.lineTo(14,0);
   ctx.stroke();
 
-  // legs / arms
-  ctx.strokeStyle=p.dark;ctx.lineWidth=3.3;ctx.lineCap='round';
+  ctx.strokeStyle=p.dark;ctx.lineWidth=3.1;ctx.lineCap='round';
   ctx.beginPath();
   ctx.moveTo(-5,3);ctx.lineTo(-10,11);
   ctx.moveTo(5,3);ctx.lineTo(11,10);
@@ -1391,38 +1455,21 @@ function drawSoldierAsset(x,y,rot,p,role,enemy,downed,faction){
   ctx.moveTo(5,-2);ctx.lineTo(13,0);
   ctx.stroke();
 
-  // torso + vest, larger and more readable
   ctx.fillStyle=p.dark;round(-9,-10,19,21,6,true);
   ctx.fillStyle=p.base;round(-7,-9,16,19,5,true);
   ctx.fillStyle=p.mid;round(-4,-7,10,13,3,true);
   ctx.fillStyle='rgba(230,238,225,.22)';ctx.fillRect(-2,-7,2,13);
-
-  // backpack / gear block
   ctx.fillStyle='rgba(18,25,22,.72)';round(-10,-5,5,11,2,true);
 
-  // helmet/head on the weapon side
-  ctx.fillStyle='#11181a';ctx.beginPath();ctx.arc(8,-2,6.7,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=p.dark;ctx.beginPath();ctx.arc(8,-3,5.5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=p.accent;ctx.beginPath();ctx.arc(10,-5,2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#11181a';ctx.beginPath();ctx.arc(8,-2,6.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=p.dark;ctx.beginPath();ctx.arc(8,-3,5.3,0,Math.PI*2);ctx.fill();
 
-  // faction stripe, visible but not a giant circle
   ctx.fillStyle=faction==='ally'?'rgba(105,205,245,.95)':'rgba(255,103,82,.95)';
   round(-7,-11,15,3,2,true);
 
-  // weapon / specialist equipment
-  if(role==='rocket'){
-    ctx.strokeStyle='rgba(9,12,11,.96)';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(2,-10);ctx.lineTo(23,-14);ctx.stroke();
-    ctx.strokeStyle='#d1d5bc';ctx.lineWidth=3.6;ctx.beginPath();ctx.moveTo(3,-10);ctx.lineTo(22,-14);ctx.stroke();
-    ctx.fillStyle='#151a17';round(18,-18,9,7,2,true);
-  }else{
-    ctx.strokeStyle='rgba(8,10,11,.96)';ctx.lineWidth=4.2;ctx.beginPath();ctx.moveTo(7,1);ctx.lineTo(25,-1);ctx.stroke();
-    ctx.strokeStyle='#4d5554';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(9,0);ctx.lineTo(24,-2);ctx.stroke();
-  }
-
-  if(role==='radio'){
-    ctx.strokeStyle='rgba(235,245,240,.82)';ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(-9,-10);ctx.lineTo(-15,-24);ctx.stroke();
-    ctx.fillStyle='#dcb65c';round(-13,-7,6,9,2,true);
-  }
+  // Fusil identique pour toutes les variantes d'infanterie; le rôle est porté par le badge.
+  ctx.strokeStyle='rgba(8,10,11,.96)';ctx.lineWidth=4.2;ctx.beginPath();ctx.moveTo(7,1);ctx.lineTo(25,-1);ctx.stroke();
+  ctx.strokeStyle='#4d5554';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(9,0);ctx.lineTo(24,-2);ctx.stroke();
 
   if(enemy){
     ctx.fillStyle='rgba(255,82,69,.88)';round(-1,-13,6,4,1,true);
@@ -1659,10 +1706,22 @@ function setupInput(){
 function tap(sx,sy){
   const p=screenToWorld(sx,sy), u=pick(p.x,p.y);
   if(u&&u.faction==='ally'){select(u);return}
+  if(selected&&u&&u.faction!==selected.faction){attackOrder(u);return}
   if(selected){order(p.x,p.y);return}
 }
 function select(u){audio.play('ui_click',{x:u.x,y:u.y,volume:.25,cooldownKey:'select',cooldown:.08});units.forEach(x=>x.selected=false);selected=u;u.selected=true;minimized=false;detailOpen=false;updatePanel(true)}
-function order(x,y){if(!selected)return;if(prepCountdown>0){toast('Déploiement verrouillé · attends le départ');return}if(gameOver){toast('Partie terminée');return}selected.dx=clamp(x,20,W-20);selected.dy=clamp(y,20,H-20);if(selected.kind==='vehicle')selected.stuckTimer=0;selected.state='moving';spawn('order',selected.dx,selected.dy);audio.play('order',{x:selected.x,y:selected.y,volume:.45,cooldownKey:'order',cooldown:.12});toast('Ordre donné')}
+function order(x,y){if(!selected)return;if(prepCountdown>0){toast('Déploiement verrouillé · attends le départ');return}if(gameOver){toast('Partie terminée');return}selected.attackTargetId=null;selected.dx=clamp(x,20,W-20);selected.dy=clamp(y,20,H-20);if(selected.kind==='vehicle')selected.stuckTimer=0;selected.state='moving';spawn('order',selected.dx,selected.dy);audio.play('order',{x:selected.x,y:selected.y,volume:.45,cooldownKey:'order',cooldown:.12});toast('Ordre donné')}
+function attackOrder(target){
+  if(!selected||!target)return;
+  if(prepCountdown>0){toast('Déploiement verrouillé · attends le départ');return}
+  if(gameOver){toast('Partie terminée');return}
+  selected.attackTargetId=target.id;
+  updateAttackIntent(selected);
+  selected.state='engaging';
+  spawn('order',selected.dx||selected.x,selected.dy||selected.y);
+  audio.play('order',{x:selected.x,y:selected.y,volume:.48,cooldownKey:'attack_order',cooldown:.12});
+  toast('Ordre attaque : distance de sécurité maintenue');
+}
 function pick(x,y){let best=null,bd=99999;for(const u of units){if(u.hp<=0||u.hidden||u.embarked)continue;const r=u.kind==='vehicle'?42:32,d=distXY(x,y,u.x,u.y);if(d<r&&d<bd){best=u;bd=d}}return best}
 function screenToWorld(x,y){return{x:x/camera.z+camera.x,y:y/camera.z+camera.y}}
 function zoomAt(next,cx=innerWidth/2,cy=innerHeight/2){const before=screenToWorld(cx,cy);camera.z=clamp(next,.35,1.75);const after=screenToWorld(cx,cy);camera.x+=before.x-after.x;camera.y+=before.y-after.y;clampCam()}
