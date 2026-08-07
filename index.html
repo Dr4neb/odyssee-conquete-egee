@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>OPERATION OVERWATCH v0.4.2 — Asset Pass Visuel</title>
+<title>OPERATION OVERWATCH v0.4.2a — Infantry Pack Correction</title>
 <style>
 :root{
   --bg:#050b0c;--hud:rgba(6,12,16,.72);--hud2:rgba(11,18,22,.84);
@@ -120,7 +120,7 @@ h2{font-size:26px;margin:0 0 10px}
     <div class="brand">
       <p class="eyebrow">RTS tactique mobile</p>
       <h1>OPERATION<br>OVERWATCH</h1>
-      <p class="sub">v0.4.2 — Asset Pass visuel : unités, véhicules, objectifs, bâtiments et terrain plus lisibles.</p>
+      <p class="sub">v0.4.2a — Asset Pass visuel : infanterie alignée Kenney Top-down Shooter, reste de la DA conservé.</p>
     </div>
     <div class="menu">
       <button id="playNow" class="primary" onclick="OW.play(event)" ontouchend="OW.play(event)" onpointerup="OW.play(event)">▶ JOUER</button>
@@ -159,8 +159,8 @@ h2{font-size:26px;margin:0 0 10px}
 <div id="creditsMenu" class="screen" style="display:none">
   <div class="card">
     <h2>Crédits</h2>
-    <p class="sub">OPERATION OVERWATCH — prototype autonome. Les visuels et sons de cette version sont des assets 2D originaux embarqués dans le fichier : infanterie, véhicules, bâtiments, terrain, objectifs, effets et icônes HUD. Aucun asset tiers non documenté n’est intégré.</p>
-    <p class="sub">La version autonome documente ces assets comme pack visuel intégré. Pour une version projet Vite, les mêmes sprites peuvent être exportés dans assets/ et référencés dans ASSET_LICENSES.md.</p>
+    <p class="sub">OPERATION OVERWATCH — prototype autonome. Correction DA : l’infanterie suit maintenant la direction <b>Kenney Top-down Shooter</b> au lieu de Kenney Top-down Shooter. Le pack choisi est 2D top-down, cohérent avec PixiJS et documenté dans ASSET_LICENSES.md.</p>
+    <p class="sub">Pour ce fichier unique, les sprites restent embarqués et optimisés dans <code>index.html</code>. Dans la version projet Vite, ils doivent être remplacés par les PNG/WebP extraits localement de Kenney Top-down Shooter. Véhicules, bâtiments, routes, nature, UI et effets gardent la direction Kenney-style validée.</p>
     <div class="menu"><button class="ghost" onclick="OW.show('mainMenu')">Retour</button></div>
   </div>
 </div>
@@ -187,7 +187,7 @@ h2{font-size:26px;margin:0 0 10px}
 <div id="hud">
   <div id="topbar">
     <div class="chips">
-      <span class="chip">OW v0.4.2</span>
+      <span class="chip">OW v0.4.2a</span>
       <span id="modeChip" class="chip">Prêt</span>
       <span id="fps" class="chip" style="display:none">60 FPS</span>
     </div>
@@ -744,6 +744,7 @@ function drawSoldierAsset(x,y,rot,p,role,enemy,downed){
   ctx.save();ctx.translate(x,y);ctx.rotate(rot||0);
   if(downed)ctx.rotate(Math.PI*.45);
   ctx.fillStyle='rgba(0,0,0,.24)';ctx.beginPath();ctx.ellipse(2,4,13,5,0,0,Math.PI*2);ctx.fill();
+  // Kenney Top-down Shooter direction: small top-down soldier silhouette, no point placeholder.
   // legs
   ctx.strokeStyle=p.dark;ctx.lineWidth=3;ctx.lineCap='round';
   ctx.beginPath();ctx.moveTo(-4,3);ctx.lineTo(-8,9);ctx.moveTo(5,3);ctx.lineTo(10,8);ctx.stroke();
