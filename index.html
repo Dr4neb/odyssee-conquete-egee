@@ -22,7 +22,7 @@
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
     html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#060b10;color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
     body{touch-action:none;overscroll-behavior:none}
-    canvas{display:block;width:100vw;height:100dvh;background:#071017}
+    canvas{position:fixed;inset:0;z-index:0;display:block;width:100vw;height:100dvh;background:#071017}
     button,select,input{font:inherit}
     .screen{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;background:
       radial-gradient(circle at 20% 10%,rgba(43,95,136,.22),transparent 30%),
@@ -61,6 +61,7 @@
     .top-center{top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);text-align:center}
     .top-right{top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;gap:8px;align-items:center}
     .pill{border:1px solid rgba(162,198,212,.22);border-radius:999px;padding:8px 11px;background:var(--panel);color:#dfeef4;backdrop-filter:blur(8px);font-size:13px}
+    .mini-hud-btn{width:38px;height:38px;min-height:38px;padding:0;border-radius:12px;border:1px solid rgba(162,198,212,.22);background:rgba(8,18,28,.78);color:#e7f7ff;font-weight:900;font-size:20px;line-height:1;backdrop-filter:blur(8px)}
     .timer{font-weight:900;font-size:18px;letter-spacing:.08em;background:rgba(4,10,16,.74);border:1px solid rgba(227,178,91,.35);color:#ffe0a4;border-radius:999px;padding:8px 16px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
     .bottom-panel{left:calc(10px + env(safe-area-inset-left));bottom:calc(10px + env(safe-area-inset-bottom));width:min(390px,calc(100vw - 20px));background:rgba(4,9,14,.58);border:1px solid rgba(142,184,204,.20);border-radius:14px;backdrop-filter:blur(8px);box-shadow:0 8px 26px rgba(0,0,0,.28);overflow:hidden}
     .unit-compact{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px}
@@ -93,6 +94,26 @@
       .top-left .pill:nth-child(n+2){display:none}
       .bottom-panel{width:calc(100vw - 24px)}
     }
+
+    @media (max-width:760px){
+      .hud{font-size:12px}
+      .top-left{top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));gap:5px}
+      .top-right{top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));gap:5px}
+      .top-center{top:calc(56px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:11}
+      .top-right .btn{min-height:38px;padding:7px 9px;border-radius:12px;font-size:12px;max-width:132px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #btn-fs-game{width:38px;min-width:38px;padding:0;font-size:18px}
+      .timer{font-size:15px;padding:5px 10px;opacity:.92}
+      .pill{font-size:11px;padding:7px 8px}
+      .mini-hud-btn{width:36px;height:36px;min-height:36px;font-size:19px}
+      .countdown{top:30%;font-size:clamp(44px,18vw,90px);padding:16px 24px}
+      .bottom-panel{bottom:calc(10px + env(safe-area-inset-bottom));max-height:24dvh;background:rgba(4,9,14,.45)}
+    }
+    @media (orientation:portrait) and (max-width:900px){
+      .top-center{top:calc(58px + env(safe-area-inset-top))}
+      #btn-reinforce{max-width:158px}
+      .countdown{top:32%}
+    }
+
   </style>
   <script type="importmap">
   {
@@ -162,6 +183,8 @@
   <div id="hud" class="hud hidden">
     <div class="top-left">
       <div class="pill">OW 3D</div>
+      <button id="btn-zoom-out" class="mini-hud-btn" aria-label="Zoom arrière">−</button>
+      <button id="btn-zoom-in" class="mini-hud-btn" aria-label="Zoom avant">+</button>
       <div class="pill" id="fps">FPS --</div>
       <div class="pill" id="asset-state">3D</div>
     </div>
@@ -644,12 +667,16 @@ function createRenderer(){
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a1014);
   scene.fog = new THREE.FogExp2(0x0a1014, .00034);
-  renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance', alpha:false });
+  renderer.setClearColor(0x0a1014, 1);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+  const vw = window.visualViewport?.width || window.innerWidth;
+  const vh = window.visualViewport?.height || window.innerHeight;
+  renderer.setSize(vw, vh, false);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  document.body.appendChild(renderer.domElement);
+  renderer.domElement.style.position='fixed'; renderer.domElement.style.inset='0'; renderer.domElement.style.zIndex='0';
+  document.body.insertBefore(renderer.domElement, document.body.firstChild);
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
   camera = new THREE.OrthographicCamera(-window.innerWidth/2, window.innerWidth/2, window.innerHeight/2, -window.innerHeight/2, 1, 5000);
@@ -664,6 +691,8 @@ function createRenderer(){
   sun.shadow.mapSize.set(2048,2048);
   scene.add(sun);
   window.addEventListener('resize', onResize);
+  window.visualViewport?.addEventListener('resize', onResize);
+  window.visualViewport?.addEventListener('scroll', onResize);
   setupInput();
 }
 
@@ -679,7 +708,9 @@ function resetScene(){
 
 function updateCamera(){
   if(!camera) return;
-  const aspect = window.innerWidth / window.innerHeight;
+  const vw = window.visualViewport?.width || window.innerWidth;
+  const vh = window.visualViewport?.height || window.innerHeight;
+  const aspect = vw / Math.max(1, vh);
   const baseH = 980;
   camera.left = -baseH*aspect; camera.right = baseH*aspect; camera.top=baseH; camera.bottom=-baseH;
   camera.zoom = zoom;
@@ -691,7 +722,9 @@ function updateCamera(){
 
 function onResize(){
   if(!renderer) return;
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  const vw = window.visualViewport?.width || window.innerWidth;
+  const vh = window.visualViewport?.height || window.innerHeight;
+  renderer.setSize(vw, vh, false);
   updateCamera();
 }
 
@@ -1243,6 +1276,9 @@ function spawnInitialPlayer(cart){
   const entries = Object.entries(cart).flatMap(([type,count])=>Array(count).fill(type));
   const baseX=-1900, baseZ=780, cols=4, gapX=120, gapZ=110;
   entries.forEach((type,i)=>spawnEntity(type,'ally',baseX+(i%cols)*gapX,baseZ-Math.floor(i/cols)*gapZ,{yaw:Math.PI/2}));
+  cameraTarget.set(baseX + 190, 0, baseZ - 70);
+  zoom = isMobileViewport() ? .82 : .72;
+  updateCamera();
 }
 
 function spawnEnemyForces(){
@@ -1338,8 +1374,10 @@ function setupMenus(){
   $('btn-clear-reinforce').onclick=()=>{reinforceCart={}; refreshDeployUis();};
   $('btn-spawn-reinforce').onclick=spawnReinforcements;
   $('btn-pause').onclick=()=>{ if(gamePhase==='running'){gamePhase='paused';showNotice('Pause');} else if(gamePhase==='paused'){gamePhase='running';showNotice('Reprise');} };
-  $('btn-zoom-in').onclick=()=>setZoom(zoom*1.18);
-  $('btn-zoom-out').onclick=()=>setZoom(zoom*.84);
+  const zoomInBtn = $('btn-zoom-in');
+  const zoomOutBtn = $('btn-zoom-out');
+  if(zoomInBtn) zoomInBtn.onclick=()=>setZoom(zoom*1.18);
+  if(zoomOutBtn) zoomOutBtn.onclick=()=>setZoom(zoom*.84);
   $('btn-stop').onclick=()=>{ if(selected){selected.dest=null; selected.attackTarget=null; selected.speedNow=0;} };
   $('btn-retreat').onclick=()=>{ if(selected){selected.dest={x:selected.x-220,z:selected.z+160}; selected.attackTarget=null;} };
   $('btn-details').onclick=()=>$('unit-details').classList.toggle('hidden');
@@ -1350,6 +1388,10 @@ async function toggleFullscreen(){
     if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
     else await document.exitFullscreen();
   }catch(e){ showNotice('Plein écran bloqué par le navigateur.'); }
+}
+
+function isMobileViewport(){
+  return Math.min(window.innerWidth, window.innerHeight) < 760 || navigator.maxTouchPoints > 1;
 }
 
 function setZoom(value){
@@ -1415,8 +1457,10 @@ function setupInput(){
 }
 
 function screenRay(x,y){
-  pointer.x = (x/window.innerWidth)*2-1;
-  pointer.y = -(y/window.innerHeight)*2+1;
+  const vw = window.visualViewport?.width || window.innerWidth;
+  const vh = window.visualViewport?.height || window.innerHeight;
+  pointer.x = (x/vw)*2-1;
+  pointer.y = -(y/vh)*2+1;
   raycaster.setFromCamera(pointer,camera);
 }
 
