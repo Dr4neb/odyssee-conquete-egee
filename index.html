@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#10161c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Odyssée — Conquête de l'Égée v0.1.1</title>
+  <title>Odyssée — Conquête de l'Égée v0.1.2</title>
   <style>
     :root{
       --gold:#d7b568;
@@ -46,7 +46,7 @@
     #stats{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
     .stat{background:rgba(255,255,255,.065);border-radius:9px;padding:6px 3px;text-align:center;font-size:10px;color:var(--muted)}
     .stat b{display:block;color:white;font-size:12px}
-    #actions{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;align-content:center}
+    #actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;align-content:center}
     button{
       border:0;border-radius:10px;padding:10px 6px;background:#263543;color:white;font-weight:700;font-size:11px;
       box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)
@@ -88,7 +88,7 @@
     }
     @media(orientation:portrait){
       #bottom{grid-template-columns:1fr}
-      #actions{grid-template-columns:repeat(4,1fr)}
+      #actions{grid-template-columns:repeat(5,1fr)}
     }
   </style>
 </head>
@@ -98,7 +98,7 @@
 <div id="top">
   <div id="brand" class="panel">
     <b>ODYSSÉE — CONQUÊTE DE L'ÉGÉE</b>
-    <span>Fondation v0.1.1 — Carte grecque</span>
+    <span>Fondation v0.1.2 — Carte grecque</span>
   </div>
   <div id="res" class="panel">
     <span>🌾 <b id="food">150</b></span>
@@ -113,7 +113,9 @@
   Touchez une unité verte pour la sélectionner.<br>
   Touchez le terrain pour la déplacer.<br>
   Touchez une unité rouge pour l'attaquer.<br>
-  Glissez pour déplacer la caméra et pincez pour zoomer.
+  Glissez pour déplacer la caméra avec inertie.<br>
+  Pincez pour zoomer progressivement.<br>
+  Double-tapez pour recentrer rapidement.
 </div>
 
 <div id="toast"></div>
@@ -134,18 +136,18 @@
     <button id="formation">Phalange</button>
     <button id="hold">Tenir</button>
     <button id="rally">Ralliement</button>
-    <button id="helpBtn">Aide</button>
+    <button id="cameraBtn">Vue tactique</button><button id="helpBtn">Aide</button>
   </div>
 </div>
 
 <div id="start">
   <div id="card" class="panel">
     <h1>Conquête de l'Égée</h1>
-    <h2>Fondation — première vraie carte grecque</h2>
+    <h2>Fondation — caméra tactique fluide</h2>
     <p>
-      Explore une carte plus vaste avec côte, plages, falaises, forêts, collines,
-      routes antiques et rivière. Les unités commencent à réagir au terrain et la bataille
-      se déroule sur un espace beaucoup plus lisible.
+      La carte conserve ses côtes, forêts, collines, routes et rivière, avec désormais une caméra
+      beaucoup plus fluide : inertie, zoom progressif, recentrage tactique et déplacement plus naturel
+      sur mobile.
     </p>
     <button id="startBtn">Entrer sur le champ de bataille</button>
     <div id="version">Version 0.1.1</div>
@@ -165,14 +167,17 @@ const ui = {
   name:$("name"), role:$("role"), count:$("count"), hp:$("hp"),
   morale:$("morale"), fatigue:$("fatigue"), terrain:$("terrain"),
   formation:$("formation"), hold:$("hold"), rally:$("rally"),
-  helpBtn:$("helpBtn"), help:$("help"), toast:$("toast"),
+  cameraBtn:$("cameraBtn"), helpBtn:$("helpBtn"), help:$("help"), toast:$("toast"),
   start:$("start"), startBtn:$("startBtn"), objective:$("objective")
 };
 
 const WORLD={w:4200,h:2800};
-const camera={x:900,y:1500,zoom:.62,min:.34,max:1.55};
+const camera={
+  x:900,y:1500,zoom:.62,targetZoom:.62,min:.34,max:1.55,
+  vx:0,vy:0,dragging:false,rotation:0,targetRotation:0
+};
 const resources={food:150,wood:110,gold:85};
-let running=false,last=performance.now(),selected=null,drag=null,pinch=null,toastTimer=0,victory=null;
+let running=false,last=performance.now(),selected=null,drag=null,pinch=null,toastTimer=0,victory=null,lastTapTime=0;
 
 function resize(){
   const dpr=Math.min(2,devicePixelRatio||1);
@@ -184,12 +189,27 @@ function resize(){
 }
 addEventListener("resize",resize,{passive:true}); resize();
 
-function w2s(x,y){return{x:(x-camera.x)*camera.zoom+innerWidth/2,y:(y-camera.y)*camera.zoom+innerHeight/2}}
-function s2w(x,y){return{x:(x-innerWidth/2)/camera.zoom+camera.x,y:(y-innerHeight/2)/camera.zoom+camera.y}}
+function w2s(x,y){
+  const dx=x-camera.x,dy=y-camera.y;
+  const c=Math.cos(camera.rotation),s=Math.sin(camera.rotation);
+  return{
+    x:(dx*c-dy*s)*camera.zoom+innerWidth/2,
+    y:(dx*s+dy*c)*camera.zoom+innerHeight/2
+  };
+}
+function s2w(x,y){
+  const sx=(x-innerWidth/2)/camera.zoom,sy=(y-innerHeight/2)/camera.zoom;
+  const c=Math.cos(-camera.rotation),s=Math.sin(-camera.rotation);
+  return{
+    x:sx*c-sy*s+camera.x,
+    y:sx*s+sy*c+camera.y
+  };
+}
 function clampCam(){
   const hw=innerWidth/(2*camera.zoom),hh=innerHeight/(2*camera.zoom);
-  camera.x=Math.max(hw,Math.min(WORLD.w-hw,camera.x));
-  camera.y=Math.max(hh,Math.min(WORLD.h-hh,camera.y));
+  const pad=90;
+  camera.x=Math.max(hw-pad,Math.min(WORLD.w-hw+pad,camera.x));
+  camera.y=Math.max(hh-pad,Math.min(WORLD.h-hh+pad,camera.y));
 }
 function toast(msg){
   ui.toast.textContent=msg;ui.toast.classList.add("show");
@@ -322,11 +342,18 @@ function order(x,y){
 function pointerDown(e){
   if(!running)return;
   canvas.setPointerCapture?.(e.pointerId);
-  if(!drag)drag={pts:new Map(),moved:false,last:null};
+  camera.vx=0;camera.vy=0;camera.dragging=true;
+  if(!drag)drag={pts:new Map(),moved:false,last:null,lastMove:performance.now(),velX:0,velY:0};
   drag.pts.set(e.pointerId,{id:e.pointerId,x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now()});
   if(drag.pts.size===2){
     const a=[...drag.pts.values()];
-    pinch={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),z:camera.zoom};
+    pinch={
+      d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),
+      z:camera.targetZoom,
+      centerX:(a[0].x+a[1].x)/2,
+      centerY:(a[0].y+a[1].y)/2,
+      world:s2w((a[0].x+a[1].x)/2,(a[0].y+a[1].y)/2)
+    };
   }
 }
 function pointerMove(e){
@@ -334,29 +361,74 @@ function pointerMove(e){
   const p=drag.pts.get(e.pointerId);p.x=e.clientX;p.y=e.clientY;
   if(Math.hypot(p.x-p.sx,p.y-p.sy)>8)drag.moved=true;
   const a=[...drag.pts.values()];
+  const now=performance.now();
+  const dt=Math.max(8,now-drag.lastMove);
+
   if(a.length===1){
-    if(drag.last){camera.x-=(a[0].x-drag.last.x)/camera.zoom;camera.y-=(a[0].y-drag.last.y)/camera.zoom;clampCam()}
+    if(drag.last){
+      const dx=a[0].x-drag.last.x,dy=a[0].y-drag.last.y;
+      const c=Math.cos(-camera.rotation),s=Math.sin(-camera.rotation);
+      const wx=(dx*c-dy*s)/camera.zoom;
+      const wy=(dx*s+dy*c)/camera.zoom;
+      camera.x-=wx;camera.y-=wy;
+      drag.velX=(-wx)/(dt/1000);
+      drag.velY=(-wy)/(dt/1000);
+      clampCam();
+    }
     drag.last={x:a[0].x,y:a[0].y};
   }else if(a.length===2&&pinch){
     const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
-    camera.zoom=Math.max(camera.min,Math.min(camera.max,pinch.z*(d/pinch.d)));clampCam();drag.last=null;
+    const cx=(a[0].x+a[1].x)/2,cy=(a[0].y+a[1].y)/2;
+    camera.targetZoom=Math.max(camera.min,Math.min(camera.max,pinch.z*(d/pinch.d)));
+
+    const currentWorld=s2w(cx,cy);
+    camera.x+=pinch.world.x-currentWorld.x;
+    camera.y+=pinch.world.y-currentWorld.y;
+    clampCam();
+    drag.last=null;
   }
+  drag.lastMove=now;
 }
 function pointerUp(e){
   if(!drag||!drag.pts.has(e.pointerId))return;
   const p=drag.pts.get(e.pointerId);
-  const tap=!drag.moved&&performance.now()-p.t<450&&drag.pts.size===1;
+  const now=performance.now();
+  const tap=!drag.moved&&now-p.t<450&&drag.pts.size===1;
   drag.pts.delete(e.pointerId);
+
   if(tap){
     const w=s2w(e.clientX,e.clientY),own=findUnit(w.x,w.y,"player");
-    if(own){selected=own;toast(own.label+" sélectionnés");updateUI()}else order(w.x,w.y);
+    if(now-lastTapTime<320){
+      camera.x=w.x;camera.y=w.y;camera.targetZoom=Math.max(.72,camera.targetZoom);
+      camera.vx=0;camera.vy=0;toast("Caméra recentrée");
+    }else if(own){
+      selected=own;toast(own.label+" sélectionnés");updateUI();
+    }else order(w.x,w.y);
+    lastTapTime=now;
   }
-  if(drag.pts.size===0){drag=null;pinch=null}else drag.last=null;
+
+  if(drag.pts.size===0){
+    if(drag.moved){
+      camera.vx=drag.velX*.6;
+      camera.vy=drag.velY*.6;
+    }
+    camera.dragging=false;drag=null;pinch=null;
+  }else drag.last=null;
 }
 canvas.addEventListener("pointerdown",pointerDown);
 canvas.addEventListener("pointermove",pointerMove);
 canvas.addEventListener("pointerup",pointerUp);
 canvas.addEventListener("pointercancel",pointerUp);
+canvas.addEventListener("wheel",e=>{
+  if(!running)return;
+  e.preventDefault();
+  const before=s2w(e.clientX,e.clientY);
+  const factor=Math.exp(-e.deltaY*.0012);
+  camera.targetZoom=Math.max(camera.min,Math.min(camera.max,camera.targetZoom*factor));
+  const after=s2w(e.clientX,e.clientY);
+  camera.x+=before.x-after.x;camera.y+=before.y-after.y;
+},{passive:false});
+
 
 ui.formation.onclick=()=>{
   if(!selected)return;
@@ -370,8 +442,42 @@ ui.rally.onclick=()=>{
   if(!selected)return;if(selected.rallyCd>0){toast("Ralliement indisponible");return}
   selected.morale=Math.min(selected.maxMorale,selected.morale+25);selected.rallyCd=12;toast("Le chef rallie ses hommes");updateUI()
 };
+ui.cameraBtn.onclick=()=>{
+  if(selected&&selected.count>0){
+    camera.x=selected.x;camera.y=selected.y;
+    camera.targetZoom=.9;
+    toast("Caméra centrée sur l'unité");
+  }else{
+    camera.x=2100;camera.y=1390;
+    camera.targetZoom=.58;
+    toast("Vue tactique générale");
+  }
+};
 ui.helpBtn.onclick=()=>ui.help.classList.toggle("hidden");
 ui.startBtn.onclick=()=>{ui.start.style.display="none";running=true;last=performance.now();toast("La Fondation commence")};
+
+
+function updateCamera(dt){
+  camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*10);
+  camera.rotation+=(camera.targetRotation-camera.rotation)*Math.min(1,dt*8);
+
+  if(!camera.dragging){
+    camera.x+=camera.vx*dt;
+    camera.y+=camera.vy*dt;
+    const damping=Math.pow(.055,dt);
+    camera.vx*=damping;
+    camera.vy*=damping;
+    if(Math.abs(camera.vx)<1)camera.vx=0;
+    if(Math.abs(camera.vy)<1)camera.vy=0;
+  }
+
+  const hw=innerWidth/(2*camera.zoom),hh=innerHeight/(2*camera.zoom);
+  const minX=hw,maxX=WORLD.w-hw,minY=hh,maxY=WORLD.h-hh;
+  if(camera.x<minX){camera.x+=(minX-camera.x)*Math.min(1,dt*7);camera.vx*=.45}
+  if(camera.x>maxX){camera.x+=(maxX-camera.x)*Math.min(1,dt*7);camera.vx*=.45}
+  if(camera.y<minY){camera.y+=(minY-camera.y)*Math.min(1,dt*7);camera.vy*=.45}
+  if(camera.y>maxY){camera.y+=(maxY-camera.y)*Math.min(1,dt*7);camera.vy*=.45}
+}
 
 function enemyAI(){
   const ps=units.filter(u=>u.team==="player"&&u.count>0);
@@ -533,11 +639,12 @@ function drawMini(){
   ctx.fillStyle="rgba(5,10,14,.76)";ctx.fillRect(x,y,w,h);ctx.strokeStyle="rgba(255,255,255,.2)";ctx.strokeRect(x,y,w,h);
   for(const p of points){ctx.fillStyle=p.owner==="player"?"#5bd380":p.owner==="enemy"?"#dc6767":"#d7b568";ctx.beginPath();ctx.arc(x+p.x/WORLD.w*w,y+p.y/WORLD.h*h,4,0,Math.PI*2);ctx.fill()}
   for(const u of units){if(u.count<=0)continue;ctx.fillStyle=u.team==="player"?"#66d58b":"#df6767";ctx.fillRect(x+u.x/WORLD.w*w-2,y+u.y/WORLD.h*h-2,4,4)}
-  const vw=innerWidth/camera.zoom/WORLD.w*w,vh=innerHeight/camera.zoom/WORLD.h*h;ctx.strokeStyle="#fff";ctx.strokeRect(x+camera.x/WORLD.w*w-vw/2,y+camera.y/WORLD.h*h-vh/2,vw,vh);
+  const vw=innerWidth/camera.zoom/WORLD.w*w,vh=innerHeight/camera.zoom/WORLD.h*h;ctx.strokeStyle="#fff";ctx.lineWidth=1.4;ctx.strokeRect(x+camera.x/WORLD.w*w-vw/2,y+camera.y/WORLD.h*h-vh/2,vw,vh);
 }
 
 function frame(now){
   const dt=Math.min(.033,(now-last)/1000);last=now;
+  updateCamera(dt);
   if(running&&!victory){enemyAI();units.forEach(u=>updateUnit(u,dt));capture(dt);updateEconomy(dt);checkWin();updateUI()}
   drawTerrain();villages.forEach(drawVillage);points.forEach(drawPoint);units.slice().sort((a,b)=>a.y-b.y).forEach(drawUnit);drawMini();
   if(victory){
